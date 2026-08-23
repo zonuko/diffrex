@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "name": "Diffrex-app",
+  "dependencies": {
+    "codemirror": "^6.0.0",
+    "preact": "^10.0.0"
+  },
+  "settings": {
+    "tabSize": 2,
+    "theme": "dark",
+    "fontSize": 16
+  },
+  "private": true
+}

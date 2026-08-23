@@ -1,0 +1,9 @@
+# deno compile の出力先
+dist/
+
+# Deno のローカルキャッシュ（`deno.json` の nodeModulesDir 等を使う場合）
+node_modules/
+.deno/
+
+# カバレッジ出力
+coverage/

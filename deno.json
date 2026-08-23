@@ -1,0 +1,92 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "lib": ["deno.window", "dom", "dom.iterable"]
+  },
+  "tasks": {
+    "dev": "deno run -A main.ts",
+    "dev:desktop": "deno desktop -A --hmr main.ts",
+    "demo:welcome": "deno run -A main.ts -w",
+    "demo:dir": "deno run -A main.ts tests/fixtures/dir_base tests/fixtures/dir_target -w",
+    "demo:sample": "deno run -A main.ts tests/fixtures/sample_base.ts tests/fixtures/sample_target.ts --prompt \"テスト\" -w",
+    "demo:ai": "deno run -A main.ts tests/fixtures/ai_refactor_base.ts tests/fixtures/ai_refactor_target.ts --prompt \"UserService を非同期化し、ロギングとキャッシュを追加して\" --agent \"Cursor\" --model \"claude-3-7-sonnet\" -w",
+    "demo:python": "deno run -A main.ts tests/fixtures/python_base.py tests/fixtures/python_target.py --prompt \"DatabaseManager にコネクションプールを追加して\" --model \"gpt-4o\" -w",
+    "demo:doc": "deno run -A main.ts tests/fixtures/doc_base.md tests/fixtures/doc_target.md --prompt \"認証仕様書を v2.0 にアップデートして\" -w",
+    "demo:large": "deno run -A main.ts tests/fixtures/large_base.ts tests/fixtures/large_target.ts -w",
+    "demo:desktop:welcome": "deno desktop -A --hmr main.ts",
+    "demo:desktop:dir": "deno desktop -A --hmr main.ts -- tests/fixtures/dir_base tests/fixtures/dir_target",
+    "demo:desktop:sample": "deno desktop -A --hmr main.ts -- tests/fixtures/sample_base.ts tests/fixtures/sample_target.ts --prompt \"テスト\"",
+    "demo:desktop:ai": "deno desktop -A --hmr main.ts -- tests/fixtures/ai_refactor_base.ts tests/fixtures/ai_refactor_target.ts --prompt \"UserService を非同期化し、ロギングとキャッシュを追加して\" --agent \"Cursor\" --model \"claude-3-7-sonnet\"",
+    "demo:desktop:python": "deno desktop -A --hmr main.ts -- tests/fixtures/python_base.py tests/fixtures/python_target.py --prompt \"DatabaseManager にコネクションプールを追加して\" --model \"gpt-4o\"",
+    "demo:desktop:doc": "deno desktop -A --hmr main.ts -- tests/fixtures/doc_base.md tests/fixtures/doc_target.md --prompt \"認証仕様書を v2.0 にアップデートして\"",
+    "demo:3way": "deno run -A main.ts tests/fixtures/3way/local.ts tests/fixtures/3way/base.ts tests/fixtures/3way/remote.ts -w",
+    "demo:conflict": "deno run -A main.ts tests/fixtures/3way/conflicted.ts -w",
+    "demo:desktop:3way": "deno desktop -A --hmr main.ts -- tests/fixtures/3way/local.ts tests/fixtures/3way/base.ts tests/fixtures/3way/remote.ts",
+    "demo:desktop:conflict": "deno desktop -A --hmr main.ts -- tests/fixtures/3way/conflicted.ts",
+    "demo:image": "deno run -A main.ts tests/fixtures/images/base.svg tests/fixtures/images/target.svg -w",
+    "demo:json": "deno run -A main.ts tests/fixtures/structured/base.json tests/fixtures/structured/target.json -w",
+    "demo:csv": "deno run -A main.ts tests/fixtures/structured/base.csv tests/fixtures/structured/target.csv -w",
+    "demo:move": "deno run -A main.ts tests/fixtures/semantic/move_base.ts tests/fixtures/semantic/move_target.ts --prompt \"main 関数を先頭に配置し helper を末尾に整理\" -w",
+    "demo:rename": "deno run -A main.ts tests/fixtures/semantic/rename_base.ts tests/fixtures/semantic/rename_target.ts --prompt \"変数 x, y を deltaX, deltaY にリネーム\" -w",
+    "demo:desktop:image": "deno desktop -A --hmr main.ts -- tests/fixtures/images/base.svg tests/fixtures/images/target.svg",
+    "demo:desktop:json": "deno desktop -A --hmr main.ts -- tests/fixtures/structured/base.json tests/fixtures/structured/target.json",
+    "demo:desktop:csv": "deno desktop -A --hmr main.ts -- tests/fixtures/structured/base.csv tests/fixtures/structured/target.csv",
+    "demo:desktop:move": "deno desktop -A --hmr main.ts -- tests/fixtures/semantic/move_base.ts tests/fixtures/semantic/move_target.ts --prompt \"main 関数を先頭に配置し helper を末尾に整理\"",
+    "demo:desktop:rename": "deno desktop -A --hmr main.ts -- tests/fixtures/semantic/rename_base.ts tests/fixtures/semantic/rename_target.ts --prompt \"変数 x, y を deltaX, deltaY にリネーム\"",
+    "build:ui": "deno run -A src/ui/build.ts",
+    "setup:wasms": "deno run -A scripts/setup_wasms.ts",
+    "clean:desktop": "deno run -A scripts/clean_desktop.ts",
+    "test": "deno test -A",
+    "check": "deno fmt --check && deno lint && deno check main.ts src/core/types.ts src/core/file_io.ts src/core/diff.ts src/core/conflict_parser.ts src/core/three_way.ts src/core/ignore.ts src/core/dir_diff.ts src/core/media/image_detector.ts src/core/structured/json_canonicalizer.ts src/core/structured/yaml_canonicalizer.ts src/core/structured/csv_parser.ts src/core/analysis/index.ts src/core/analysis/ast/index.ts src/core/session.ts src/desktop/ipc.ts src/desktop/dialog.ts src/desktop/window.ts src/ui/model/diff_session_model.ts src/ui/model/dir_diff_model.ts src/ui/model/three_way_session_model.ts src/ui/model/image_diff_model.ts src/ui/model/csv_diff_model.ts src/ui/controller/diff_controller.ts src/ui/controller/dir_controller.ts src/ui/controller/three_way_controller.ts src/ui/controller/image_controller.ts src/ui/controller/csv_controller.ts src/ui/main.tsx && deno test -A",
+    "compile": "deno desktop -A -o dist/diffrex main.ts"
+  },
+  "desktop": {
+    "app": {
+      "name": "diffrex",
+      "identifier": "io.gitlab.Diffrex"
+    }
+  },
+  "fmt": {
+    "exclude": [
+      ".junie/",
+      "docs/",
+      "tests/fixtures/",
+      "dist/",
+      "src/ui/bundle.js",
+      "**/EBWebView/**",
+      "EBWebView/**"
+    ]
+  },
+  "lint": {
+    "exclude": [
+      "tests/fixtures/",
+      "dist/",
+      "src/ui/bundle.js",
+      "**/EBWebView/**",
+      "EBWebView/**"
+    ]
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/cli": "jsr:@std/cli@1",
+    "@std/fs": "jsr:@std/fs@1",
+    "@std/path": "jsr:@std/path@1",
+    "@std/yaml": "jsr:@std/yaml@1",
+    "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
+    "esbuild": "npm:esbuild@^0.25.0",
+    "preact": "npm:preact@10",
+    "preact/hooks": "npm:preact@10/hooks",
+    "@codemirror/commands": "npm:@codemirror/commands@^6.8.0",
+    "@codemirror/lang-javascript": "npm:@codemirror/lang-javascript@^6.2.3",
+    "@codemirror/lang-json": "npm:@codemirror/lang-json@^6.0.1",
+    "@codemirror/lang-markdown": "npm:@codemirror/lang-markdown@^6.3.2",
+    "@codemirror/lang-python": "npm:@codemirror/lang-python@^6.1.7",
+    "@codemirror/language": "npm:@codemirror/language@^6.10.8",
+    "@codemirror/merge": "npm:@codemirror/merge@^6.10.0",
+    "@codemirror/state": "npm:@codemirror/state@^6.5.2",
+    "@codemirror/theme-one-dark": "npm:@codemirror/theme-one-dark@^6.1.2",
+    "@codemirror/view": "npm:@codemirror/view@^6.36.4",
+    "web-tree-sitter": "npm:web-tree-sitter@^0.24.0"
+  }
+}
