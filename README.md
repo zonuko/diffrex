@@ -22,8 +22,8 @@ The name **Diffrex** is a blend of two words:
 - **Diff**: Difference and comparison between files or directories.
 - **Rex**: The **T-Rex** dinosaur mascot of Deno.
 
-It represents the ambition to be the "King of Deno-native Diff Tools" tailored
-for modern AI-assisted engineering workflows.
+It was named with the goal of being a **diff tool that runs natively on Deno and
+supports the code review experience in the AI ​​era**.
 
 ---
 
