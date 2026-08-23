@@ -1,238 +1,269 @@
 # Diffrex
 
-AI 生成コードのレビューを支援する Deno Desktop 製の差分・マージツールです。
-プロンプトやモデル情報を表示し、ノイズ差分を折りたたみ、危険な変更を警告します。
+**English** | [日本語 (Japanese)](docs/README-ja.md)
+
+> [!WARNING]
+> **Work in Progress (WIP)**: Diffrex is currently under active development.
+> Features, interfaces, and specifications are continually evolving.
+
+An AI-friendly diff and merge tool built with **Deno Desktop**. Designed to
+streamline AI-assisted code reviews by displaying prompts and model metadata,
+automatically folding noise diffs, and highlighting high-risk modifications.
 
 ---
 
-## 🌟 主な特徴
+## 🦖 Origin of the Name
 
-- **AI コンテキスト表示**: プロンプト、エージェント名、LLM
-  モデル名をヘッダに表示。
-- **ノイズ差分の自動折りたたみ**:
-  インデント・フォーマットやコメントのみの変更を自動判定して折りたたみ、本質的なロジック変更に集中できます（`Ctrl+N`
-  で展開/折りたたみ）。
-- **リスク変更の警告**:
-  大規模な行削除、関数シグネチャ・型定義の変更、エラーハンドリングの削除などを自動検知して警告バッジを表示します。
-- **効率的なレビューアクション**: 各差分（Hunk）に対して
-  `A`（承認）、`R`（拒否）、`E`（編集）のワンキー操作で迅速にトリアージ。
-- **安全な原子的保存**: 同一ディレクトリの一時ファイルと `Deno.rename`
-  を用いた原子的書き込みにより、保存処理のクラッシュ時にも元ファイルを保護。改行コード（LF
-  / CRLF）や BOM を保持します。
-- **原初 GUI MVC アーキテクチャ**: 外部 UI
-  フレームワークに依存せず、Smalltalk-80 スタイルの原初 GUI MVC パターンと
-  CodeMirror 6（`@codemirror/merge`）で構築。
+The name **Diffrex** is a blend of two words:
+
+- **Diff**: Difference and comparison between files or directories.
+- **Rex**: The **T-Rex** dinosaur mascot of Deno.
+
+It represents the ambition to be the "King of Deno-native Diff Tools" tailored
+for modern AI-assisted engineering workflows.
 
 ---
 
-## 📋 必須要件
+## 🌟 Key Features
 
-- **Deno v2.9.0** 以降
+- 🤖 **AI Context Display**: Shows the prompt, agent name (e.g. Claude Code,
+  Cursor, Aider), and LLM model (e.g. `claude-3-7-sonnet`, `gpt-4o`) right in
+  the header toolbar.
+- 🧹 **Automatic Noise Diff Folding**: Automatically detects and collapses
+  whitespace, indentation, and comment-only changes, keeping your focus on
+  essential logic changes (`Ctrl+N` to toggle all).
+- ⚠️ **High-Risk Change Warnings**: Identifies potentially dangerous edits—such
+  as massive deletions, altered function signatures / type definitions, and
+  removed error handling—with visual warning badges.
+- ⚡ **Fast Review Triage**: Quick one-key hunk actions: `A` (Accept), `R`
+  (Reject), and `E` (Edit).
+- 📁 **Directory & Folder Comparison**: Recursively compares entire directories
+  with an interactive tree view, status indicators (Added, Deleted, Modified),
+  and instant file switching.
+- 🔀 **3-Way Merge & Conflict Resolution**: Handles 3-way file comparisons and
+  parses Git conflict markers directly for interactive merging.
+- 🖼️ **Rich Media & Structured Data Diff**: Supports side-by-side / swipe
+  comparisons for images (PNG, JPEG, SVG) and key-sorted canonical comparisons
+  for JSON, YAML, and CSV.
+- 🌲 **AST Semantic Diff**: Powered by Tree-sitter to detect moved code blocks
+  (`Move`) and renamed identifiers (`Rename`).
+- 🛡️ **Safe Atomic Saving**: Employs atomic file replacement via directory-local
+  temporary files and `Deno.rename`, preventing file corruption if interrupted
+  while preserving line endings (LF / CRLF) and UTF-8 BOM.
+- 🏛️ **Classical Smalltalk-80 GUI MVC**: Built cleanly with a zero-dependency
+  classical GUI MVC architecture and CodeMirror 6 (`@codemirror/merge`).
+
+---
+
+## 📋 Prerequisites
+
+- **Deno v2.9.0** or higher
 
 > [!NOTE]
-> Deno Desktop 機能は Deno v2.9 以降で `deno desktop` サブコマンドおよび
-> `Deno.BrowserWindow` API として提供されています。
+> Deno Desktop features are available in Deno v2.9+ via the `deno desktop`
+> subcommand and `Deno.BrowserWindow` API.
 
 ---
 
-## 🚀 使い方
+## 🚀 Usage
 
-### 1. ディレクトリ（フォルダ）比較
+### 1. Directory / Folder Comparison
 
-2つのフォルダを指定して、フォルダ全体の差分ツリーと個別ファイルの Diff
-を比較できます。
+Compare two directory trees and inspect individual file diffs:
 
 ```powershell
-Diffrex path/to/base_dir path/to/target_dir
+diffrex path/to/base_dir path/to/target_dir
 ```
 
-### 2. 2-Way ファイル比較
+### 2. 2-Way File Comparison
 
-元のファイル（base）と AI 生成/変更後ファイル（target）を指定して起動します。
+Compare an original base file with an AI-generated or modified target file:
 
 ```powershell
-Diffrex src/base.ts src/target.ts
+diffrex src/base.ts src/target.ts
 ```
 
-AI 生成時のコンテキスト情報を渡す場合:
+Passing AI generation context:
 
 ```powershell
-Diffrex src/base.ts src/target.ts `
-  --prompt "リファクタリングとエラーハンドリングの追加" `
+diffrex src/base.ts src/target.ts `
+  --prompt "Refactor UserService to async and add logging" `
   --agent "Claude Code" `
   --model "claude-3-7-sonnet"
 ```
 
-### 3. 引数なし起動（Welcome 画面）
+### 3. No-Argument Launch (Welcome Screen)
 
-引数を渡さずに起動すると、UI 上で比較対象のフォルダやファイルを指定できる
-Welcome 画面が表示されます。
+Launch without arguments to open the Welcome screen with an interactive file and
+folder picker:
 
 ```powershell
-Diffrex
+diffrex
 ```
 
-### 4. stdin からの読み込み（読み取り専用）
+### 4. Stdin Pipe (Read-Only Mode)
 
-パイプライン経由で `git diff` などの出力を直接渡せます。
+Stream unified diffs directly into Diffrex via pipe:
 
 ```powershell
-git diff | Diffrex -
+git diff | diffrex -
 ```
 
 ### 5. 3-Way Merge
 
 ```powershell
-Diffrex local.ts base.ts remote.ts -o merged.ts
+diffrex local.ts base.ts remote.ts -o merged.ts
 ```
 
-### 6. 主な CLI オプション
+### 6. CLI Options
 
-| オプション              | 説明                                                         |
-| :---------------------- | :----------------------------------------------------------- |
-| `--prompt <text>`       | AI 生成時のプロンプト文字列                                  |
-| `--agent <name>`        | 使用した AI エージェント名（例: Claude Code, Cursor, Aider） |
-| `--model <name>`        | 使用した LLM モデル名（例: claude-3-7-sonnet, gpt-4o）       |
-| `-w`, `--wait`          | デスクトップウィンドウが閉じるまで CLI プロセスを待機させる  |
-| `-o`, `--output <path>` | マージ結果の保存先パス（省略時は右側ターゲットファイル）     |
-| `--read-only`           | 編集および保存を無効化（閲覧専用モード）                     |
-| `--ignore-space`        | 起動時に空白の違いを無視する                                 |
-| `--ignore-comments`     | 起動時にコメントの違いを無視する                             |
-| `-h`, `--help`          | ヘルプメッセージを表示                                       |
-| `-v`, `--version`       | バージョン情報を表示                                         |
-
----
-
-## ⌨️ キーバインド
-
-| 操作               | キー             | 説明                                               |
-| :----------------- | :--------------- | :------------------------------------------------- |
-| **次へ移動**       | `Alt+Down` / `J` | 次の Hunk（差分ブロック）へ移動                    |
-| **前へ移動**       | `Alt+Up` / `K`   | 前の Hunk へ移動                                   |
-| **承認 (Accept)**  | `A`              | 現在の Hunk を承認し、次へ移動                     |
-| **拒否 (Reject)**  | `R`              | 右側の変更を破棄して元の内容に戻し、次へ移動       |
-| **編集 (Edit)**    | `E` / `Enter`    | 現在の Hunk にカーソルを合わせエディタをフォーカス |
-| **左→右マージ**    | `Ctrl+R`         | 左側（Base）のコードを右側（Target）へコピー       |
-| **右→左マージ**    | `Ctrl+L`         | 右側（Target）のコードを左側（Base）へコピー       |
-| **ノイズ表示切替** | `Ctrl+N`         | ノイズ Hunk の一括折りたたみ / 展開                |
-| **保存**           | `Ctrl+S`         | 編集結果をファイルに保存                           |
-| **保存して終了**   | `Ctrl+Enter`     | 保存後、ウィンドウを閉じて終了コード 0 で完了      |
-
-※ `J`/`K`
-はナビゲーションモードでのみ動作し、エディタ入力中は通常の文字入力として機能します。
+| Option                  | Description                                                              |
+| :---------------------- | :----------------------------------------------------------------------- |
+| `--prompt <text>`       | The prompt string used for AI generation                                 |
+| `--agent <name>`        | Name of the AI agent / assistant (e.g. `Claude Code`, `Cursor`, `Aider`) |
+| `--model <name>`        | LLM model name (e.g. `claude-3-7-sonnet`, `gpt-4o`)                      |
+| `-w`, `--wait`          | Wait for the desktop window to close before exiting the CLI process      |
+| `-o`, `--output <path>` | Save path for merge output (defaults to the right-hand target file)      |
+| `--read-only`           | Open in read-only viewing mode (disables editing and saving)             |
+| `--ignore-space`        | Ignore whitespace differences on startup                                 |
+| `--ignore-comments`     | Ignore comment differences on startup                                    |
+| `-h`, `--help`          | Display CLI help message                                                 |
+| `-v`, `--version`       | Show version information                                                 |
 
 ---
 
-## 🔧 Git 連携設定 (`.gitconfig`)
+## ⌨️ Keybindings
 
-### 1. 開発環境での直接利用（インストール不要）
+| Action                 | Keybinding       | Description                                                      |
+| :--------------------- | :--------------- | :--------------------------------------------------------------- |
+| **Next Hunk**          | `Alt+Down` / `J` | Navigate to the next diff hunk                                   |
+| **Previous Hunk**      | `Alt+Up` / `K`   | Navigate to the previous diff hunk                               |
+| **Accept**             | `A`              | Accept the current hunk and jump to the next                     |
+| **Reject**             | `R`              | Revert the current hunk to the base version and jump to the next |
+| **Edit**               | `E` / `Enter`    | Focus the editor at the current hunk                             |
+| **Merge Left → Right** | `Ctrl+R`         | Copy code from base (left) to target (right)                     |
+| **Merge Right → Left** | `Ctrl+L`         | Copy code from target (right) to base (left)                     |
+| **Toggle Noise**       | `Ctrl+N`         | Toggle folding/unfolding for noise hunks                         |
+| **Save**               | `Ctrl+S`         | Save edited target file to disk                                  |
+| **Save & Close**       | `Ctrl+Enter`     | Save changes and close window with exit code 0                   |
 
-リポジトリディレクトリ内で直接 Git 差分を流し込んで確認する場合：
+> [!NOTE]
+> `J` and `K` shortcuts operate exclusively in navigation mode and will not
+> interfere with text input while editing.
+
+---
+
+## 🔧 Git Integration (`.gitconfig`)
+
+### 1. Direct Use in Development
+
+Pipe Git diffs directly into Diffrex without global installation:
 
 ```powershell
-# ワーキングツリーの差分を Diffrex (Web UI) で確認
+# Review working tree changes in Diffrex (Web UI)
 git diff | deno task dev -
 
-# デスクトップウィンドウ (Deno Desktop) で確認
+# Review in Desktop Window (Deno Desktop)
 git diff | deno task dev:desktop -- -
 
-# ステージング済みの差分を確認
+# Review staged changes
 git diff --cached | deno task dev -
 
-# 直前コミットとの差分を確認
+# Review diff against previous commit
 git diff HEAD~1 | deno task dev -
 ```
 
 ---
 
-### 2. `git difftool` / `git mergetool` として Git に登録
+### 2. Register as `git difftool` / `git mergetool`
 
-Git コマンド（`git difftool` や
-`git mergetool`）から直接呼び出せるように設定します。
+Configure Git to launch Diffrex directly from `git difftool` and
+`git mergetool`.
 
-#### A. スタンドアロンバイナリをビルドして PATH に通す場合
+#### A. Using the Compiled Standalone Binary
 
 ```powershell
-# バイナリをビルド (dist/Diffrex.exe が生成されます)
+# Compile the binary (generates dist/diffrex)
 deno task compile
 
-# Git の difftool に登録
-git config --global diff.tool Diffrex
-git config --global difftool.Diffrex.cmd 'Diffrex "$LOCAL" "$REMOTE" --wait'
+# Register as Git difftool
+git config --global diff.tool diffrex
+git config --global difftool.diffrex.cmd 'diffrex "$LOCAL" "$REMOTE" --wait'
 git config --global difftool.prompt false
 
-# Git の mergetool に登録
-git config --global merge.tool Diffrex
-git config --global mergetool.Diffrex.cmd 'Diffrex "$LOCAL" "$BASE" "$REMOTE" -o "$MERGED" --wait'
-git config --global mergetool.Diffrex.trustExitCode true
+# Register as Git mergetool
+git config --global merge.tool diffrex
+git config --global mergetool.diffrex.cmd 'diffrex "$LOCAL" "$BASE" "$REMOTE" -o "$MERGED" --wait'
+git config --global mergetool.diffrex.trustExitCode true
 ```
 
-#### B. 開発中の Deno スクリプトを直接呼び出す場合
+#### B. Using Deno Directly
 
 ```powershell
-# 現在のリポジトリの main.ts を指定して登録
-git config --global diff.tool Diffrex
-git config --global difftool.Diffrex.cmd 'deno run -A C:/Users/fuji3/develop/01.gitlab/deno-sandbox/Diffrex/main.ts "$LOCAL" "$REMOTE" --wait'
+git config --global diff.tool diffrex
+git config --global difftool.diffrex.cmd 'deno run -A /path/to/diffrex/main.ts "$LOCAL" "$REMOTE" --wait'
 git config --global difftool.prompt false
 ```
 
-#### 使い方
+#### Commands
 
 ```powershell
-# 1. 変更されたファイルを1ファイルずつ比較
+# 1. Compare modified files one by one
 git difftool
 
-# 2. 🌟 リポジトリ全体の変更をフォルダ比較（ツリービュー）で一括レビュー
+# 2. 🌟 Compare entire repository changes in Directory Tree mode
 git difftool -d
 
-# 3. 特定ブランチやコミット間の差分を一括比較
+# 3. Compare changes against another branch or commit
 git difftool -d main
 git difftool -d HEAD~1
 
-# 4. コンフリクト発生時の 3-Way マージ
+# 4. Resolve merge conflicts interactively
 git mergetool
 ```
 
 ---
 
-## 🔢 終了コード (Exit Codes)
+## 🔢 Exit Codes
 
-| コード | 意味                                                             |
-| :----- | :--------------------------------------------------------------- |
-| `0`    | 正常終了（保存完了、または閲覧モード終了）                       |
-| `1`    | 未保存のままウィンドウを閉じた / 破棄して終了                    |
-| `2`    | CLI 引数またはオプションの不正                                   |
-| `3`    | I/O エラー（ファイル読み込み・書き込み失敗、バイナリファイル等） |
-
----
-
-## ⚠️ 既知の制限事項 (Known Limitations)
-
-- **完全な 3-Way コンフリクト自動解消**: 3-Way
-  入力は可能ですが、自動マージ機能は今後のバージョン（v1.0+）で拡張予定です。
-- **バイナリ・画像比較**: テキストファイル専用です。NUL
-  バイトを含むバイナリファイルは安全のため読み込みを拒否します。
+| Code | Description                                                   |
+| :--- | :------------------------------------------------------------ |
+| `0`  | Success (changes saved or cleanly viewed in read-only mode)   |
+| `1`  | Cancelled / closed without saving                             |
+| `2`  | Invalid CLI arguments or options                              |
+| `3`  | I/O Error (file read/write failure, unsupported binary, etc.) |
 
 ---
 
-## 🛠️ お試し用デモコマンド
+## ⚠️ Known Limitations
+
+- **Automated 3-Way Conflict Solving**: Full 3-way conflict resolution view is
+  supported; advanced automatic 3-way AST merge heuristic is scheduled for
+  future milestones (v1.0+).
+- **Unsupported Binary Formats**: Dedicated text and image (PNG/JPEG/SVG)
+  diffing is supported. Unsupported binary files containing `NUL` bytes are
+  rejected safely.
+
+---
+
+## 🛠️ Demo & Development Commands
 
 ```powershell
-# 1. ディレクトリ比較デモ (Web / CLI)
+# 1. Directory comparison demo (Web / CLI)
 deno task demo:dir
 
-# 2. ディレクトリ比較デモ (Desktop ランタイム)
+# 2. Directory comparison demo (Desktop runtime)
 deno task demo:desktop:dir
 
-# 3. Welcome / ピッカー画面デモ (Web / CLI)
+# 3. Welcome / Picker screen demo (Web / CLI)
 deno task demo:welcome
 
-# 4. Welcome / ピッカー画面デモ (Desktop ランタイム)
+# 4. Welcome / Picker screen demo (Desktop runtime)
 deno task demo:desktop:welcome
 
-# 5. AI メタデータ付き単一ファイル比較デモ
+# 5. Single file comparison demo with AI metadata
 deno task demo:ai
 
-# 6. 静的検証 (フォーマット・リント・型チェック・テスト)
+# 6. Static check (formatting, linting, type check, tests)
 deno task check
 ```
