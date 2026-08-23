@@ -68,6 +68,54 @@ for modern AI-assisted engineering workflows.
 
 ---
 
+## 📦 Installation & Local Build
+
+> [!NOTE]
+> **No Pre-built Releases Yet**: Since GitHub Releases are not yet provided
+> during this early WIP phase, running Diffrex as an installed application
+> requires cloning the repository and building it locally (or running it
+> directly via Deno).
+
+### 1. Clone the Repository
+
+```powershell
+git clone https://github.com/zonuko/diffrex.git
+cd diffrex
+```
+
+### 2. Prepare Assets (UI Bundle & Tree-sitter WASM)
+
+```powershell
+deno task build:ui
+deno task setup:wasms
+```
+
+### 3. Compile Standalone Binary
+
+Compile Diffrex into a standalone binary:
+
+```powershell
+deno task compile
+```
+
+This outputs the executable to `dist/diffrex` (or `dist/diffrex.exe` on
+Windows). Add the `dist/` directory to your `PATH` or copy the binary to a
+directory already in your `PATH` to run `diffrex` from any terminal.
+
+### 4. Run Directly with Deno (No Compilation Needed)
+
+Alternatively, you can run Diffrex directly with Deno during development:
+
+```powershell
+# Web / Default UI
+deno task dev path/to/base path/to/target
+
+# Desktop Window (Deno Desktop)
+deno task dev:desktop -- path/to/base path/to/target
+```
+
+---
+
 ## 🚀 Usage
 
 ### 1. Directory / Folder Comparison

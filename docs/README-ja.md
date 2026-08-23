@@ -46,6 +46,49 @@ AI 生成コードのレビューを支援する Deno Desktop 製の差分・マ
 
 ---
 
+## 📦 ビルド & インストール手順
+
+> [!NOTE]
+> **事前ビルド済みバイナリ未配布に関する注記**: 現在の初期開発（WIP）期間中は GitHub Releases による事前ビルド済みバイナリの配布を行っていません。そのため、Diffrex を実行・導入するにはリポジトリをクローンして**手元でビルド**するか、**Deno から直接実行**する必要があります。
+
+### 1. リポジトリのクローン
+
+```powershell
+git clone https://github.com/zonuko/diffrex.git
+cd diffrex
+```
+
+### 2. アセットの準備（UI バンドル & Tree-sitter WASM）
+
+```powershell
+deno task build:ui
+deno task setup:wasms
+```
+
+### 3. スタンドアロンバイナリのビルド（コンパイル）
+
+Diffrex を単体実行バイナリとしてビルドします。
+
+```powershell
+deno task compile
+```
+
+実行すると `dist/diffrex`（Windows では `dist/diffrex.exe`）が生成されます。`dist/` ディレクトリを環境変数 `PATH` に追加するか、パスの通ったディレクトリへバイナリを配置してご利用ください。
+
+### 4. Deno から直接実行する場合（ビルド不要）
+
+バイナリのコンパイルを行わずに、Deno から直接実行することも可能です。
+
+```powershell
+# Web / CLI モード
+deno task dev path/to/base path/to/target
+
+# デスクトップウィンドウ (Deno Desktop)
+deno task dev:desktop -- path/to/base path/to/target
+```
+
+---
+
 ## 🚀 使い方
 
 ### 1. ディレクトリ（フォルダ）比較
