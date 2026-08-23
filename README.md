@@ -4,7 +4,10 @@
 
 > [!WARNING]
 > **Work in Progress (WIP)**: Diffrex is currently under active development.
-> Features, interfaces, and specifications are continually evolving.
+> Features, interfaces, and specifications are continually evolving. Please note
+> that GitHub **Issues** and **Pull Requests** are temporarily disabled during
+> this early WIP stage. They will be fully opened once the project exits the WIP
+> phase.
 
 An AI-friendly diff and merge tool built with **Deno Desktop**. Designed to
 streamline AI-assisted code reviews by displaying prompts and model metadata,
