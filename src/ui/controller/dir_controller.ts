@@ -51,6 +51,7 @@ export class DirectoryController {
       this._ws.onopen = () => {
         this._diffModel.setConnectionStatus("connected");
         this.sendMessage({ type: "ui:ready" });
+        this.requestHistory();
       };
 
       this._ws.onmessage = (event) => {
@@ -115,6 +116,10 @@ export class DirectoryController {
         }
         break;
       }
+      case "history:data": {
+        this._model.setHistoryData(msg.history, msg.lastSession);
+        break;
+      }
       case "save:result": {
         if (msg.relativePath) {
           if (msg.success) {
@@ -153,6 +158,54 @@ export class DirectoryController {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify(msg));
     }
+  }
+
+  requestHistory(): void {
+    this.sendMessage({ type: "history:get" });
+  }
+
+  clearHistory(): void {
+    this.sendMessage({ type: "history:clear" });
+  }
+
+  removeHistoryItem(id: string): void {
+    this.sendMessage({ type: "history:remove", id });
+  }
+
+  restoreLastSession(): void {
+    this.sendMessage({ type: "session:restore_last" });
+  }
+
+  startDropSession(paths: string[], readOnly?: boolean): void {
+    this.sendMessage({
+      type: "file:drop_session",
+      paths,
+      readOnly,
+    });
+  }
+
+  startDropContentSession(
+    leftName: string,
+    leftContent: string,
+    rightName: string,
+    rightContent: string,
+    readOnly?: boolean,
+  ): void {
+    this.sendMessage({
+      type: "file:drop_content_session",
+      leftName,
+      leftContent,
+      rightName,
+      rightContent,
+      readOnly,
+    });
+  }
+
+  saveSnapshot(snapshot: import("../../core/types.ts").SessionSnapshot): void {
+    this.sendMessage({
+      type: "session:save_snapshot",
+      snapshot,
+    });
   }
 
   selectFile(relativePath: string): void {

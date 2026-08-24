@@ -23,6 +23,11 @@ export interface ParsedCliArgs {
   ignoreComments: boolean;
   help: boolean;
   version: boolean;
+  installContextMenu?: boolean;
+  uninstallContextMenu?: boolean;
+  generateContextMenuScript?: boolean;
+  restore?: boolean;
+  clearHistory?: boolean;
 }
 
 export interface ParseResultSuccess {
@@ -56,12 +61,18 @@ export function parseCliArgs(args: string[]): ParseResult {
       "ignore-comments",
       "help",
       "version",
+      "install-context-menu",
+      "uninstall-context-menu",
+      "generate-context-menu-script",
+      "restore",
+      "clear-history",
     ],
     alias: {
       w: "wait",
       o: "output",
       h: "help",
       v: "version",
+      r: "restore",
     },
     unknown: (arg: string) => {
       if (arg.startsWith("-") && arg !== "-") {
@@ -117,6 +128,14 @@ export function parseCliArgs(args: string[]): ParseResult {
     }
   }
 
+  const installContextMenu = Boolean(parsed["install-context-menu"]);
+  const uninstallContextMenu = Boolean(parsed["uninstall-context-menu"]);
+  const generateContextMenuScript = Boolean(
+    parsed["generate-context-menu-script"],
+  );
+  const restore = Boolean(parsed.restore);
+  const clearHistory = Boolean(parsed["clear-history"]);
+
   return {
     ok: true,
     parsed: {
@@ -135,6 +154,11 @@ export function parseCliArgs(args: string[]): ParseResult {
       ignoreComments,
       help,
       version,
+      installContextMenu,
+      uninstallContextMenu,
+      generateContextMenuScript,
+      restore,
+      clearHistory,
     },
   };
 }

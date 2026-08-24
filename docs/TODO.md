@@ -360,9 +360,11 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 ### B-6. OS ネイティブ統合
 
-- [ ] **B6-01** OS コンテキストメニュー統合（Windows エクスプローラ / macOS Finder の「Diffrex で比較」）。
-- [ ] **B6-02** ファイル / フォルダのドラッグ＆ドロップ比較。
-- [ ] **B6-03** 比較履歴管理と自動セッション保存 / 復元。
+- [x] **B6-01** OS コンテキストメニュー統合（Windows エクスプローラ / macOS Finder の「Diffrex で比較」）。
+- [x] **B6-02** ファイル / フォルダのドラッグ＆ドロップ比較。
+- [x] **B6-03** 比較履歴管理と自動セッション保存 / 復元。
+
+**AC:** Windows エクスプローラー / macOS Finder / Linux 向けの右クリック統合（`Diffrex --install-context-menu` / `--uninstall-context-menu` / `--generate-context-menu-script`）が動作する。Welcome 画面およびメイン画面へのドラッグ＆ドロップで比較を開始できる。過去の比較履歴（最大50件）が管理され、Welcome 画面からのワンクリック再開および `Diffrex --restore` による直近セッションの自動復元ができる。
 
 ---
 

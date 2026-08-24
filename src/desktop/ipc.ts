@@ -5,6 +5,8 @@
 import type {
   DiffSessionData,
   DirectoryDiffSessionData,
+  HistoryEntry,
+  SessionSnapshot,
 } from "../core/types.ts";
 
 /** Backend → UI メッセージ */
@@ -27,6 +29,15 @@ export type BackendToUiMessage =
     type: "dialog:result";
     path: string | null;
     targetField: "base" | "target";
+  }
+  | {
+    type: "history:data";
+    history: HistoryEntry[];
+    lastSession: SessionSnapshot | null;
+  }
+  | {
+    type: "session:snapshot_saved";
+    success: boolean;
   };
 
 /** UI → Backend メッセージ */
@@ -52,6 +63,24 @@ export type UiToBackendMessage =
     rightPath: string;
     readOnly?: boolean;
   }
+  | {
+    type: "file:drop_session";
+    paths: string[];
+    readOnly?: boolean;
+  }
+  | {
+    type: "file:drop_content_session";
+    leftName: string;
+    leftContent: string;
+    rightName: string;
+    rightContent: string;
+    readOnly?: boolean;
+  }
+  | { type: "history:get" }
+  | { type: "history:clear" }
+  | { type: "history:remove"; id: string }
+  | { type: "session:save_snapshot"; snapshot: SessionSnapshot }
+  | { type: "session:restore_last" }
   | { type: "exit:request"; code?: number }
   | { type: "log"; level: "info" | "warn" | "error"; message: string };
 

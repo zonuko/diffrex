@@ -9,6 +9,8 @@ import type {
   DirectoryDiffSessionData,
   DirectoryTreeNode,
   FileDiffStatus,
+  HistoryEntry,
+  SessionSnapshot,
 } from "../../core/types.ts";
 import { Observable } from "./observable.ts";
 
@@ -22,6 +24,8 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
   private _isLoadingFile: boolean = false;
   private _fileError: string | null = null;
   private _dirtyFiles: Set<string> = new Set();
+  private _history: HistoryEntry[] = [];
+  private _lastSession: SessionSnapshot | null = null;
 
   constructor(initialSession: DirectoryDiffSessionData | null = null) {
     super();
@@ -72,7 +76,29 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     return this._dirtyFiles.size > 0;
   }
 
+  get history(): readonly HistoryEntry[] {
+    return this._history;
+  }
+
+  get lastSession(): SessionSnapshot | null {
+    return this._lastSession;
+  }
+
   // --- ドメインミューテーション ---
+
+  setHistoryData(
+    history: HistoryEntry[],
+    lastSession: SessionSnapshot | null,
+  ): void {
+    this._history = history;
+    this._lastSession = lastSession;
+    this.notify(this);
+  }
+
+  removeHistoryItem(id: string): void {
+    this._history = this._history.filter((item) => item.id !== id);
+    this.notify(this);
+  }
 
   setDirSession(session: DirectoryDiffSessionData): void {
     this._dirSession = session;

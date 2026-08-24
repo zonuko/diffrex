@@ -249,3 +249,35 @@ export interface DiffSessionData {
     ignoreComments: boolean;
   };
 }
+
+/** 比較履歴エントリー (B6-03) */
+export interface HistoryEntry {
+  id: string;
+  timestamp: string;
+  mode: DiffMode | "directory";
+  leftPath: string;
+  rightPath: string;
+  basePath?: string;
+  outputPath?: string;
+  prompt?: string;
+  agent?: string;
+  model?: string;
+  readOnly?: boolean;
+  totalHunks?: number;
+}
+
+/** 自動セッション保存スナップショット (B6-03) */
+export interface SessionSnapshot {
+  timestamp: string;
+  mode: DiffMode | "directory";
+  leftPath: string;
+  rightPath: string;
+  basePath?: string;
+  outputPath?: string;
+  readOnly?: boolean;
+  prompt?: string;
+  agent?: string;
+  model?: string;
+  hunkStatuses?: Record<string, HunkStatus>;
+  unsavedRightContent?: string;
+}

@@ -67,8 +67,15 @@ async function checkFilePath(path: string): Promise<ValidationError | null> {
 export async function validateCliArgs(
   parsed: ParsedCliArgs,
 ): Promise<ValidationResult> {
-  // --help または --version 指定時はバリデーションをスキップ
-  if (parsed.help || parsed.version) {
+  // --help または --version、各種単独実行フラグ指定時はバリデーションをスキップ
+  if (
+    parsed.help ||
+    parsed.version ||
+    parsed.installContextMenu ||
+    parsed.uninstallContextMenu ||
+    parsed.generateContextMenuScript ||
+    parsed.clearHistory
+  ) {
     return { ok: true };
   }
 

@@ -12,7 +12,21 @@ import {
   readStdinTarget,
 } from "./src/core/file_io.ts";
 import { buildSession, buildSessionAsync } from "./src/core/session.ts";
-import type { DirectoryDiffSessionData, FileTarget } from "./src/core/types.ts";
+import {
+  clearHistory,
+  loadSessionSnapshot,
+  recordHistoryEntry,
+} from "./src/core/history.ts";
+import {
+  generateContextMenuScript,
+  installContextMenu,
+  uninstallContextMenu,
+} from "./src/core/os/context_menu.ts";
+import type {
+  DiffSessionData,
+  DirectoryDiffSessionData,
+  FileTarget,
+} from "./src/core/types.ts";
 import {
   type AnySessionData,
   isDesktopRuntime,
@@ -51,6 +65,53 @@ export async function runMain(
       return 0;
     }
 
+    if (parsed.installContextMenu) {
+      const res = await installContextMenu();
+      if (res.ok) {
+        console.log(`Diffrex: ${res.message}`);
+        return 0;
+      } else {
+        console.error(`Diffrex: ${res.message}`);
+        return 1;
+      }
+    }
+
+    if (parsed.uninstallContextMenu) {
+      const res = await uninstallContextMenu();
+      console.log(`Diffrex: ${res.message}`);
+      return res.ok ? 0 : 1;
+    }
+
+    if (parsed.generateContextMenuScript) {
+      const res = generateContextMenuScript();
+      console.log(res.script || res.message);
+      return 0;
+    }
+
+    if (parsed.clearHistory) {
+      await clearHistory();
+      console.log("Diffrex: 比較履歴をクリアしました。");
+      return 0;
+    }
+
+    if (parsed.restore && parsed.positional.length === 0) {
+      const snapshot = await loadSessionSnapshot();
+      if (!snapshot) {
+        console.error("Diffrex: 復元可能なセッションが見つかりません。");
+        return 1;
+      }
+      parsed.left = snapshot.leftPath;
+      parsed.right = snapshot.rightPath;
+      parsed.base = snapshot.basePath;
+      parsed.output = snapshot.outputPath;
+      parsed.mode = snapshot.mode;
+      parsed.readOnly = snapshot.readOnly ?? parsed.readOnly;
+      parsed.prompt = snapshot.prompt ?? parsed.prompt;
+      parsed.agent = snapshot.agent ?? parsed.agent;
+      parsed.model = snapshot.model ?? parsed.model;
+      parsed.positional = [snapshot.leftPath, snapshot.rightPath];
+    }
+
     const validRes = await validateCliArgs(parsed);
     if (!validRes.ok) {
       console.error(`Diffrex: error: ${validRes.error}`);
@@ -78,6 +139,15 @@ export async function runMain(
           },
         );
         session = dirSession;
+        await recordHistoryEntry({
+          mode: "directory",
+          leftPath: parsed.left!,
+          rightPath: parsed.right!,
+          prompt: parsed.prompt,
+          agent: parsed.agent,
+          model: parsed.model,
+          readOnly: parsed.readOnly,
+        });
       } catch (err) {
         console.error(
           `Diffrex: error: ${err instanceof Error ? err.message : String(err)}`,
@@ -167,6 +237,17 @@ export async function runMain(
             base: baseTarget,
             threeWayInfo: singleConflictInfo,
           });
+          await recordHistoryEntry({
+            mode: "3way",
+            leftPath: parsed.left!,
+            rightPath: parsed.right!,
+            basePath: parsed.base,
+            outputPath: parsed.output,
+            prompt: parsed.prompt,
+            agent: parsed.agent,
+            model: parsed.model,
+            readOnly: parsed.readOnly,
+          });
         } else {
           // 2-Way
           const { isImageExtension } = await import(
@@ -211,6 +292,15 @@ export async function runMain(
                   : undefined,
               },
             });
+            await recordHistoryEntry({
+              mode: "image" as import("./src/core/types.ts").DiffMode,
+              leftPath: parsed.left!,
+              rightPath: parsed.right!,
+              prompt: parsed.prompt,
+              agent: parsed.agent,
+              model: parsed.model,
+              readOnly: parsed.readOnly,
+            });
           } else {
             const [leftRes, rightRes] = await Promise.all([
               readFileTarget(parsed.left!, { readOnly: parsed.readOnly }),
@@ -228,6 +318,18 @@ export async function runMain(
               right: rightTarget,
               base: baseTarget,
               threeWayInfo: singleConflictInfo,
+            });
+            await recordHistoryEntry({
+              mode: "2way",
+              leftPath: parsed.left!,
+              rightPath: parsed.right!,
+              prompt: parsed.prompt,
+              agent: parsed.agent,
+              model: parsed.model,
+              readOnly: parsed.readOnly,
+              totalHunks: "hunks" in session
+                ? (session as DiffSessionData).hunks.length
+                : 0,
             });
           }
         }

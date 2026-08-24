@@ -4,7 +4,7 @@
  * Single File Diff (2-Way), Directory Diff (2-pane), 3-Way Merge, Welcome 画面のディスパッチを行う。
  */
 
-import { useEffect, useMemo } from "preact/hooks";
+import { useEffect, useMemo, useState } from "preact/hooks";
 import { DiffSessionModel } from "./model/diff_session_model.ts";
 import { DiffController } from "./controller/diff_controller.ts";
 import { DirectoryDiffModel } from "./model/dir_diff_model.ts";
@@ -119,6 +119,8 @@ export function App(
   useModel(dirModel);
   useModel(threeWayModel);
 
+  const [isGlobalDragging, setIsGlobalDragging] = useState(false);
+
   // 通信接続ライフサイクル
   useEffect(() => {
     const cleanup = dirController.connectWebSocket();
@@ -140,9 +142,98 @@ export function App(
     return setupGlobalKeybindings(diffController);
   }, [diffController, threeWayController, diffModel.session?.mode]);
 
+  // 自動セッションスナップショット保存 (B6-03)
+  useEffect(() => {
+    if (diffModel.session) {
+      const s = diffModel.session;
+      const hunkStatuses: Record<
+        string,
+        import("../core/types.ts").HunkStatus
+      > = {};
+      for (const hunk of s.hunks) {
+        hunkStatuses[hunk.id] = hunk.status;
+      }
+      dirController.saveSnapshot({
+        timestamp: new Date().toISOString(),
+        mode: s.mode,
+        leftPath: s.files.left.path,
+        rightPath: s.files.right.path,
+        basePath: s.files.base?.path,
+        outputPath: s.outputPath,
+        readOnly: s.files.right.readOnly,
+        prompt: s.aiContext?.prompt,
+        agent: s.aiContext?.agent,
+        model: s.aiContext?.model,
+        hunkStatuses,
+      });
+    } else if (dirModel.dirSession) {
+      const ds = dirModel.dirSession;
+      dirController.saveSnapshot({
+        timestamp: new Date().toISOString(),
+        mode: "directory",
+        leftPath: ds.baseDir,
+        rightPath: ds.targetDir,
+        readOnly: ds.readOnly,
+        prompt: ds.aiContext?.prompt,
+        agent: ds.aiContext?.agent,
+        model: ds.aiContext?.model,
+      });
+    }
+  }, [
+    diffModel.session,
+    diffModel.isDirty,
+    dirModel.dirSession,
+    dirController,
+  ]);
+
+  // グローバルドラッグ＆ドロップ (B6-02)
+  useEffect(() => {
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      setIsGlobalDragging(true);
+    };
+
+    const handleDragLeave = (e: DragEvent) => {
+      if (e.relatedTarget === null) {
+        setIsGlobalDragging(false);
+      }
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsGlobalDragging(false);
+      const files = e.dataTransfer?.files;
+      if (!files || files.length < 2) return;
+
+      const paths: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i] as File & { path?: string };
+        if (file.path) {
+          paths.push(file.path);
+        }
+      }
+
+      if (paths.length >= 2) {
+        dirController.startDropSession(paths);
+      }
+    };
+
+    globalThis.addEventListener("dragover", handleDragOver);
+    globalThis.addEventListener("dragleave", handleDragLeave);
+    globalThis.addEventListener("drop", handleDrop);
+
+    return () => {
+      globalThis.removeEventListener("dragover", handleDragOver);
+      globalThis.removeEventListener("dragleave", handleDragLeave);
+      globalThis.removeEventListener("drop", handleDrop);
+    };
+  }, [dirController]);
+
+  let contentNode = <WelcomeView controller={dirController} />;
+
   // 1. 3-Way マージモードの場合
   if (diffModel.session?.mode === "3way" && threeWayModel.session) {
-    return (
+    contentNode = (
       <div class="app-container">
         <Header model={diffModel} controller={diffController} />
         <main class="app-main-diff">
@@ -154,11 +245,9 @@ export function App(
         <StatusBar model={diffModel} />
       </div>
     );
-  }
-
-  // 2. ディレクトリモードの場合
-  if (dirModel.dirSession) {
-    return (
+  } else if (dirModel.dirSession) {
+    // 2. ディレクトリモードの場合
+    contentNode = (
       <div class="app-container">
         <Header model={diffModel} controller={diffController} />
 
@@ -197,11 +286,9 @@ export function App(
         <StatusBar model={diffModel} />
       </div>
     );
-  }
-
-  // 3. 単一ファイル 2-Way Diff / Image Diff / CSV Diff モードの場合
-  if (diffModel.session) {
-    return (
+  } else if (diffModel.session) {
+    // 3. 単一ファイル 2-Way Diff / Image Diff / CSV Diff モードの場合
+    contentNode = (
       <div class="app-container">
         <Header model={diffModel} controller={diffController} />
 
@@ -218,6 +305,19 @@ export function App(
     );
   }
 
-  // 4. 引数なし起動 (Welcome 画面)
-  return <WelcomeView controller={dirController} />;
+  return (
+    <>
+      {contentNode}
+      {isGlobalDragging && (
+        <div class="global-drop-overlay">
+          <div class="global-drop-badge">
+            <span class="global-drop-icon">📂</span>
+            <span class="global-drop-text">
+              2つのファイル/フォルダをドロップして比較を開始
+            </span>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

@@ -1698,3 +1698,329 @@ footer.app-footer.all-reviewed {
   text-align: center;
   color: var(--text-secondary);
 }
+
+/* ====================================================================
+   B-6: OS Native Integration (Drag & Drop, History, Session Restore)
+   ==================================================================== */
+
+.welcome-layout {
+  display: flex;
+  gap: 24px;
+  max-width: 960px;
+  width: 90%;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+@media (max-width: 800px) {
+  .welcome-layout {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.welcome-card {
+  flex: 1;
+  min-width: 380px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.welcome-card.drag-highlight {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 24px rgba(56, 189, 248, 0.35) !important;
+}
+
+.welcome-form-group.drop-active {
+  background-color: rgba(56, 189, 248, 0.08);
+  border-radius: 8px;
+  padding: 6px;
+  outline: 2px dashed #38bdf8;
+}
+
+.welcome-drop-hint {
+  font-size: 0.7rem;
+  font-weight: normal;
+  color: #94a3b8;
+  margin-left: 6px;
+}
+
+.welcome-dropzone-notice {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+/* Session Restore Banner (B6-03) */
+.welcome-restore-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.4), rgba(15, 23, 42,
+    0.6));
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  gap: 12px;
+}
+
+.welcome-restore-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.welcome-restore-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #38bdf8;
+}
+
+.welcome-restore-desc {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+.welcome-restore-btn {
+  background-color: #0284c7;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.welcome-restore-btn:hover {
+  background-color: #0369a1;
+}
+
+/* Comparison History Side Card (B6-03) */
+.welcome-history-card {
+  width: 320px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 520px;
+}
+
+.welcome-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.welcome-history-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0;
+}
+
+.welcome-clear-history-btn {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.welcome-clear-history-btn:hover {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+.welcome-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.welcome-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  gap: 6px;
+}
+
+.welcome-history-item:hover {
+  background-color: rgba(30, 41, 59, 0.8);
+  border-color: #38bdf8;
+  transform: translateY(-1px);
+}
+
+.welcome-history-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.welcome-history-tag-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.welcome-mode-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  background-color: #334155;
+  color: #cbd5e1;
+}
+
+.welcome-mode-badge.directory {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.welcome-mode-badge.3way {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+}
+
+.welcome-mode-badge.image {
+  background-color: rgba(236, 72, 153, 0.2);
+  color: #f472b6;
+  border: 1px solid rgba(236, 72, 153, 0.4);
+}
+
+.welcome-history-time {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.welcome-history-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.75rem;
+  font-family: var(--font-mono);
+  color: #cbd5e1;
+}
+
+.welcome-history-path {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+
+.welcome-history-arrow {
+  font-size: 0.65rem;
+  color: #64748b;
+  line-height: 1;
+}
+
+.welcome-history-del-btn {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  line-height: 1;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+
+.welcome-history-item:hover .welcome-history-del-btn {
+  opacity: 1;
+}
+
+.welcome-history-del-btn:hover {
+  color: #f87171;
+  background-color: rgba(248, 113, 113, 0.15);
+}
+
+/* Global Drag & Drop Overlay (B6-02) */
+.global-drop-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.global-drop-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background-color: #1e293b;
+  border: 2px dashed #38bdf8;
+  border-radius: 16px;
+  padding: 32px 48px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+}
+
+.global-drop-icon {
+  font-size: 3rem;
+  animation: pulse 1.5s infinite;
+}
+
+.global-drop-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #f8fafc;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

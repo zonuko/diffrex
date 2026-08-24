@@ -29,6 +29,14 @@ OPTIONS:
   --read-only          Disable editing and write-back functionality
   --ignore-space       Force ignore whitespace differences on launch
   --ignore-comments    Force ignore comment differences on launch
+  -r, --restore        Restore and resume the last active diff session
+  --clear-history      Clear all saved diff comparison history
+  --install-context-menu
+                       Install OS context menu integration (Explorer/Finder)
+  --uninstall-context-menu
+                       Remove OS context menu integration
+  --generate-context-menu-script
+                       Output OS context menu setup script to stdout
   -h, --help           Show this help message
   -v, --version        Show version information
 

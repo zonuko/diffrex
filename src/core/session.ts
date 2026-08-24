@@ -17,7 +17,7 @@ import type {
 } from "./types.ts";
 
 export interface BuildSessionParams {
-  args: ParsedCliArgs;
+  args: Partial<ParsedCliArgs>;
   left: FileTarget;
   right: FileTarget;
   base?: FileTarget;
@@ -119,8 +119,8 @@ export async function buildSessionAsync(
     imageSession,
     csvDiff,
     options: {
-      ignoreSpace: args.ignoreSpace,
-      ignoreComments: args.ignoreComments,
+      ignoreSpace: Boolean(args.ignoreSpace),
+      ignoreComments: Boolean(args.ignoreComments),
     },
   };
 }
@@ -217,8 +217,8 @@ export function buildSession(params: BuildSessionParams): DiffSessionData {
     imageSession,
     csvDiff,
     options: {
-      ignoreSpace: args.ignoreSpace,
-      ignoreComments: args.ignoreComments,
+      ignoreSpace: Boolean(args.ignoreSpace),
+      ignoreComments: Boolean(args.ignoreComments),
     },
   };
 }

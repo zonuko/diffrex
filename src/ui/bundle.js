@@ -1215,6 +1215,8 @@ var DirectoryDiffModel = class extends Observable {
   _isLoadingFile = false;
   _fileError = null;
   _dirtyFiles = /* @__PURE__ */ new Set();
+  _history = [];
+  _lastSession = null;
   constructor(initialSession = null) {
     super();
     if (initialSession) {
@@ -1252,7 +1254,22 @@ var DirectoryDiffModel = class extends Observable {
   get hasDirtyFiles() {
     return this._dirtyFiles.size > 0;
   }
+  get history() {
+    return this._history;
+  }
+  get lastSession() {
+    return this._lastSession;
+  }
   // --- ドメインミューテーション ---
+  setHistoryData(history2, lastSession) {
+    this._history = history2;
+    this._lastSession = lastSession;
+    this.notify(this);
+  }
+  removeHistoryItem(id2) {
+    this._history = this._history.filter((item) => item.id !== id2);
+    this.notify(this);
+  }
   setDirSession(session) {
     this._dirSession = session;
     this._selectedPath = null;
@@ -1376,6 +1393,7 @@ var DirectoryController = class {
       this._ws.onopen = () => {
         this._diffModel.setConnectionStatus("connected");
         this.sendMessage({ type: "ui:ready" });
+        this.requestHistory();
       };
       this._ws.onmessage = (event) => {
         try {
@@ -1435,6 +1453,10 @@ var DirectoryController = class {
         }
         break;
       }
+      case "history:data": {
+        this._model.setHistoryData(msg.history, msg.lastSession);
+        break;
+      }
       case "save:result": {
         if (msg.relativePath) {
           if (msg.success) {
@@ -1472,6 +1494,41 @@ var DirectoryController = class {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify(msg));
     }
+  }
+  requestHistory() {
+    this.sendMessage({ type: "history:get" });
+  }
+  clearHistory() {
+    this.sendMessage({ type: "history:clear" });
+  }
+  removeHistoryItem(id2) {
+    this.sendMessage({ type: "history:remove", id: id2 });
+  }
+  restoreLastSession() {
+    this.sendMessage({ type: "session:restore_last" });
+  }
+  startDropSession(paths, readOnly2) {
+    this.sendMessage({
+      type: "file:drop_session",
+      paths,
+      readOnly: readOnly2
+    });
+  }
+  startDropContentSession(leftName, leftContent, rightName, rightContent, readOnly2) {
+    this.sendMessage({
+      type: "file:drop_content_session",
+      leftName,
+      leftContent,
+      rightName,
+      rightContent,
+      readOnly: readOnly2
+    });
+  }
+  saveSnapshot(snapshot) {
+    this.sendMessage({
+      type: "session:save_snapshot",
+      snapshot
+    });
   }
   selectFile(relativePath) {
     if (this._model.selectedPath === relativePath && this._model.activeFileSession) {
@@ -33793,6 +33850,9 @@ function WelcomeView({ controller }) {
   const [targetPath, setTargetPath] = d2("");
   const [readOnly2, setReadOnly] = d2(false);
   const [errorMsg, setErrorMsg] = d2("");
+  const [dragOverZone, setDragOverZone] = d2(null);
+  const history2 = controller.model.history;
+  const lastSession = controller.model.lastSession;
   const handleStart = () => {
     if (!basePath.trim() || !targetPath.trim()) {
       setErrorMsg("\u4E21\u65B9\u306E\u30D1\u30B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
@@ -33822,109 +33882,314 @@ function WelcomeView({ controller }) {
       }
     });
   };
-  return /* @__PURE__ */ u3("div", { class: "welcome-container", children: /* @__PURE__ */ u3("div", { class: "welcome-card", children: [
-    /* @__PURE__ */ u3("div", { class: "welcome-header", children: [
-      /* @__PURE__ */ u3("div", { class: "welcome-logo", children: "Diffrex" }),
-      /* @__PURE__ */ u3("p", { class: "welcome-subtitle", children: "AI-Friendly Diff & Merge Tool" })
-    ] }),
-    /* @__PURE__ */ u3("div", { class: "welcome-tabs", children: [
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: `welcome-tab ${tab2 === "dir" ? "active" : ""}`,
-          onClick: () => {
-            setTab("dir");
-            setErrorMsg("");
-          },
-          children: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03"
-        }
-      ),
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: `welcome-tab ${tab2 === "file" ? "active" : ""}`,
-          onClick: () => {
-            setTab("file");
-            setErrorMsg("");
-          },
-          children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
-        }
-      )
-    ] }),
-    /* @__PURE__ */ u3("div", { class: "welcome-form", children: [
-      /* @__PURE__ */ u3("div", { class: "welcome-form-group", children: [
-        /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" : "Base \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" }),
-        /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
-          /* @__PURE__ */ u3(
-            "input",
-            {
-              type: "text",
-              class: "welcome-input",
-              placeholder: tab2 === "dir" ? "C:/path/to/base_dir" : "C:/path/to/base.ts",
-              value: basePath,
-              onInput: (e3) => setBasePath(e3.target.value)
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "button",
-            {
-              type: "button",
-              class: "welcome-browse-btn",
-              onClick: () => handleBrowse("base"),
-              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ u3("div", { class: "welcome-form-group", children: [
-        /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" : "Target \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" }),
-        /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
-          /* @__PURE__ */ u3(
-            "input",
-            {
-              type: "text",
-              class: "welcome-input",
-              placeholder: tab2 === "dir" ? "C:/path/to/target_dir" : "C:/path/to/target.ts",
-              value: targetPath,
-              onInput: (e3) => setTargetPath(e3.target.value)
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "button",
-            {
-              type: "button",
-              class: "welcome-browse-btn",
-              onClick: () => handleBrowse("target"),
-              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
-            }
-          )
-        ] })
-      ] }),
-      /* @__PURE__ */ u3("div", { class: "welcome-options", children: /* @__PURE__ */ u3("label", { class: "welcome-checkbox-label", children: [
+  const handleDropFiles = (e3, zone) => {
+    e3.preventDefault();
+    e3.stopPropagation();
+    setDragOverZone(null);
+    const files = e3.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    const paths = [];
+    for (let i3 = 0; i3 < files.length; i3++) {
+      const file = files[i3];
+      if (file.path) {
+        paths.push(file.path);
+      } else if (file.name) {
+        paths.push(file.name);
+      }
+    }
+    if (zone === "base" && paths.length > 0) {
+      setBasePath(paths[0]);
+    } else if (zone === "target" && paths.length > 0) {
+      setTargetPath(paths[0]);
+    } else if (paths.length >= 2) {
+      if (files[0] && files[0].path) {
+        controller.startDropSession(paths, readOnly2);
+      } else {
+        const reader1 = new FileReader();
+        reader1.onload = () => {
+          const content1 = String(reader1.result || "");
+          const reader2 = new FileReader();
+          reader2.onload = () => {
+            const content2 = String(reader2.result || "");
+            controller.startDropContentSession(
+              files[0].name,
+              content1,
+              files[1].name,
+              content2,
+              readOnly2
+            );
+          };
+          reader2.readAsText(files[1]);
+        };
+        reader1.readAsText(files[0]);
+      }
+    } else if (paths.length === 1) {
+      if (!basePath) {
+        setBasePath(paths[0]);
+      } else {
+        setTargetPath(paths[0]);
+      }
+    }
+  };
+  const handleLaunchHistory = (item) => {
+    if (item.mode === "directory") {
+      controller.startDirectorySession(
+        item.leftPath,
+        item.rightPath,
+        item.readOnly
+      );
+    } else {
+      controller.startFileSession(
+        item.leftPath,
+        item.rightPath,
+        item.readOnly
+      );
+    }
+  };
+  const formatTimestamp = (ts) => {
+    try {
+      const d3 = new Date(ts);
+      return d3.toLocaleString("ja-JP", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return ts;
+    }
+  };
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "welcome-container",
+      onDragOver: (e3) => {
+        e3.preventDefault();
+        setDragOverZone("card");
+      },
+      onDragLeave: () => setDragOverZone(null),
+      onDrop: (e3) => handleDropFiles(e3, "card"),
+      children: /* @__PURE__ */ u3("div", { class: "welcome-layout", children: [
         /* @__PURE__ */ u3(
-          "input",
+          "div",
           {
-            type: "checkbox",
-            checked: readOnly2,
-            onChange: (e3) => setReadOnly(e3.target.checked)
+            class: `welcome-card ${dragOverZone === "card" ? "drag-highlight" : ""}`,
+            children: [
+              /* @__PURE__ */ u3("div", { class: "welcome-header", children: [
+                /* @__PURE__ */ u3("div", { class: "welcome-logo", children: "Diffrex" }),
+                /* @__PURE__ */ u3("p", { class: "welcome-subtitle", children: "AI-Friendly Diff & Merge Tool" })
+              ] }),
+              lastSession && /* @__PURE__ */ u3("div", { class: "welcome-restore-banner", children: [
+                /* @__PURE__ */ u3("div", { class: "welcome-restore-info", children: [
+                  /* @__PURE__ */ u3("span", { class: "welcome-restore-title", children: "\u23EE\uFE0F \u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143" }),
+                  /* @__PURE__ */ u3("span", { class: "welcome-restore-desc", children: [
+                    lastSession.leftPath,
+                    " \u21C4 ",
+                    lastSession.rightPath
+                  ] })
+                ] }),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "welcome-restore-btn",
+                    onClick: () => controller.restoreLastSession(),
+                    children: "\u5FA9\u5143\u3057\u3066\u518D\u958B"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-tabs", children: [
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: `welcome-tab ${tab2 === "dir" ? "active" : ""}`,
+                    onClick: () => {
+                      setTab("dir");
+                      setErrorMsg("");
+                    },
+                    children: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03"
+                  }
+                ),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: `welcome-tab ${tab2 === "file" ? "active" : ""}`,
+                    onClick: () => {
+                      setTab("file");
+                      setErrorMsg("");
+                    },
+                    children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
+                  }
+                )
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-form", children: [
+                /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: `welcome-form-group ${dragOverZone === "base" ? "drop-active" : ""}`,
+                    onDragOver: (e3) => {
+                      e3.preventDefault();
+                      e3.stopPropagation();
+                      setDragOverZone("base");
+                    },
+                    onDragLeave: () => setDragOverZone(null),
+                    onDrop: (e3) => handleDropFiles(e3, "base"),
+                    children: [
+                      /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                        tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" : "Base \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u524D / \u65E7\uFF09",
+                        /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                      ] }),
+                      /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
+                        /* @__PURE__ */ u3(
+                          "input",
+                          {
+                            type: "text",
+                            class: "welcome-input",
+                            placeholder: tab2 === "dir" ? "C:/path/to/base_dir" : "C:/path/to/base.ts",
+                            value: basePath,
+                            onInput: (e3) => setBasePath(e3.target.value)
+                          }
+                        ),
+                        /* @__PURE__ */ u3(
+                          "button",
+                          {
+                            type: "button",
+                            class: "welcome-browse-btn",
+                            onClick: () => handleBrowse("base"),
+                            children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                          }
+                        )
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ u3(
+                  "div",
+                  {
+                    class: `welcome-form-group ${dragOverZone === "target" ? "drop-active" : ""}`,
+                    onDragOver: (e3) => {
+                      e3.preventDefault();
+                      e3.stopPropagation();
+                      setDragOverZone("target");
+                    },
+                    onDragLeave: () => setDragOverZone(null),
+                    onDrop: (e3) => handleDropFiles(e3, "target"),
+                    children: [
+                      /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                        tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" : "Target \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09",
+                        /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                      ] }),
+                      /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
+                        /* @__PURE__ */ u3(
+                          "input",
+                          {
+                            type: "text",
+                            class: "welcome-input",
+                            placeholder: tab2 === "dir" ? "C:/path/to/target_dir" : "C:/path/to/target.ts",
+                            value: targetPath,
+                            onInput: (e3) => setTargetPath(e3.target.value)
+                          }
+                        ),
+                        /* @__PURE__ */ u3(
+                          "button",
+                          {
+                            type: "button",
+                            class: "welcome-browse-btn",
+                            onClick: () => handleBrowse("target"),
+                            children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                          }
+                        )
+                      ] })
+                    ]
+                  }
+                ),
+                /* @__PURE__ */ u3("div", { class: "welcome-options", children: /* @__PURE__ */ u3("label", { class: "welcome-checkbox-label", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "checkbox",
+                      checked: readOnly2,
+                      onChange: (e3) => setReadOnly(e3.target.checked)
+                    }
+                  ),
+                  /* @__PURE__ */ u3("span", { children: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\uFF08\u4FDD\u5B58\u7121\u52B9\uFF09" })
+                ] }) }),
+                errorMsg && /* @__PURE__ */ u3("div", { class: "welcome-error", children: errorMsg }),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "welcome-submit-btn",
+                    onClick: handleStart,
+                    children: "\u6BD4\u8F03\u3092\u958B\u59CB"
+                  }
+                ),
+                /* @__PURE__ */ u3("div", { class: "welcome-dropzone-notice", children: /* @__PURE__ */ u3("span", { children: "\u{1F4A1} 2\u3064\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u307E\u3068\u3081\u3066\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\u3057\u3066\u3082\u6BD4\u8F03\u3092\u958B\u59CB\u3067\u304D\u307E\u3059" }) })
+              ] })
+            ]
           }
         ),
-        /* @__PURE__ */ u3("span", { children: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\uFF08\u4FDD\u5B58\u7121\u52B9\uFF09" })
-      ] }) }),
-      errorMsg && /* @__PURE__ */ u3("div", { class: "welcome-error", children: errorMsg }),
-      /* @__PURE__ */ u3(
-        "button",
-        {
-          type: "button",
-          class: "welcome-submit-btn",
-          onClick: handleStart,
-          children: "\u6BD4\u8F03\u3092\u958B\u59CB"
-        }
-      )
-    ] })
-  ] }) });
+        history2.length > 0 && /* @__PURE__ */ u3("div", { class: "welcome-history-card", children: [
+          /* @__PURE__ */ u3("div", { class: "welcome-history-header", children: [
+            /* @__PURE__ */ u3("h3", { children: "\u{1F552} \u6BD4\u8F03\u5C65\u6B74" }),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: "welcome-clear-history-btn",
+                title: "\u5C65\u6B74\u3092\u3059\u3079\u3066\u524A\u9664",
+                onClick: () => controller.clearHistory(),
+                children: "\u5168\u6D88\u53BB"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ u3("div", { class: "welcome-history-list", children: history2.map((item) => /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "welcome-history-item",
+              onClick: () => handleLaunchHistory(item),
+              children: [
+                /* @__PURE__ */ u3("div", { class: "welcome-history-main", children: [
+                  /* @__PURE__ */ u3("div", { class: "welcome-history-tag-row", children: [
+                    /* @__PURE__ */ u3("span", { class: `welcome-mode-badge ${item.mode}`, children: item.mode === "directory" ? "\u{1F4C1} DIR" : item.mode === "3way" ? "\u{1F33F} 3-WAY" : item.mode === "image" ? "\u{1F5BC}\uFE0F IMG" : "\u{1F4C4} 2-WAY" }),
+                    /* @__PURE__ */ u3("span", { class: "welcome-history-time", children: formatTimestamp(item.timestamp) })
+                  ] }),
+                  /* @__PURE__ */ u3(
+                    "div",
+                    {
+                      class: "welcome-history-paths",
+                      title: `${item.leftPath} \u21C4 ${item.rightPath}`,
+                      children: [
+                        /* @__PURE__ */ u3("div", { class: "welcome-history-path", children: item.leftPath }),
+                        /* @__PURE__ */ u3("div", { class: "welcome-history-arrow", children: "\u21C4" }),
+                        /* @__PURE__ */ u3("div", { class: "welcome-history-path", children: item.rightPath })
+                      ]
+                    }
+                  )
+                ] }),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "welcome-history-del-btn",
+                    title: "\u3053\u306E\u5C65\u6B74\u3092\u524A\u9664",
+                    onClick: (e3) => {
+                      e3.stopPropagation();
+                      controller.removeHistoryItem(item.id);
+                    },
+                    children: "\xD7"
+                  }
+                )
+              ]
+            },
+            item.id
+          )) })
+        ] })
+      ] })
+    }
+  );
 }
 
 // src/ui/App.tsx
@@ -33990,6 +34255,7 @@ function App({
   useModel(diffModel);
   useModel(dirModel);
   useModel(threeWayModel);
+  const [isGlobalDragging, setIsGlobalDragging] = d2(false);
   h2(() => {
     const cleanup = dirController.connectWebSocket();
     return cleanup;
@@ -34005,8 +34271,83 @@ function App({
     }
     return setupGlobalKeybindings(diffController);
   }, [diffController, threeWayController, diffModel.session?.mode]);
+  h2(() => {
+    if (diffModel.session) {
+      const s3 = diffModel.session;
+      const hunkStatuses = {};
+      for (const hunk of s3.hunks) {
+        hunkStatuses[hunk.id] = hunk.status;
+      }
+      dirController.saveSnapshot({
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        mode: s3.mode,
+        leftPath: s3.files.left.path,
+        rightPath: s3.files.right.path,
+        basePath: s3.files.base?.path,
+        outputPath: s3.outputPath,
+        readOnly: s3.files.right.readOnly,
+        prompt: s3.aiContext?.prompt,
+        agent: s3.aiContext?.agent,
+        model: s3.aiContext?.model,
+        hunkStatuses
+      });
+    } else if (dirModel.dirSession) {
+      const ds = dirModel.dirSession;
+      dirController.saveSnapshot({
+        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        mode: "directory",
+        leftPath: ds.baseDir,
+        rightPath: ds.targetDir,
+        readOnly: ds.readOnly,
+        prompt: ds.aiContext?.prompt,
+        agent: ds.aiContext?.agent,
+        model: ds.aiContext?.model
+      });
+    }
+  }, [
+    diffModel.session,
+    diffModel.isDirty,
+    dirModel.dirSession,
+    dirController
+  ]);
+  h2(() => {
+    const handleDragOver = (e3) => {
+      e3.preventDefault();
+      setIsGlobalDragging(true);
+    };
+    const handleDragLeave = (e3) => {
+      if (e3.relatedTarget === null) {
+        setIsGlobalDragging(false);
+      }
+    };
+    const handleDrop = (e3) => {
+      e3.preventDefault();
+      setIsGlobalDragging(false);
+      const files = e3.dataTransfer?.files;
+      if (!files || files.length < 2) return;
+      const paths = [];
+      for (let i3 = 0; i3 < files.length; i3++) {
+        const file = files[i3];
+        if (file.path) {
+          paths.push(file.path);
+        }
+      }
+      if (paths.length >= 2) {
+        dirController.startDropSession(paths);
+      }
+    };
+    globalThis.addEventListener("dragover", handleDragOver);
+    globalThis.addEventListener("dragleave", handleDragLeave);
+    globalThis.addEventListener("drop", handleDrop);
+    return () => {
+      globalThis.removeEventListener("dragover", handleDragOver);
+      globalThis.removeEventListener("dragleave", handleDragLeave);
+      globalThis.removeEventListener("drop", handleDrop);
+    };
+  }, [dirController]);
+  let contentNode = /* @__PURE__ */ u3(WelcomeView, { controller: dirController });
   if (diffModel.session?.mode === "3way" && threeWayModel.session) {
-    return /* @__PURE__ */ u3("div", { class: "app-container", children: [
+    contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
       /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
       /* @__PURE__ */ u3("main", { class: "app-main-diff", children: /* @__PURE__ */ u3(
         ThreeWayDiffView,
@@ -34017,9 +34358,8 @@ function App({
       ) }),
       /* @__PURE__ */ u3(StatusBar, { model: diffModel })
     ] });
-  }
-  if (dirModel.dirSession) {
-    return /* @__PURE__ */ u3("div", { class: "app-container", children: [
+  } else if (dirModel.dirSession) {
+    contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
       /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
       /* @__PURE__ */ u3("div", { class: "app-split-container", children: [
         /* @__PURE__ */ u3(DirectoryTreeView, { model: dirModel, controller: dirController }),
@@ -34037,9 +34377,8 @@ function App({
       ] }),
       /* @__PURE__ */ u3(StatusBar, { model: diffModel })
     ] });
-  }
-  if (diffModel.session) {
-    return /* @__PURE__ */ u3("div", { class: "app-container", children: [
+  } else if (diffModel.session) {
+    contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
       /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
       /* @__PURE__ */ u3("main", { class: "app-main-diff", children: /* @__PURE__ */ u3(
         MainContent,
@@ -34052,7 +34391,13 @@ function App({
       /* @__PURE__ */ u3(StatusBar, { model: diffModel })
     ] });
   }
-  return /* @__PURE__ */ u3(WelcomeView, { controller: dirController });
+  return /* @__PURE__ */ u3(S, { children: [
+    contentNode,
+    isGlobalDragging && /* @__PURE__ */ u3("div", { class: "global-drop-overlay", children: /* @__PURE__ */ u3("div", { class: "global-drop-badge", children: [
+      /* @__PURE__ */ u3("span", { class: "global-drop-icon", children: "\u{1F4C2}" }),
+      /* @__PURE__ */ u3("span", { class: "global-drop-text", children: "2\u3064\u306E\u30D5\u30A1\u30A4\u30EB/\u30D5\u30A9\u30EB\u30C0\u3092\u30C9\u30ED\u30C3\u30D7\u3057\u3066\u6BD4\u8F03\u3092\u958B\u59CB" })
+    ] }) })
+  ] });
 }
 
 // src/ui/main.tsx
