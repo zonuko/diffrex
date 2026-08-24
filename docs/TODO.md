@@ -299,11 +299,13 @@ Diffrex/
 
 ---
 
-## v1.0+ バックログ（`Diffrexv1.0+RoadmapAndDesignGuidelines.md` 由来）
+## v1.0+ バックログ（実装完了および今後の推奨順序）
 
-MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に従い 1 → 2 → 3 の順で設計議論を行う。
+MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係・ツールの堅牢性を考慮し、未着手タスクは **【優先度 1: 基盤セーフティ】→【優先度 2: Git日常レビュー】→【優先度 3: GUI操作性】→【優先度 4: 発展的連携】** の順序で着手します。
 
-### B-1. ディレクトリ / 複数ファイル比較
+### 【完了済み】実装完了機能
+
+#### B-1. ディレクトリ / 複数ファイル比較
 
 - [x] **B1-01** `src/core/types.ts` にディレクトリ比較用のデータ構造（`FileDiffStatus`, `DirectoryTreeNode`, `DirectoryDiffSessionData`）を定義。
 - [x] **B1-02** `src/core/ignore.ts` に `.gitignore` および除外ルール（`.git`, `node_modules`, `dist` 等）のパースとマッチングを実装。
@@ -319,7 +321,7 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** 引数なし起動で Welcome 画面が表示され、フォルダ比較が開始できる。`Diffrex <dirA> <dirB>` で左にツリー、右に Diff が表示され、ファイル選択時に遅延ロードされる。右ペインでの編集が対象ファイルに保存される。
 
-### B-2. AST セマンティック Diff（Tree-sitter WASM）
+#### B-2. AST セマンティック Diff（Tree-sitter WASM）
 
 - [x] **B2-01** `src/core/analysis/ast/ast_parser.ts` に Tree-sitter（WASM）の導入方式を検証し、対応言語ローダーと優先順位（TS/JS → Python → Rust → Go）を実装。
 - [x] **B2-02** `src/core/analysis/ast/move_detector.ts` に Move（ブロック移動）検出ロジックを実装。削除+追加ではなく `[Moved]` アノテーションとしてノイズ折りたたみ対応。
@@ -329,13 +331,7 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** TypeScript / Python 等のソースコードで、関数の配置移動（Move）が `[Moved]` ノイズとして判定され、変数の全体リネーム（Rename）が `[Rename] x -> deltaX` ノイズとして判定される。未対応言語では行ベース diff に安全にフォールバックする。
 
-### B-3. イン・アプリ AI コパイロット
-
-- [ ] **B3-01** LLM プロバイダ設定画面（OpenAI / Anthropic / Gemini / Ollama）と API キーの安全な保存方式を設計。
-- [ ] **B3-02** 差分ブロックを選択して追いプロンプトを投げるチャット UI（Contextual Prompting）。
-- [ ] **B3-03** 3-Way Merge の AI 自動コンフリクト解消（Auto-Resolve）をワンキーで実行。
-
-### B-4. 完全な 3-Way Merge / Git コンフリクト対応
+#### B-4. 完全な 3-Way Merge / Git コンフリクト対応
 
 - [x] **B4-01** 3面 or 4面（Output ペインあり）レイアウトの選定と実装（3ペイン横並び: Local / Merged Result / Remote を採用）。
 - [x] **B4-02** コンフリクトマーカー（`<<<<<<< HEAD` / `=======` / `>>>>>>>` および diff3 形式）入りの単一ファイルを自動分解して可視化。
@@ -343,7 +339,7 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** `Diffrex <local> <base> <remote> [-o output]` および `Diffrex <conflicted_file>` で 3 ペイン（Local / Merged / Remote）のエディタが起動し、競合ナビゲーション（J/K）と解決（1: Local, 2: Remote, 3: Base）および保存（Ctrl+S / Ctrl+Enter）が可能。
 
-### B-5. リッチメディア / 非テキスト比較
+#### B-5. リッチメディア / 非テキスト比較
 
 - [x] **B5-01** `src/core/types.ts` & `src/core/media/image_detector.ts` に画像用データ構造（`ImageTarget`, `ImageDiffSessionData`）とフォーマット・マジックナンバー判定・メタデータ抽出を実装。
 - [x] **B5-02** `src/core/file_io.ts` & `src/desktop/ipc.ts` で画像ファイルのバイナリ読み込みおよび Base64 Data URL 変換と IPC 配信を実装。
@@ -358,7 +354,7 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** `Diffrex img1.png img2.png` で画像比較画面（2-Up, Swipe, Onion Skin, Pixel Difference）が起動し、同期ズーム/パンができる。JSON/YAML 比較で Canonical モードによりキー順序差分を無視できる。`Diffrex data1.csv data2.csv` でスプレッドシート形式のセル差分グリッドが表示される。ディレクトリ比較の右ペインでも各形式が適切にレンダリングされる。
 
-### B-6. OS ネイティブ統合
+#### B-6. OS ネイティブ統合
 
 - [x] **B6-01** OS コンテキストメニュー統合（Windows エクスプローラ / macOS Finder の「Diffrex で比較」）。
 - [x] **B6-02** ファイル / フォルダのドラッグ＆ドロップ比較。
@@ -366,7 +362,33 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** Windows エクスプローラー / macOS Finder / Linux 向けの右クリック統合（`Diffrex --install-context-menu` / `--uninstall-context-menu` / `--generate-context-menu-script`）が動作する。Welcome 画面およびメイン画面へのドラッグ＆ドロップで比較を開始できる。過去の比較履歴（最大50件）が管理され、Welcome 画面からのワンクリック再開および `Diffrex --restore` による直近セッションの自動復元ができる。
 
-### B-7. Git Worktree & 単一リポジトリ ワーキングツリー差分統合
+---
+
+### 【未対応】推奨順序 1: 基盤セーフティ & 配布パイプライン
+
+#### B-9. 非対話・ヘッドレス / CLI 出力モード & エージェント互換（セーフガード）
+
+- [ ] **B9-01** 非TTY（非対話環境・パイプ等）または `--headless` / `--stdout` オプション指定時に、GUI を起動せず標準出力へ Unified Diff を出力・パススルーするモードを検討・実装。
+- [ ] **B9-02** コーディングエージェント等の自動スクリプトが誤って `diff.external` 等で Diffrex を起動した際に、GUI でプロセスがハング・ブロックするのを防ぐセーフガード（非対話検知フォールバック）を検討。
+- [ ] **B9-03** Git 設定ドキュメントに「`diff.external` ではなく `diff.tool` (difftool) を使用する」旨のベストプラクティスと注意喚起を追記。
+
+**AC:** 非対話シェル環境で誤って呼び出された場合にプロセスがハングせず安全に終了または diff 出力され、エージェント環境下での安全性が担保される。
+
+#### B-10. CI/CD & 自動リリース・マルチプラットフォーム配布
+
+- [ ] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
+- [ ] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
+- [ ] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
+- [ ] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
+- [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
+
+**AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
+
+---
+
+### 【未対応】推奨順序 2: Git日常レビューのコア体験強化
+
+#### B-7. Git Worktree & 単一リポジトリ ワーキングツリー差分統合
 
 - [ ] **B7-01** `src/core/git/worktree.ts` に Git リポジトリおよび Worktree の検出ロジック（`.git` ディレクトリおよび `gitdir:` ファイルのパース、`git worktree list` 一覧取得）を実装。
 - [ ] **B7-02** `src/core/git/status.ts` に単一 Git フォルダ（リポジトリ / Worktree）の変更ファイル自動検出（`git status` / `git diff --name-status` 相当）および `git show HEAD:<path>` による Base コンテンツ取得ロジックを実装。
@@ -378,7 +400,11 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** `.git` を含むフォルダを単独で開いた際に、自動的に HEAD との未コミット差分が一覧化され、ファイルを選択して差分確認・編集・保存ができる。複数 Worktree 間の比較や一時 Worktree 比較も正常に動作する。
 
-### B-8. アプリケーション メニューバー & コマンド統合
+---
+
+### 【未対応】推奨順序 3: デスクトップ GUI としての利便性向上
+
+#### B-8. アプリケーション メニューバー & コマンド統合
 
 - [ ] **B8-01** `src/ui/model/menu_model.ts` & `src/ui/controller/menu_controller.ts` に Smalltalk-80 MVC に基づくメニュー定義データ構造とコマンドディスパッチャ（モードに応じた有効/無効制御）を実装。
 - [ ] **B8-02** `src/ui/components/MenuBar.tsx` & `src/ui/components/MenuItem.tsx` にトップメニューバー（File, Edit, Merge, View, Git, Help）およびサブメニュー UI を実装。キーボード操作（`Alt` キーナビゲーション、ショートカットキー連動）に対応。
@@ -389,23 +415,7 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** 画面最上部にメニューバーが表示され、「ファイルを開く」「フォルダを開く」「単一Gitリポジトリを開く」「最近開いた履歴」「各種マージ・表示操作」がメニューから実行できる。キーボードショートカットやモーダルダイアログが正しく動作する。
 
-### B-9. 非対話・ヘッドレス / CLI 出力モード & エージェント互換（セーフガード）
-
-- [ ] **B9-01** 非TTY（非対話環境・パイプ等）または `--headless` / `--stdout` オプション指定時に、GUI を起動せず標準出力へ Unified Diff を出力・パススルーするモードを検討・実装。
-- [ ] **B9-02** コーディングエージェント等の自動スクリプトが誤って `diff.external` 等で Diffrex を起動した際に、GUI でプロセスがハング・ブロックするのを防ぐセーフガード（非対話検知フォールバック）を検討。
-- [ ] **B9-03** Git 設定ドキュメントに「`diff.external` ではなく `diff.tool` (difftool) を使用する」旨のベストプラクティスと注意喚起を追記。
-
-### B-10. CI/CD & 自動リリース・マルチプラットフォーム配布
-
-- [ ] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
-- [ ] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
-- [ ] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
-- [ ] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
-- [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
-
-**AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
-
-### B-11. マルチタブ UI & 複数セッション並行管理
+#### B-11. マルチタブ UI & 複数セッション並行管理
 
 - [ ] **B11-01** `src/ui/model/tab_model.ts` に `TabItem`（id, title, dirty, sessionType, model）および `TabContainerModel`（タブ一覧、アクティブタブ、Observer 通知）を実装。
 - [ ] **B11-02** `src/ui/controller/tab_controller.ts` にタブのオープン、切り替え、クローズ、未保存チェック、並び替えハンドラを実装。
@@ -416,6 +426,18 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 - [ ] **B11-07** テスト: `tests/tab_model_test.ts` / `tests/tab_controller_test.ts`（タブライフサイクル、アクティブ切り替え、Dirty 管理、クローズ制御のテスト）。
 
 **AC:** ウィンドウ上部にタブバーが表示され、複数のファイル比較・セッションをタブで切り替えて作業できる。未保存状態の管理（Dirty バッジとクローズ時の確認）、キーボードショートカット（`Ctrl+W`, `Ctrl+Tab` 等）によるタブ操作が動作する。
+
+---
+
+### 【未対応】推奨順序 4: 発展的・実験的機能
+
+#### B-3. イン・アプリ AI コパイロット
+
+- [ ] **B3-01** LLM プロバイダ設定画面（OpenAI / Anthropic / Gemini / Ollama）と API キーの安全な保存方式を設計。
+- [ ] **B3-02** 差分ブロックを選択して追いプロンプトを投げるチャット UI（Contextual Prompting）。
+- [ ] **B3-03** 3-Way Merge の AI 自動コンフリクト解消（Auto-Resolve）をワンキーで実行。
+
+**AC:** 外部LLMプロバイダと連携し、差分に対する質問・修正依頼やコンフリクトの自動解消がアプリ内から実行できる。
 
 ---
 
