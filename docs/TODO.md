@@ -366,6 +366,57 @@ MVP（Phase 0〜5）完了後に着手。ドキュメント側の推奨順序に
 
 **AC:** Windows エクスプローラー / macOS Finder / Linux 向けの右クリック統合（`Diffrex --install-context-menu` / `--uninstall-context-menu` / `--generate-context-menu-script`）が動作する。Welcome 画面およびメイン画面へのドラッグ＆ドロップで比較を開始できる。過去の比較履歴（最大50件）が管理され、Welcome 画面からのワンクリック再開および `Diffrex --restore` による直近セッションの自動復元ができる。
 
+### B-7. Git Worktree & 単一リポジトリ ワーキングツリー差分統合
+
+- [ ] **B7-01** `src/core/git/worktree.ts` に Git リポジトリおよび Worktree の検出ロジック（`.git` ディレクトリおよび `gitdir:` ファイルのパース、`git worktree list` 一覧取得）を実装。
+- [ ] **B7-02** `src/core/git/status.ts` に単一 Git フォルダ（リポジトリ / Worktree）の変更ファイル自動検出（`git status` / `git diff --name-status` 相当）および `git show HEAD:<path>` による Base コンテンツ取得ロジックを実装。
+- [ ] **B7-03** `src/cli/args.ts` & `src/cli/validate.ts` に単一 Git フォルダ指定時の起動（`Diffrex <git_repo_or_worktree_path>`）および Worktree 比較引数のサポートを追加。
+- [ ] **B7-04** `src/ui/model/dir_diff_model.ts` & `src/ui/components/DirectoryTreeView.tsx` に Git 差分モード（HEAD vs Working Tree）と Git ステータスバッジ（M, A, D, R, ?）の表示を統合。
+- [ ] **B7-05** `src/core/git/temp_worktree.ts` にブランチ指定時の一時 Worktree 自動作成・ライフサイクル管理・終了時クリーンアップを実装。
+- [ ] **B7-06** `src/ui/components/WelcomeView.tsx` およびメニューに、単一 Git フォルダを開いた際の「未コミット差分を開く」クイックアクションおよび Worktree 選択パネルを実装。
+- [ ] **B7-07** テスト: `tests/worktree_test.ts` / `tests/git_status_diff_test.ts`（単一 Git フォルダオープン時の HEAD 差分自動抽出、Worktree 検出、一時 Worktree の生成と破棄、編集保存の検証）。
+
+**AC:** `.git` を含むフォルダを単独で開いた際に、自動的に HEAD との未コミット差分が一覧化され、ファイルを選択して差分確認・編集・保存ができる。複数 Worktree 間の比較や一時 Worktree 比較も正常に動作する。
+
+### B-8. アプリケーション メニューバー & コマンド統合
+
+- [ ] **B8-01** `src/ui/model/menu_model.ts` & `src/ui/controller/menu_controller.ts` に Smalltalk-80 MVC に基づくメニュー定義データ構造とコマンドディスパッチャ（モードに応じた有効/無効制御）を実装。
+- [ ] **B8-02** `src/ui/components/MenuBar.tsx` & `src/ui/components/MenuItem.tsx` にトップメニューバー（File, Edit, Merge, View, Git, Help）およびサブメニュー UI を実装。キーボード操作（`Alt` キーナビゲーション、ショートカットキー連動）に対応。
+- [ ] **B8-03** 各種「開く」ダイアログ連携（ファイル比較、フォルダ比較、単一Gitリポジトリ、3-Way マージ、画像/CSV、Worktree）および「最近開いたセッション」サブメニューからの即時セッション切り替えを実装。
+- [ ] **B8-04** `src/ui/components/ShortcutsModal.tsx` & `AboutModal.tsx` にキーボードショートカット一覧およびバージョン情報ダイアログを実装。
+- [ ] **B8-05** （任意/発展）`Ctrl+Shift+P` で全メニューコマンドをインクリメンタル検索・実行できる「クイックコマンドパレット」を実装。
+- [ ] **B8-06** テスト: `tests/menu_test.ts`（メニューコマンドの実行、モードごとの enable/disable 状態、キーバインド連携のテスト）。
+
+**AC:** 画面最上部にメニューバーが表示され、「ファイルを開く」「フォルダを開く」「単一Gitリポジトリを開く」「最近開いた履歴」「各種マージ・表示操作」がメニューから実行できる。キーボードショートカットやモーダルダイアログが正しく動作する。
+
+### B-9. 非対話・ヘッドレス / CLI 出力モード & エージェント互換（セーフガード）
+
+- [ ] **B9-01** 非TTY（非対話環境・パイプ等）または `--headless` / `--stdout` オプション指定時に、GUI を起動せず標準出力へ Unified Diff を出力・パススルーするモードを検討・実装。
+- [ ] **B9-02** コーディングエージェント等の自動スクリプトが誤って `diff.external` 等で Diffrex を起動した際に、GUI でプロセスがハング・ブロックするのを防ぐセーフガード（非対話検知フォールバック）を検討。
+- [ ] **B9-03** Git 設定ドキュメントに「`diff.external` ではなく `diff.tool` (difftool) を使用する」旨のベストプラクティスと注意喚起を追記。
+
+### B-10. CI/CD & 自動リリース・マルチプラットフォーム配布
+
+- [ ] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
+- [ ] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
+- [ ] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
+- [ ] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
+- [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
+
+**AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
+
+### B-11. マルチタブ UI & 複数セッション並行管理
+
+- [ ] **B11-01** `src/ui/model/tab_model.ts` に `TabItem`（id, title, dirty, sessionType, model）および `TabContainerModel`（タブ一覧、アクティブタブ、Observer 通知）を実装。
+- [ ] **B11-02** `src/ui/controller/tab_controller.ts` にタブのオープン、切り替え、クローズ、未保存チェック、並び替えハンドラを実装。
+- [ ] **B11-03** `src/ui/components/TabBar.tsx` & `TabItem.tsx` にタブバー UI（アクティブ表示、Dirty `●` バッジ、閉じる `×` ボタン、新規 `+` ボタン）を実装。
+- [ ] **B11-04** タブ操作用キーバインド（`Ctrl+W`: タブを閉じる、`Ctrl+Tab` / `Ctrl+PageDown`: 次のタブ、`Ctrl+Shift+Tab` / `Ctrl+PageUp`: 前のタブ、`Ctrl+1`〜`9`: 番号指定切り替え）を `keymap.ts` に統合。
+- [ ] **B11-05** ディレクトリ比較ツリー（`DirectoryTreeView`）からのファイル選択時に「同一タブ再利用」または「新規タブで開く（ダブルクリック / 中クリック / 右クリックメニュー）」挙動を実装。
+- [ ] **B11-06** 未保存の変更があるタブを閉じる際、およびアプリ終了時のタブ別未保存確認ダイアログ（保存・破棄・キャンセル）を統合。
+- [ ] **B11-07** テスト: `tests/tab_model_test.ts` / `tests/tab_controller_test.ts`（タブライフサイクル、アクティブ切り替え、Dirty 管理、クローズ制御のテスト）。
+
+**AC:** ウィンドウ上部にタブバーが表示され、複数のファイル比較・セッションをタブで切り替えて作業できる。未保存状態の管理（Dirty バッジとクローズ時の確認）、キーボードショートカット（`Ctrl+W`, `Ctrl+Tab` 等）によるタブ操作が動作する。
+
 ---
 
 ## 未決定事項（着手前に判断が必要）
