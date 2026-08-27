@@ -13,6 +13,7 @@ export interface ParsedCliArgs {
   left?: string;
   right?: string;
   base?: string;
+  gitPath?: string;
   prompt?: string;
   agent?: string;
   model?: string;
@@ -21,6 +22,9 @@ export interface ParsedCliArgs {
   readOnly: boolean;
   ignoreSpace: boolean;
   ignoreComments: boolean;
+  headless: boolean;
+  stdout: boolean;
+  unified?: number;
   help: boolean;
   version: boolean;
   installContextMenu?: boolean;
@@ -53,12 +57,14 @@ export function parseCliArgs(args: string[]): ParseResult {
   const cleanArgs = args.filter((a) => a !== "--");
 
   const parsed = parseArgs(cleanArgs, {
-    string: ["prompt", "agent", "model", "output", "runtime"],
+    string: ["prompt", "agent", "model", "output", "runtime", "unified", "U"],
     boolean: [
       "wait",
       "read-only",
       "ignore-space",
       "ignore-comments",
+      "headless",
+      "stdout",
       "help",
       "version",
       "install-context-menu",
@@ -73,6 +79,9 @@ export function parseCliArgs(args: string[]): ParseResult {
       h: "help",
       v: "version",
       r: "restore",
+      s: "stdout",
+      u: "unified",
+      U: "unified",
     },
     unknown: (arg: string) => {
       if (arg.startsWith("-") && arg !== "-") {
@@ -98,6 +107,10 @@ export function parseCliArgs(args: string[]): ParseResult {
   const readOnly = Boolean(parsed["read-only"]);
   const ignoreSpace = Boolean(parsed["ignore-space"]);
   const ignoreComments = Boolean(parsed["ignore-comments"]);
+  const headless = Boolean(parsed.headless);
+  const stdout = Boolean(parsed.stdout);
+  const unifiedStr = parsed.unified ?? parsed.U;
+  const unified = unifiedStr !== undefined ? Number(unifiedStr) : undefined;
   const prompt = parsed.prompt;
   const agent = parsed.agent;
   const model = parsed.model;
@@ -107,6 +120,7 @@ export function parseCliArgs(args: string[]): ParseResult {
   let left: string | undefined;
   let right: string | undefined;
   let base: string | undefined;
+  let gitPath: string | undefined;
 
   if (positional.length === 0) {
     mode = "welcome";
@@ -126,6 +140,12 @@ export function parseCliArgs(args: string[]): ParseResult {
     if (!output) {
       output = positional[0]; // default output is <local>
     }
+  } else if (positional.length === 7) {
+    // Git diff.external 形式: <path> <old-file> <old-hex> <old-mode> <new-file> <new-hex> <new-mode>
+    mode = "git-external";
+    gitPath = positional[0];
+    left = positional[1];
+    right = positional[4];
   }
 
   const installContextMenu = Boolean(parsed["install-context-menu"]);
@@ -144,6 +164,7 @@ export function parseCliArgs(args: string[]): ParseResult {
       left,
       right,
       base,
+      gitPath,
       prompt,
       agent,
       model,
@@ -152,6 +173,9 @@ export function parseCliArgs(args: string[]): ParseResult {
       readOnly: mode === "stdin" ? true : readOnly,
       ignoreSpace,
       ignoreComments,
+      headless,
+      stdout,
+      unified,
       help,
       version,
       installContextMenu,

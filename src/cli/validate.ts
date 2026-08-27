@@ -118,6 +118,19 @@ export async function validateCliArgs(
     };
   }
 
+  if (positional.length === 7 && parsed.mode === "git-external") {
+    // git diff.external 形式のチェック
+    if (left) {
+      const err = await checkFilePath(left);
+      if (err) return err;
+    }
+    if (right) {
+      const err = await checkFilePath(right);
+      if (err) return err;
+    }
+    return { ok: true };
+  }
+
   if (positional.length > 3) {
     return {
       ok: false,

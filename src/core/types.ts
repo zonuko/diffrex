@@ -14,7 +14,8 @@ export type DiffMode =
   | "directory"
   | "welcome"
   | "image"
-  | "csv";
+  | "csv"
+  | "git-external";
 
 /** 画像比較の対象ファイルデータ。 */
 export interface ImageTarget {
