@@ -7,3 +7,4 @@ node_modules/
 
 # カバレッジ出力
 coverage/
+tmp/
