@@ -99,6 +99,40 @@ Deno.test("parseCliArgs: 未知のフラグでエラー (exit code 2)", () => {
   }
 });
 
+Deno.test("parseCliArgs: --headless, --stdout, -s, -u / -U のパース", () => {
+  const res1 = parseCliArgs(["base.ts", "target.ts", "--headless"]);
+  assertEquals(res1.ok, true);
+  if (res1.ok) {
+    assertEquals(res1.parsed.headless, true);
+  }
+
+  const res2 = parseCliArgs(["base.ts", "target.ts", "-s", "-U", "5"]);
+  assertEquals(res2.ok, true);
+  if (res2.ok) {
+    assertEquals(res2.parsed.stdout, true);
+    assertEquals(res2.parsed.unified, 5);
+  }
+});
+
+Deno.test("parseCliArgs: Git diff.external 7引数形式のパース", () => {
+  const res = parseCliArgs([
+    "path/file.ts",
+    "old.ts",
+    "oldhex",
+    "100644",
+    "new.ts",
+    "newhex",
+    "100644",
+  ]);
+  assertEquals(res.ok, true);
+  if (res.ok) {
+    assertEquals(res.parsed.mode, "git-external");
+    assertEquals(res.parsed.gitPath, "path/file.ts");
+    assertEquals(res.parsed.left, "old.ts");
+    assertEquals(res.parsed.right, "new.ts");
+  }
+});
+
 Deno.test("validateCliArgs: --help や --version 指定時はファイル検証スキップ", async () => {
   const parseRes = parseCliArgs(["non_existent.ts", "--help"]);
   assertEquals(parseRes.ok, true);

@@ -28,6 +28,10 @@ import type {
   FileTarget,
 } from "./src/core/types.ts";
 import {
+  formatDirectoryUnifiedDiff,
+  formatUnifiedDiff,
+} from "./src/core/unified_diff.ts";
+import {
   type AnySessionData,
   isDesktopRuntime,
   startDesktopServer,
@@ -119,6 +123,127 @@ export async function runMain(
         printUsage();
       }
       return validRes.exitCode;
+    }
+
+    // ヘッドレス / 非対話 / stdout モードのセーフガード判定
+    const isHeadless = parsed.headless ||
+      parsed.stdout ||
+      parsed.mode === "git-external" ||
+      (!isDesktopRuntime() && !parsed.wait && !options?.autoClose &&
+        (!Deno.stdout.isTerminal() || Boolean(Deno.env.get("CI"))));
+
+    if (isHeadless && parsed.mode !== "welcome") {
+      try {
+        let diffOutput = "";
+        if (parsed.mode === "git-external") {
+          const [leftRes, rightRes] = await Promise.all([
+            readFileTarget(parsed.left!, { readOnly: true }),
+            readFileTarget(parsed.right!, { readOnly: true }),
+          ]);
+          diffOutput = formatUnifiedDiff(
+            leftRes.target.content,
+            rightRes.target.content,
+            {
+              leftLabel: parsed.gitPath ? `a/${parsed.gitPath}` : parsed.left,
+              rightLabel: parsed.gitPath ? `b/${parsed.gitPath}` : parsed.right,
+              contextLines: parsed.unified,
+              gitHeader: true,
+            },
+          );
+        } else if (parsed.mode === "directory") {
+          diffOutput = await formatDirectoryUnifiedDiff(
+            parsed.left!,
+            parsed.right!,
+            {
+              contextLines: parsed.unified,
+            },
+          );
+        } else if (parsed.mode === "stdin") {
+          const stdinRes = await readStdinTarget({ readOnly: true });
+          diffOutput = stdinRes.target.content;
+        } else if (parsed.mode === "3way") {
+          if (!parsed.base) {
+            const { parseConflictMarkers } = await import(
+              "./src/core/conflict_parser.ts"
+            );
+            const singleRes = await readFileTarget(parsed.left!, {
+              readOnly: true,
+            });
+            const parsedConflict = parseConflictMarkers(
+              singleRes.target.content,
+            );
+            const diff1 = formatUnifiedDiff(
+              parsedConflict.baseContent,
+              parsedConflict.localContent,
+              {
+                leftLabel: `${parsed.left} (BASE)`,
+                rightLabel: `${parsed.left} (LOCAL)`,
+                contextLines: parsed.unified,
+              },
+            );
+            const diff2 = formatUnifiedDiff(
+              parsedConflict.baseContent,
+              parsedConflict.remoteContent,
+              {
+                leftLabel: `${parsed.left} (BASE)`,
+                rightLabel: `${parsed.left} (REMOTE)`,
+                contextLines: parsed.unified,
+              },
+            );
+            diffOutput = [diff1, diff2].filter(Boolean).join("\n");
+          } else {
+            const [leftRes, baseRes, rightRes] = await Promise.all([
+              readFileTarget(parsed.left!, { readOnly: true }),
+              readFileTarget(parsed.base, { readOnly: true }),
+              readFileTarget(parsed.right!, { readOnly: true }),
+            ]);
+            const diff1 = formatUnifiedDiff(
+              baseRes.target.content,
+              leftRes.target.content,
+              {
+                leftLabel: `a/${parsed.left}`,
+                rightLabel: `b/${parsed.left}`,
+                contextLines: parsed.unified,
+              },
+            );
+            const diff2 = formatUnifiedDiff(
+              baseRes.target.content,
+              rightRes.target.content,
+              {
+                leftLabel: `a/${parsed.right}`,
+                rightLabel: `b/${parsed.right}`,
+                contextLines: parsed.unified,
+              },
+            );
+            diffOutput = [diff1, diff2].filter(Boolean).join("\n");
+          }
+        } else {
+          // 2-Way
+          const [leftRes, rightRes] = await Promise.all([
+            readFileTarget(parsed.left!, { readOnly: true }),
+            readFileTarget(parsed.right!, { readOnly: true }),
+          ]);
+          diffOutput = formatUnifiedDiff(
+            leftRes.target.content,
+            rightRes.target.content,
+            {
+              leftLabel: parsed.left,
+              rightLabel: parsed.right,
+              contextLines: parsed.unified,
+            },
+          );
+        }
+
+        if (diffOutput) {
+          Deno.stdout.writeSync(new TextEncoder().encode(diffOutput));
+        }
+        return 0;
+      } catch (err) {
+        console.error(
+          `Diffrex: error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        return 3;
+      }
     }
 
     let session: AnySessionData;

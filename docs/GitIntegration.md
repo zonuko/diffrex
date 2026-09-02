@@ -72,11 +72,38 @@ git mergetool
 
 ---
 
-## 3. 終了コード仕様
+## 3. 重要: `diff.external` ではなく `diff.tool` を使用する（ベストプラクティス）
+
+> [!WARNING]
+> Git の設定で **`diff.external = Diffrex` を設定しないでください**。必ず **`diff.tool = Diffrex`**（`git difftool`）を使用してください。
+
+### なぜ `diff.external` に GUI ツールを設定してはいけないのか？
+- `git diff` は、標準出力（stdout）にテキスト差分を出力することを前提とした非対話コマンドです。
+- コーディングエージェント（Claude Code, Cursor, Aider, Antigravity 等）や CI/CD スクリプト、IDE 拡張機能は、バックグラウンドで `git diff` を実行して差分を解析します。
+- もし `diff.external` に GUI アプリケーションを設定してしまうと、エージェントやスクリプトが `git diff` を呼んだ瞬間に GUI ウィンドウが起動してブロック（プロセスが永久ハング）し、自動化パイプラインが停止してしまいます。
+
+### Diffrex のエージェント互換セーフガード機構 (B-9)
+Diffrex には、誤って `diff.external` や非対話スクリプトから呼び出された場合でもハングしないための**セーフガード機能**が組み込まれています。
+
+1. **Git External Diff (7引数) 自動検知**:
+   Git から `diff.external` 形式（7引数: `<path> <old-file> <old-hex> <old-mode> <new-file> <new-hex> <new-mode>`）で呼び出された場合、GUI を起動せず、即座に標準出力へ Unified Diff を出力して終了（exit code 0）します。
+2. **非対話・非TTY環境の自動フォールバック**:
+   パイプ（`|`）やリダイレクト、CI 環境等で `--wait` なしで起動された場合、GUI を起動せず標準出力へ Unified Diff を出力します。
+3. **明示的なヘッドレス / stdout オプション**:
+   GUI を起動せずターミナルに差分を出力したい場合は、`--headless` または `-s` / `--stdout` を指定します。
+   ```bash
+   Diffrex fileA.ts fileB.ts --stdout
+   Diffrex fileA.ts fileB.ts -s -U 5
+   ```
+
+---
+
+## 4. 終了コード仕様
 
 | 終了コード | 状態 | 説明 |
 | :--- | :--- | :--- |
-| **`0`** | 正常完了 | `Ctrl+Enter` または `Ctrl+S` 後に終了。Git はマージ成功と判定します。 |
+| **`0`** | 正常完了 | `Ctrl+Enter` または `Ctrl+S` 後に終了、またはヘッドレス diff の出力完了。 |
 | **`1`** | 中断 / 破棄 | 保存せずにウィンドウを閉じた場合。Git はマージ未完了として扱います。 |
 | **`2`** | 引数エラー | CLI オプションや位置引数が不正な場合。 |
 | **`3`** | I/O エラー | ファイルの読み書き失敗やバイナリ判定によるエラー。 |
+

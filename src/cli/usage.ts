@@ -29,6 +29,10 @@ OPTIONS:
   --read-only          Disable editing and write-back functionality
   --ignore-space       Force ignore whitespace differences on launch
   --ignore-comments    Force ignore comment differences on launch
+  --headless           Run without launching GUI (output Unified Diff to stdout)
+  -s, --stdout         Output Unified Diff directly to stdout without GUI
+  -U, -u, --unified <n>
+                       Generate Unified Diff with <n> lines of context (default: 3)
   -r, --restore        Restore and resume the last active diff session
   --clear-history      Clear all saved diff comparison history
   --install-context-menu

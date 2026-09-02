@@ -368,9 +368,9 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-9. 非対話・ヘッドレス / CLI 出力モード & エージェント互換（セーフガード）
 
-- [ ] **B9-01** 非TTY（非対話環境・パイプ等）または `--headless` / `--stdout` オプション指定時に、GUI を起動せず標準出力へ Unified Diff を出力・パススルーするモードを検討・実装。
-- [ ] **B9-02** コーディングエージェント等の自動スクリプトが誤って `diff.external` 等で Diffrex を起動した際に、GUI でプロセスがハング・ブロックするのを防ぐセーフガード（非対話検知フォールバック）を検討。
-- [ ] **B9-03** Git 設定ドキュメントに「`diff.external` ではなく `diff.tool` (difftool) を使用する」旨のベストプラクティスと注意喚起を追記。
+- [x] **B9-01** 非TTY（非対話環境・パイプ等）または `--headless` / `--stdout` オプション指定時に、GUI を起動せず標準出力へ Unified Diff を出力・パススルーするモードを検討・実装。
+- [x] **B9-02** コーディングエージェント等の自動スクリプトが誤って `diff.external` 等で Diffrex を起動した際に、GUI でプロセスがハング・ブロックするのを防ぐセーフガード（非対話検知フォールバック）を検討。
+- [x] **B9-03** Git 設定ドキュメントに「`diff.external` ではなく `diff.tool` (difftool) を使用する」旨のベストプラクティスと注意喚起を追記。
 
 **AC:** 非対話シェル環境で誤って呼び出された場合にプロセスがハングせず安全に終了または diff 出力され、エージェント環境下での安全性が担保される。
 
@@ -383,6 +383,17 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 - [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
 
 **AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
+
+#### B-12. ワンライナーインストールスクリプト & インストーラー / パッケージ配布
+
+- [ ] **B12-01** `scripts/install.sh`（macOS / Linux 向けシェルスクリプト）を作成し、`curl -fsSL https://.../install.sh | sh` で最新 GitHub Release バイナリの自動ダウンロード・解凍・実行権限付与・パス（`~/.local/bin` 等）配置を実装。
+- [ ] **B12-02** `scripts/install.ps1`（Windows PowerShell 向けスクリプト）を作成し、`irm https://.../install.ps1 | iex` で最新 GitHub Release バイナリの自動ダウンロード・展開・ユーザ環境変数 PATH（`$env:LOCALAPPDATA\Programs\Diffrex` 等）への追加を実装。
+- [ ] **B12-03** `deno install` による Deno ランタイム直接インストールコマンド（`deno install -g -A -n diffrex ...`）のサポートとドキュメント化。
+- [ ] **B12-04** （発展/任意）主要パッケージマネージャー（Homebrew Formula, Scoop manifest, winget 等）向けの配布定義ファイルの作成およびリリースタスクとの連携。
+- [ ] **B12-05** インストールスクリプトのアンインストール機能（`--uninstall` オプション等）および動作検証テストの追加。
+- [ ] **B12-06** `README.md` のインストールセクションを更新し、ワンライナーインストールコマンド（curl / PowerShell）および各プラットフォームでのセットアップ手順を反映。
+
+**AC:** macOS / Linux では `curl -fsSL ... | sh`、Windows では `irm ... | iex` のワンライナーコマンドで Diffrex の最新バイナリがダウンロード・PATH 登録され、ターミナルから `diffrex` コマンドで即座に起動できる。
 
 ---
 
