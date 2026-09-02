@@ -67,9 +67,14 @@ const activeHunkField = StateField.define<DecorationSet>({
           return Decoration.none;
         }
         const { from, to } = effect.value;
+        // 空レンジ（純粋な行追加/削除で片側に行が存在しないチャンク）に
+        // mark decoration を張ると CodeMirror が RangeError を投げるため張らない
+        if (from >= to) {
+          return Decoration.none;
+        }
         const deco = Decoration.mark({
           class: "cm-active-hunk-highlight",
-        }).range(from, Math.max(from, to));
+        }).range(from, to);
         return Decoration.set([deco]);
       }
     }

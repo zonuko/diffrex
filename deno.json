@@ -14,6 +14,7 @@
     "demo:python": "deno run -A main.ts tests/fixtures/python_base.py tests/fixtures/python_target.py --prompt \"DatabaseManager にコネクションプールを追加して\" --model \"gpt-4o\" -w",
     "demo:doc": "deno run -A main.ts tests/fixtures/doc_base.md tests/fixtures/doc_target.md --prompt \"認証仕様書を v2.0 にアップデートして\" -w",
     "demo:large": "deno run -A main.ts tests/fixtures/large_base.ts tests/fixtures/large_target.ts -w",
+    "demo:desktop:large": "deno desktop -A --hmr main.ts -- tests/fixtures/large_base.ts tests/fixtures/large_target.ts",
     "demo:desktop:welcome": "deno desktop -A --hmr main.ts",
     "demo:desktop:dir": "deno desktop -A --hmr main.ts -- tests/fixtures/dir_base tests/fixtures/dir_target",
     "demo:desktop:sample": "deno desktop -A --hmr main.ts -- tests/fixtures/sample_base.ts tests/fixtures/sample_target.ts --prompt \"テスト\"",
