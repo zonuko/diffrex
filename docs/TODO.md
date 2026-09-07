@@ -376,11 +376,11 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-10. CI/CD & 自動リリース・マルチプラットフォーム配布
 
-- [ ] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
-- [ ] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
-- [ ] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
-- [ ] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
-- [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
+- [x] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
+- [x] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
+- [x] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
+- [x] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
+- [x] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
 
 **AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
 
