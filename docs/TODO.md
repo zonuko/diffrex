@@ -386,12 +386,12 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-12. ワンライナーインストールスクリプト & インストーラー / パッケージ配布
 
-- [ ] **B12-01** `scripts/install.sh`（macOS / Linux 向けシェルスクリプト）を作成し、`curl -fsSL https://.../install.sh | sh` で最新 GitHub Release バイナリの自動ダウンロード・解凍・実行権限付与・パス（`~/.local/bin` 等）配置を実装。
-- [ ] **B12-02** `scripts/install.ps1`（Windows PowerShell 向けスクリプト）を作成し、`irm https://.../install.ps1 | iex` で最新 GitHub Release バイナリの自動ダウンロード・展開・ユーザ環境変数 PATH（`$env:LOCALAPPDATA\Programs\Diffrex` 等）への追加を実装。
-- [ ] **B12-03** `deno install` による Deno ランタイム直接インストールコマンド（`deno install -g -A -n diffrex ...`）のサポートとドキュメント化。
-- [ ] **B12-04** （発展/任意）主要パッケージマネージャー（Homebrew Formula, Scoop manifest, winget 等）向けの配布定義ファイルの作成およびリリースタスクとの連携。
-- [ ] **B12-05** インストールスクリプトのアンインストール機能（`--uninstall` オプション等）および動作検証テストの追加。
-- [ ] **B12-06** `README.md` のインストールセクションを更新し、ワンライナーインストールコマンド（curl / PowerShell）および各プラットフォームでのセットアップ手順を反映。
+- [x] **B12-01** `scripts/install.sh`（macOS / Linux 向けシェルスクリプト）を作成し、`curl -fsSL https://.../install.sh | sh` で最新 GitHub Release バイナリの自動ダウンロード・解凍・実行権限付与・パス（`~/.local/bin` 等）配置を実装。
+- [x] **B12-02** `scripts/install.ps1`（Windows PowerShell 向けスクリプト）を作成し、`irm https://.../install.ps1 | iex` で最新 GitHub Release バイナリの自動ダウンロード・展開・ユーザ環境変数 PATH（`$env:LOCALAPPDATA\Programs\Diffrex` 等）への追加を実装。
+- [x] **B12-03** `deno install` による Deno ランタイム直接インストールコマンド（`deno install -g -A -n diffrex ...`）のサポートとドキュメント化。
+- [x] **B12-04** （発展/任意）主要パッケージマネージャー（Homebrew Formula, Scoop manifest, winget 等）向けの配布定義ファイルの作成およびリリースタスクとの連携。
+- [x] **B12-05** インストールスクリプトのアンインストール機能（`--uninstall` オプション等）および動作検証テストの追加。
+- [x] **B12-06** `README.md` のインストールセクションを更新し、ワンライナーインストールコマンド（curl / PowerShell）および各プラットフォームでのセットアップ手順を反映。
 
 **AC:** macOS / Linux では `curl -fsSL ... | sh`、Windows では `irm ... | iex` のワンライナーコマンドで Diffrex の最新バイナリがダウンロード・PATH 登録され、ターミナルから `diffrex` コマンドで即座に起動できる。
 

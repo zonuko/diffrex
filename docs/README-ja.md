@@ -50,7 +50,56 @@ AI 生成コードのレビューを支援する Deno Desktop 製の差分・マ
 
 ## 📦 インストール & セットアップ
 
-### 1. 事前ビルド済みバイナリのダウンロード（推奨）
+### 1. ワンライナーインストーラー（推奨・最速）
+
+ターミナルから1行のコマンドを実行するだけで、OS・アーキテクチャの自動判別、最新バイナリのダウンロード・チェックサム検証、および `PATH` の設定まで自動で行われます。
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh
+```
+
+*(アンインストール: `curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh -s -- --uninstall`)*
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex
+```
+
+*(アンインストール: `irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex -args -Uninstall`)*
+
+---
+
+### 2. パッケージマネージャー
+
+#### Homebrew (macOS / Linux)
+
+```bash
+brew tap zonuko/diffrex https://github.com/zonuko/diffrex
+brew install diffrex
+```
+
+#### Scoop (Windows)
+
+```powershell
+scoop install https://raw.githubusercontent.com/zonuko/diffrex/main/packaging/scoop/diffrex.json
+```
+
+---
+
+### 3. Deno から直接グローバルインストール (`deno install`)
+
+開発機に Deno v2.9+ が導入されている場合、リポジトリから直接グローバルコマンドとしてインストールできます。
+
+```bash
+deno install -g -A -n diffrex https://raw.githubusercontent.com/zonuko/diffrex/main/main.ts
+```
+
+---
+
+### 4. 事前ビルド済みバイナリの手動ダウンロード
 
 Windows, macOS, Linux 向けにコンパイル済みのバイナリパッケージを [GitHub Releases](https://github.com/zonuko/diffrex/releases) からダウンロードできます。
 
@@ -63,7 +112,7 @@ Windows, macOS, Linux 向けにコンパイル済みのバイナリパッケー�
 
 各リリースには整合性検証用の SHA-256 チェックサムファイル（`.sha256` および `SHA256SUMS.txt`）が同梱されています。
 
-#### セットアップ手順
+#### 手動セットアップ手順
 
 **Windows (PowerShell):**
 
@@ -89,7 +138,7 @@ tar -xzf diffrex-linux-x86_64.tar.gz  # または diffrex-macos-*.tar.gz
 sudo mv diffrex-*/diffrex /usr/local/bin/
 ```
 
-### 2. ソースコードからのビルド（開発者向け）
+### 5. ソースコードからのビルド（開発者向け）
 
 ローカル環境で直接ビルドする場合の手順です。
 

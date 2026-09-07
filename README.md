@@ -73,7 +73,60 @@ supports the code review experience in the AI ​​era**.
 
 ## 📦 Installation & Setup
 
-### 1. Download Pre-built Binaries (Recommended)
+### 1. One-line Installer (Fastest)
+
+You can automatically download, verify, and install the latest Diffrex binary
+with automatic `PATH` configuration using a single terminal command:
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh
+```
+
+_(To uninstall:
+`curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh -s -- --uninstall`)_
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex
+```
+
+_(To uninstall:
+`irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex -args -Uninstall`)_
+
+---
+
+### 2. Package Managers
+
+#### Homebrew (macOS / Linux)
+
+```bash
+brew tap zonuko/diffrex https://github.com/zonuko/diffrex
+brew install diffrex
+```
+
+#### Scoop (Windows)
+
+```powershell
+scoop install https://raw.githubusercontent.com/zonuko/diffrex/main/packaging/scoop/diffrex.json
+```
+
+---
+
+### 3. Via Deno Directly (`deno install`)
+
+If you have Deno v2.9+ installed on your machine, you can install Diffrex
+globally directly from the repository:
+
+```bash
+deno install -g -A -n diffrex https://raw.githubusercontent.com/zonuko/diffrex/main/main.ts
+```
+
+---
+
+### 4. Download Pre-built Binaries Manually
 
 Pre-compiled standalone binaries for Windows, macOS, and Linux are automatically
 built and published on every release. You can download the latest archive for
@@ -90,7 +143,7 @@ your platform from
 Each release includes SHA-256 checksums (`.sha256` files and a unified
 `SHA256SUMS.txt`) to verify file integrity.
 
-#### Setup Guide
+#### Manual Setup Guide
 
 **Windows (PowerShell):**
 
@@ -116,7 +169,7 @@ tar -xzf diffrex-linux-x86_64.tar.gz   # or diffrex-macos-*.tar.gz
 sudo mv diffrex-*/diffrex /usr/local/bin/
 ```
 
-### 2. Building from Source (Local Development)
+### 5. Building from Source (Local Development)
 
 If you prefer building Diffrex locally:
 
