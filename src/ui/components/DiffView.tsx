@@ -329,7 +329,6 @@ function buildDecorationsForEditor(
     const endLineObj = doc.line(effectiveEnd);
 
     const from = startLineObj.from;
-    const to = isZeroLines ? startLineObj.from : endLineObj.to;
     const linesCount = isZeroLines ? 0 : Math.max(1, endLine - startLine + 1);
 
     // レビュー状態ガターマーカー (P4-15)
@@ -342,20 +341,37 @@ function buildDecorationsForEditor(
 
     if (isFolded && h.isNoise) {
       // 自身の側に変更行が存在する場合のみ Replace Widget で折りたたむ
-      if (!isZeroLines && from <= to && !processedFoldPos.has(from)) {
-        processedFoldPos.add(from);
-        const foldWidget = new NoiseFoldWidget(
-          h.id,
-          linesCount,
-          h.summaryTag || "",
-          () => controller.toggleHunkFold(h.id),
-        );
-        foldRanges.push(
-          Decoration.replace({ widget: foldWidget }).range(
-            from,
-            to,
-          ),
-        );
+      if (!isZeroLines) {
+        let foldFrom = startLineObj.from;
+        let foldTo = endLineObj.to;
+
+        // 行末の改行も含められる場合は含めることで、空行（foldFrom == foldTo）でも foldFrom < foldTo にする
+        if (foldFrom === foldTo && foldTo < doc.length) {
+          foldTo++;
+        } else if (foldFrom === foldTo && foldFrom > 0) {
+          foldFrom--;
+        }
+
+        // 置換対象が 1 文字以上（foldFrom < foldTo）ある場合のみ Replace Widget で折りたたむ
+        if (foldFrom < foldTo && !processedFoldPos.has(foldFrom)) {
+          processedFoldPos.add(foldFrom);
+          const foldWidget = new NoiseFoldWidget(
+            h.id,
+            linesCount,
+            h.summaryTag || "",
+            () => controller.toggleHunkFold(h.id),
+          );
+          try {
+            foldRanges.push(
+              Decoration.replace({ widget: foldWidget, block: true }).range(
+                foldFrom,
+                foldTo,
+              ),
+            );
+          } catch {
+            // 不正な範囲指定時は安全にスキップ
+          }
+        }
       }
     } else {
       // Risk バナー & 行ボーダー (P4-10)
@@ -390,8 +406,17 @@ function buildDecorationsForEditor(
     }
   }
 
-  // 明示的な昇順ソート
+  // 明示的な昇順ソートおよび重複範囲の除外
   foldRanges.sort((a, b) => a.from - b.from || a.to - b.to);
+  const cleanFoldRanges: typeof foldRanges = [];
+  let lastFoldTo = -1;
+  for (const r of foldRanges) {
+    if (r.from >= lastFoldTo && r.from < r.to) {
+      cleanFoldRanges.push(r);
+      lastFoldTo = r.to;
+    }
+  }
+
   bannerRanges.sort((a, b) => a.from - b.from);
   lineRanges.sort((a, b) => a.from - b.from);
   reviewPositions.sort((a, b) => a.pos - b.pos);
@@ -410,9 +435,9 @@ function buildDecorationsForEditor(
   const reviewMarkers = reviewBuilder.finish();
 
   try {
-    foldDecos = Decoration.set(foldRanges, true);
+    foldDecos = Decoration.set(cleanFoldRanges, true);
   } catch (err) {
-    console.error("Failed to set foldDecos:", err, foldRanges);
+    console.error("Failed to set foldDecos:", err, cleanFoldRanges);
   }
 
   try {

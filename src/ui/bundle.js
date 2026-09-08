@@ -32637,7 +32637,6 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
     const startLineObj = doc2.line(effectiveStart);
     const endLineObj = doc2.line(effectiveEnd);
     const from = startLineObj.from;
-    const to = isZeroLines ? startLineObj.from : endLineObj.to;
     const linesCount = isZeroLines ? 0 : Math.max(1, endLine - startLine + 1);
     reviewPositions.push({
       pos: from,
@@ -32645,20 +32644,32 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
     });
     const isFolded = model.isHunkFolded(h3.id, h3.isNoise);
     if (isFolded && h3.isNoise) {
-      if (!isZeroLines && from <= to && !processedFoldPos.has(from)) {
-        processedFoldPos.add(from);
-        const foldWidget = new NoiseFoldWidget(
-          h3.id,
-          linesCount,
-          h3.summaryTag || "",
-          () => controller.toggleHunkFold(h3.id)
-        );
-        foldRanges.push(
-          Decoration.replace({ widget: foldWidget }).range(
-            from,
-            to
-          )
-        );
+      if (!isZeroLines) {
+        let foldFrom = startLineObj.from;
+        let foldTo = endLineObj.to;
+        if (foldFrom === foldTo && foldTo < doc2.length) {
+          foldTo++;
+        } else if (foldFrom === foldTo && foldFrom > 0) {
+          foldFrom--;
+        }
+        if (foldFrom < foldTo && !processedFoldPos.has(foldFrom)) {
+          processedFoldPos.add(foldFrom);
+          const foldWidget = new NoiseFoldWidget(
+            h3.id,
+            linesCount,
+            h3.summaryTag || "",
+            () => controller.toggleHunkFold(h3.id)
+          );
+          try {
+            foldRanges.push(
+              Decoration.replace({ widget: foldWidget, block: true }).range(
+                foldFrom,
+                foldTo
+              )
+            );
+          } catch {
+          }
+        }
       }
     } else {
       if (h3.riskLevel === "danger" || h3.riskLevel === "warning") {
@@ -32687,6 +32698,14 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
     }
   }
   foldRanges.sort((a3, b2) => a3.from - b2.from || a3.to - b2.to);
+  const cleanFoldRanges = [];
+  let lastFoldTo = -1;
+  for (const r3 of foldRanges) {
+    if (r3.from >= lastFoldTo && r3.from < r3.to) {
+      cleanFoldRanges.push(r3);
+      lastFoldTo = r3.to;
+    }
+  }
   bannerRanges.sort((a3, b2) => a3.from - b2.from);
   lineRanges.sort((a3, b2) => a3.from - b2.from);
   reviewPositions.sort((a3, b2) => a3.pos - b2.pos);
@@ -32702,9 +32721,9 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
   }
   const reviewMarkers = reviewBuilder.finish();
   try {
-    foldDecos = Decoration.set(foldRanges, true);
+    foldDecos = Decoration.set(cleanFoldRanges, true);
   } catch (err) {
-    console.error("Failed to set foldDecos:", err, foldRanges);
+    console.error("Failed to set foldDecos:", err, cleanFoldRanges);
   }
   try {
     bannerDecos = Decoration.set(bannerRanges, true);
