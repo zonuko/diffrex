@@ -8,3 +8,9 @@ node_modules/
 # カバレッジ出力
 coverage/
 tmp/
+
+# deno desktop のアプリバンドル出力（macOS）
+*.app/
+
+# macOS
+.DS_Store
