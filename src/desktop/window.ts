@@ -64,8 +64,16 @@ export function formatWindowTitle(session: AnySessionData): string {
     return "Diffrex";
   }
   if (session.mode === "directory") {
-    const leftName = basename((session as DirectoryDiffSessionData).baseDir);
-    const rightName = basename((session as DirectoryDiffSessionData).targetDir);
+    const dirSession = session as DirectoryDiffSessionData;
+    if (dirSession.isGitRepo) {
+      const branch = dirSession.git?.branch
+        ? ` (${dirSession.git.branch})`
+        : "";
+      const name = basename(dirSession.targetDir);
+      return `Diffrex - 🌿 ${name}${branch} (HEAD vs Working Tree)`;
+    }
+    const leftName = basename(dirSession.baseDir);
+    const rightName = basename(dirSession.targetDir);
     return `Diffrex - 📁 ${leftName} ⇄ 📁 ${rightName}`;
   }
   const diffSession = session as DiffSessionData;
@@ -124,6 +132,22 @@ export function startDesktopServer(
   const broadcast = (msg: BackendToUiMessage) => {
     for (const ws of activeSockets) {
       sendToSocket(ws, msg);
+    }
+  };
+
+  const cleanupCurrentGitTempWorktree = async () => {
+    if (currentSession && currentSession.mode === "directory") {
+      const dir = currentSession as DirectoryDiffSessionData;
+      if (dir.git?.tempWorktreePath) {
+        try {
+          const { cleanupTempWorktreeByPath } = await import(
+            "../core/git/temp_worktree.ts"
+          );
+          await cleanupTempWorktreeByPath(dir.git.tempWorktreePath);
+        } catch {
+          // ignore
+        }
+      }
     }
   };
 
@@ -262,18 +286,44 @@ export function startDesktopServer(
                 let leftTarget: FileTarget;
                 let rightTarget: FileTarget;
 
-                try {
-                  const res = await readFileTarget(leftFullPath, {
-                    readOnly: true,
-                  });
-                  leftTarget = res.target;
-                  metadataMap.set(leftFullPath, res.meta);
-                } catch {
+                if (dirSession.isGitRepo && !dirSession.git?.tempWorktreePath) {
+                  // 一時 Worktree が存在しない例外的なフォールバック時のみ git show を使用
+                  const { getGitBaseContent } = await import(
+                    "../core/git/status.ts"
+                  );
+                  const baseContent = await getGitBaseContent(
+                    dirSession.baseDir,
+                    parsed.relativePath,
+                    "HEAD",
+                  );
                   leftTarget = {
-                    path: leftFullPath,
-                    content: "",
+                    path: `HEAD:${parsed.relativePath}`,
+                    content: baseContent ?? "",
                     readOnly: true,
                   };
+                } else {
+                  // 通常時（一時 Worktree 方式または通常ディレクトリ比較）:
+                  // ローカルファイルを直接高速読込（git.exe 起動・コンソール点滅ゼロ）
+                  try {
+                    const res = await readFileTarget(leftFullPath, {
+                      readOnly: true,
+                    });
+                    leftTarget = {
+                      ...res.target,
+                      path: dirSession.isGitRepo
+                        ? `HEAD:${parsed.relativePath}`
+                        : res.target.path,
+                    };
+                    metadataMap.set(leftFullPath, res.meta);
+                  } catch {
+                    leftTarget = {
+                      path: dirSession.isGitRepo
+                        ? `HEAD:${parsed.relativePath}`
+                        : leftFullPath,
+                      content: "",
+                      readOnly: true,
+                    };
+                  }
                 }
 
                 try {
@@ -392,6 +442,7 @@ export function startDesktopServer(
 
           case "dir:start_session": {
             try {
+              await cleanupCurrentGitTempWorktree();
               const session = await compareDirectories(
                 parsed.baseDir,
                 parsed.targetDir,
@@ -423,8 +474,120 @@ export function startDesktopServer(
             break;
           }
 
+          case "git:start_session": {
+            try {
+              await cleanupCurrentGitTempWorktree();
+              const { buildGitDirectoryDiffSession } = await import(
+                "../core/git/status.ts"
+              );
+
+              if (parsed.worktreePath) {
+                const session = await compareDirectories(
+                  parsed.worktreePath,
+                  parsed.repoPath,
+                  { readOnly: parsed.readOnly },
+                );
+                session.isGitRepo = true;
+                session.git = {
+                  isGitRepo: true,
+                };
+                currentSession = session;
+                if (desktopWindow) {
+                  desktopWindow.setTitle(formatWindowTitle(session));
+                }
+                broadcast({
+                  type: "dir:tree_data",
+                  data: session,
+                });
+                break;
+              }
+
+              if (parsed.branch) {
+                const { createTempWorktree } = await import(
+                  "../core/git/temp_worktree.ts"
+                );
+                const tempWt = await createTempWorktree(
+                  parsed.repoPath,
+                  parsed.branch,
+                );
+                const session = await compareDirectories(
+                  tempWt.path,
+                  parsed.repoPath,
+                  { readOnly: parsed.readOnly },
+                );
+                session.isGitRepo = true;
+                session.git = {
+                  isGitRepo: true,
+                  branch: parsed.branch,
+                  tempWorktreePath: tempWt.path,
+                };
+                currentSession = session;
+                if (desktopWindow) {
+                  desktopWindow.setTitle(formatWindowTitle(session));
+                }
+                broadcast({
+                  type: "dir:tree_data",
+                  data: session,
+                });
+                break;
+              }
+
+              const session = await buildGitDirectoryDiffSession(
+                parsed.repoPath,
+                {
+                  readOnly: parsed.readOnly,
+                },
+              );
+              currentSession = session;
+              if (desktopWindow) {
+                desktopWindow.setTitle(formatWindowTitle(session));
+              }
+              await recordHistoryEntry({
+                mode: "directory",
+                leftPath: parsed.repoPath,
+                rightPath: parsed.repoPath,
+                readOnly: parsed.readOnly,
+              });
+              broadcast({
+                type: "dir:tree_data",
+                data: session,
+              });
+            } catch (err) {
+              broadcast({
+                type: "save:result",
+                success: false,
+                message: `Git 比較の開始に失敗しました: ${
+                  err instanceof Error ? err.message : String(err)
+                }`,
+              });
+            }
+            break;
+          }
+
+          case "git:list_worktrees": {
+            try {
+              const { listGitWorktrees } = await import(
+                "../core/git/worktree.ts"
+              );
+              const worktrees = await listGitWorktrees(parsed.repoPath);
+              sendToSocket(socket, {
+                type: "git:worktrees_data",
+                repoPath: parsed.repoPath,
+                worktrees,
+              });
+            } catch {
+              sendToSocket(socket, {
+                type: "git:worktrees_data",
+                repoPath: parsed.repoPath,
+                worktrees: [],
+              });
+            }
+            break;
+          }
+
           case "file:start_session": {
             try {
+              await cleanupCurrentGitTempWorktree();
               const [leftRes, rightRes] = await Promise.all([
                 readFileTarget(parsed.leftPath, { readOnly: parsed.readOnly }),
                 readFileTarget(parsed.rightPath, {
@@ -813,6 +976,7 @@ export function startDesktopServer(
 
           case "exit:request": {
             const targetCode = parsed.code ?? 0;
+            await cleanupCurrentGitTempWorktree();
             options?.handlers?.onExitRequest?.(targetCode);
             resolveExit?.(targetCode);
             if (desktopWindow) {
@@ -936,6 +1100,7 @@ export function startDesktopServer(
       }
     }
     activeSockets.clear();
+    await cleanupCurrentGitTempWorktree();
     await server.shutdown();
     if (!hasResolvedExit) {
       resolveExit?.(exitCode);

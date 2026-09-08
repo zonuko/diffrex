@@ -1,5 +1,8 @@
-# deno compile の出力先
+# deno compile / desktop の出力先
 dist/
+diffrex/
+*.WebView2/
+EBWebView/
 
 # Deno のローカルキャッシュ（`deno.json` の nodeModulesDir 等を使う場合）
 node_modules/

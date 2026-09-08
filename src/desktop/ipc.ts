@@ -38,6 +38,11 @@ export type BackendToUiMessage =
   | {
     type: "session:snapshot_saved";
     success: boolean;
+  }
+  | {
+    type: "git:worktrees_data";
+    repoPath: string;
+    worktrees: import("../core/types.ts").GitWorktreeInfo[];
   };
 
 /** UI → Backend メッセージ */
@@ -56,6 +61,17 @@ export type UiToBackendMessage =
     baseDir: string;
     targetDir: string;
     readOnly?: boolean;
+  }
+  | {
+    type: "git:start_session";
+    repoPath: string;
+    branch?: string;
+    worktreePath?: string;
+    readOnly?: boolean;
+  }
+  | {
+    type: "git:list_worktrees";
+    repoPath: string;
   }
   | {
     type: "file:start_session";

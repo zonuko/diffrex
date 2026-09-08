@@ -268,6 +268,23 @@ export class DirectoryController {
     });
   }
 
+  startGitSession(
+    repoPath: string,
+    options: {
+      branch?: string;
+      worktreePath?: string;
+      readOnly?: boolean;
+    } = {},
+  ): void {
+    this.sendMessage({
+      type: "git:start_session",
+      repoPath,
+      branch: options.branch,
+      worktreePath: options.worktreePath,
+      readOnly: options.readOnly,
+    });
+  }
+
   startFileSession(
     leftPath: string,
     rightPath: string,

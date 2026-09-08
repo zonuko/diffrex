@@ -14,9 +14,11 @@ export interface WelcomeViewProps {
 }
 
 export function WelcomeView({ controller }: WelcomeViewProps) {
-  const [tab, setTab] = useState<"dir" | "file">("dir");
+  const [tab, setTab] = useState<"dir" | "file" | "git">("dir");
   const [basePath, setBasePath] = useState("");
   const [targetPath, setTargetPath] = useState("");
+  const [gitRepoPath, setGitRepoPath] = useState("");
+  const [gitBranch, setGitBranch] = useState("");
   const [readOnly, setReadOnly] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [dragOverZone, setDragOverZone] = useState<
@@ -27,6 +29,19 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
   const lastSession = controller.model.lastSession;
 
   const handleStart = () => {
+    if (tab === "git") {
+      if (!gitRepoPath.trim()) {
+        setErrorMsg("Git リポジトリフォルダを指定してください。");
+        return;
+      }
+      setErrorMsg("");
+      controller.startGitSession(gitRepoPath.trim(), {
+        branch: gitBranch.trim() || undefined,
+        readOnly,
+      });
+      return;
+    }
+
     if (!basePath.trim() || !targetPath.trim()) {
       setErrorMsg("両方のパスを指定してください。");
       return;
@@ -49,6 +64,12 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
   };
 
   const handleBrowse = (field: "base" | "target") => {
+    if (tab === "git") {
+      controller.openDialog("dir", "base", (selected) => {
+        setGitRepoPath(selected);
+      });
+      return;
+    }
     controller.openDialog(tab, field, (selected) => {
       if (field === "base") {
         setBasePath(selected);
@@ -117,11 +138,15 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
 
   const handleLaunchHistory = (item: HistoryEntry) => {
     if (item.mode === "directory") {
-      controller.startDirectorySession(
-        item.leftPath,
-        item.rightPath,
-        item.readOnly,
-      );
+      if (item.leftPath === item.rightPath) {
+        controller.startGitSession(item.leftPath, { readOnly: item.readOnly });
+      } else {
+        controller.startDirectorySession(
+          item.leftPath,
+          item.rightPath,
+          item.readOnly,
+        );
+      }
     } else {
       controller.startFileSession(
         item.leftPath,
@@ -208,86 +233,170 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
             >
               📄 ファイル比較
             </button>
+            <button
+              type="button"
+              class={`welcome-tab ${tab === "git" ? "active" : ""}`}
+              onClick={() => {
+                setTab("git");
+                setErrorMsg("");
+              }}
+            >
+              🌿 Git 差分
+            </button>
           </div>
 
           <div class="welcome-form">
-            <div
-              class={`welcome-form-group ${
-                dragOverZone === "base" ? "drop-active" : ""
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragOverZone("base");
-              }}
-              onDragLeave={() => setDragOverZone(null)}
-              onDrop={(e) => handleDropFiles(e, "base")}
-            >
-              <label class="welcome-label">
-                {tab === "dir"
-                  ? "Base フォルダ（変更前 / 旧）"
-                  : "Base ファイル（変更前 / 旧）"}
-                <span class="welcome-drop-hint">（またはここにドロップ）</span>
-              </label>
-              <div class="welcome-input-row">
-                <input
-                  type="text"
-                  class="welcome-input"
-                  placeholder={tab === "dir"
-                    ? "C:/path/to/base_dir"
-                    : "C:/path/to/base.ts"}
-                  value={basePath}
-                  onInput={(e) =>
-                    setBasePath((e.target as HTMLInputElement).value)}
-                />
-                <button
-                  type="button"
-                  class="welcome-browse-btn"
-                  onClick={() => handleBrowse("base")}
-                >
-                  {tab === "dir" ? "📁 参照..." : "📄 参照..."}
-                </button>
-              </div>
-            </div>
+            {tab === "git"
+              ? (
+                <>
+                  <div
+                    class={`welcome-form-group ${
+                      dragOverZone === "base" ? "drop-active" : ""
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverZone("base");
+                    }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverZone(null);
+                      const files = e.dataTransfer?.files;
+                      if (files && files.length > 0) {
+                        const file = files[0] as File & { path?: string };
+                        if (file.path) setGitRepoPath(file.path);
+                      }
+                    }}
+                  >
+                    <label class="welcome-label">
+                      Git リポジトリ / ワーキングツリー フォルダ
+                      <span class="welcome-drop-hint">
+                        （またはここにドロップ）
+                      </span>
+                    </label>
+                    <div class="welcome-input-row">
+                      <input
+                        type="text"
+                        class="welcome-input"
+                        placeholder="C:/path/to/git_repository"
+                        value={gitRepoPath}
+                        onInput={(e) =>
+                          setGitRepoPath((e.target as HTMLInputElement).value)}
+                      />
+                      <button
+                        type="button"
+                        class="welcome-browse-btn"
+                        onClick={() => handleBrowse("base")}
+                      >
+                        📁 参照...
+                      </button>
+                    </div>
+                  </div>
 
-            <div
-              class={`welcome-form-group ${
-                dragOverZone === "target" ? "drop-active" : ""
-              }`}
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setDragOverZone("target");
-              }}
-              onDragLeave={() => setDragOverZone(null)}
-              onDrop={(e) => handleDropFiles(e, "target")}
-            >
-              <label class="welcome-label">
-                {tab === "dir"
-                  ? "Target フォルダ（変更後 / 新・編集先）"
-                  : "Target ファイル（変更後 / 新・編集先）"}
-                <span class="welcome-drop-hint">（またはここにドロップ）</span>
-              </label>
-              <div class="welcome-input-row">
-                <input
-                  type="text"
-                  class="welcome-input"
-                  placeholder={tab === "dir"
-                    ? "C:/path/to/target_dir"
-                    : "C:/path/to/target.ts"}
-                  value={targetPath}
-                  onInput={(e) =>
-                    setTargetPath((e.target as HTMLInputElement).value)}
-                />
-                <button
-                  type="button"
-                  class="welcome-browse-btn"
-                  onClick={() => handleBrowse("target")}
-                >
-                  {tab === "dir" ? "📁 参照..." : "📄 参照..."}
-                </button>
-              </div>
-            </div>
+                  <div class="welcome-form-group">
+                    <label class="welcome-label">
+                      比較ブランチ（任意。省略時は HEAD との未コミット差分）
+                    </label>
+                    <div class="welcome-input-row">
+                      <input
+                        type="text"
+                        class="welcome-input"
+                        placeholder="main / feature-branch"
+                        value={gitBranch}
+                        onInput={(e) =>
+                          setGitBranch((e.target as HTMLInputElement).value)}
+                      />
+                    </div>
+                  </div>
+                </>
+              )
+              : (
+                <>
+                  <div
+                    class={`welcome-form-group ${
+                      dragOverZone === "base" ? "drop-active" : ""
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverZone("base");
+                    }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={(e) => handleDropFiles(e, "base")}
+                  >
+                    <label class="welcome-label">
+                      {tab === "dir"
+                        ? "Base フォルダ（変更前 / 旧）"
+                        : "Base ファイル（変更前 / 旧）"}
+                      <span class="welcome-drop-hint">
+                        （またはここにドロップ）
+                      </span>
+                    </label>
+                    <div class="welcome-input-row">
+                      <input
+                        type="text"
+                        class="welcome-input"
+                        placeholder={tab === "dir"
+                          ? "C:/path/to/base_dir"
+                          : "C:/path/to/base.ts"}
+                        value={basePath}
+                        onInput={(e) =>
+                          setBasePath((e.target as HTMLInputElement).value)}
+                      />
+                      <button
+                        type="button"
+                        class="welcome-browse-btn"
+                        onClick={() => handleBrowse("base")}
+                      >
+                        {tab === "dir" ? "📁 参照..." : "📄 参照..."}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div
+                    class={`welcome-form-group ${
+                      dragOverZone === "target" ? "drop-active" : ""
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDragOverZone("target");
+                    }}
+                    onDragLeave={() => setDragOverZone(null)}
+                    onDrop={(e) => handleDropFiles(e, "target")}
+                  >
+                    <label class="welcome-label">
+                      {tab === "dir"
+                        ? "Target フォルダ（変更後 / 新・編集先）"
+                        : "Target ファイル（変更後 / 新・編集先）"}
+                      <span class="welcome-drop-hint">
+                        （またはここにドロップ）
+                      </span>
+                    </label>
+                    <div class="welcome-input-row">
+                      <input
+                        type="text"
+                        class="welcome-input"
+                        placeholder={tab === "dir"
+                          ? "C:/path/to/target_dir"
+                          : "C:/path/to/target.ts"}
+                        value={targetPath}
+                        onInput={(e) =>
+                          setTargetPath((e.target as HTMLInputElement).value)}
+                      />
+                      <button
+                        type="button"
+                        class="welcome-browse-btn"
+                        onClick={() => handleBrowse("target")}
+                      >
+                        {tab === "dir" ? "📁 参照..." : "📄 参照..."}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
             <div class="welcome-options">
               <label class="welcome-checkbox-label">
@@ -308,7 +417,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
               class="welcome-submit-btn"
               onClick={handleStart}
             >
-              比較を開始
+              {tab === "git" ? "未コミット差分を開く" : "比較を開始"}
             </button>
 
             <div class="welcome-dropzone-notice">
@@ -343,9 +452,18 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                 >
                   <div class="welcome-history-main">
                     <div class="welcome-history-tag-row">
-                      <span class={`welcome-mode-badge ${item.mode}`}>
+                      <span
+                        class={`welcome-mode-badge ${
+                          item.mode === "directory" &&
+                            item.leftPath === item.rightPath
+                            ? "git"
+                            : item.mode
+                        }`}
+                      >
                         {item.mode === "directory"
-                          ? "📁 DIR"
+                          ? (item.leftPath === item.rightPath
+                            ? "🌿 GIT"
+                            : "📁 DIR")
                           : item.mode === "3way"
                           ? "🌿 3-WAY"
                           : item.mode === "image"
@@ -358,11 +476,19 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                     </div>
                     <div
                       class="welcome-history-paths"
-                      title={`${item.leftPath} ⇄ ${item.rightPath}`}
+                      title={item.leftPath === item.rightPath
+                        ? `${item.leftPath} (HEAD vs Working Tree)`
+                        : `${item.leftPath} ⇄ ${item.rightPath}`}
                     >
                       <div class="welcome-history-path">{item.leftPath}</div>
-                      <div class="welcome-history-arrow">⇄</div>
-                      <div class="welcome-history-path">{item.rightPath}</div>
+                      {item.leftPath !== item.rightPath && (
+                        <>
+                          <div class="welcome-history-arrow">⇄</div>
+                          <div class="welcome-history-path">
+                            {item.rightPath}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                   <button

@@ -14,6 +14,9 @@ export interface ParsedCliArgs {
   right?: string;
   base?: string;
   gitPath?: string;
+  worktree?: string;
+  branch?: string;
+  isGitRepo?: boolean;
   prompt?: string;
   agent?: string;
   model?: string;
@@ -57,7 +60,17 @@ export function parseCliArgs(args: string[]): ParseResult {
   const cleanArgs = args.filter((a) => a !== "--");
 
   const parsed = parseArgs(cleanArgs, {
-    string: ["prompt", "agent", "model", "output", "runtime", "unified", "U"],
+    string: [
+      "prompt",
+      "agent",
+      "model",
+      "output",
+      "runtime",
+      "unified",
+      "U",
+      "worktree",
+      "branch",
+    ],
     boolean: [
       "wait",
       "read-only",
@@ -82,6 +95,9 @@ export function parseCliArgs(args: string[]): ParseResult {
       s: "stdout",
       u: "unified",
       U: "unified",
+      W: "worktree",
+      b: "branch",
+      B: "branch",
     },
     unknown: (arg: string) => {
       if (arg.startsWith("-") && arg !== "-") {
@@ -155,6 +171,8 @@ export function parseCliArgs(args: string[]): ParseResult {
   );
   const restore = Boolean(parsed.restore);
   const clearHistory = Boolean(parsed["clear-history"]);
+  const worktree = parsed.worktree ? String(parsed.worktree) : undefined;
+  const branch = parsed.branch ? String(parsed.branch) : undefined;
 
   return {
     ok: true,
@@ -165,6 +183,8 @@ export function parseCliArgs(args: string[]): ParseResult {
       right,
       base,
       gitPath,
+      worktree,
+      branch,
       prompt,
       agent,
       model,

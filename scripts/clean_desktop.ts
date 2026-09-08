@@ -7,10 +7,17 @@ if (Deno.build.os === "windows") {
     args: [
       "-NoProfile",
       "-Command",
-      'Get-Process | Where-Object { $_.ProcessName -like "*laufey*" } | Stop-Process -Force -ErrorAction SilentlyContinue',
+      'Get-Process | Where-Object { $_.ProcessName -like "*laufey*" -or $_.ProcessName -like "*diffrex*" } | Stop-Process -Force -ErrorAction SilentlyContinue',
     ],
   });
   await killCmd.output();
+
+  // ワークスペース内の diffrex キャッシュディレクトリ削除を試行
+  try {
+    await Deno.remove("diffrex", { recursive: true });
+  } catch {
+    // ignore
+  }
 
   // キャッシュディレクトリ内の Diffrex.dll 削除を試行
   const localAppData = Deno.env.get("LOCALAPPDATA");

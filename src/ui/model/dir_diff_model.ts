@@ -84,6 +84,16 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     return this._lastSession;
   }
 
+  get isGitRepo(): boolean {
+    return Boolean(
+      this._dirSession?.isGitRepo || this._dirSession?.git?.isGitRepo,
+    );
+  }
+
+  get gitInfo(): import("../../core/types.ts").GitRepoInfo | undefined {
+    return this._dirSession?.git;
+  }
+
   // --- ドメインミューテーション ---
 
   setHistoryData(

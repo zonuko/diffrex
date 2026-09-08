@@ -81,8 +81,18 @@ export async function validateCliArgs(
 
   const { positional, left, right, base } = parsed;
 
-  // 位置引数なし → Welcome モード
+  // 位置引数なし → Welcome モード（--branch または --worktree 指定時かつカレントディレクトリが Git リポジトリなら Git モード）
   if (positional.length === 0) {
+    if (parsed.branch || parsed.worktree) {
+      const { isGitRepository } = await import("../core/git/worktree.ts");
+      if (await isGitRepository(".")) {
+        parsed.mode = "directory";
+        parsed.isGitRepo = true;
+        parsed.left = ".";
+        parsed.right = ".";
+        return { ok: true };
+      }
+    }
     parsed.mode = "welcome";
     return { ok: true };
   }
@@ -104,6 +114,15 @@ export async function validateCliArgs(
           }
           return { ok: true };
         }
+      } else {
+        const { isGitRepository } = await import("../core/git/worktree.ts");
+        if (await isGitRepository(singlePath)) {
+          parsed.mode = "directory";
+          parsed.isGitRepo = true;
+          parsed.left = singlePath;
+          parsed.right = singlePath;
+          return { ok: true };
+        }
       }
     } catch {
       // ファイルが存在しない等のエラーも引数不足エラーとする
@@ -112,7 +131,7 @@ export async function validateCliArgs(
     return {
       ok: false,
       error:
-        "insufficient positional arguments (2 or 3 required, or a file containing Git conflict markers)",
+        "insufficient positional arguments (2 or 3 required, or a Git repository / Worktree folder, or a file containing Git conflict markers)",
       exitCode: 2,
       showUsage: true,
     };

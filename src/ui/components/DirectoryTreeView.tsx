@@ -25,6 +25,36 @@ export function DirectoryTreeView({
 
   return (
     <aside class="dir-tree-pane">
+      {model.isGitRepo && (
+        <div class="dir-git-header">
+          <span class="git-branch-badge" title="Git ワーキングツリー差分モード">
+            🌿 {session.git?.branch ?? "HEAD"}
+          </span>
+          <span class="git-mode-label">HEAD vs Working Tree</span>
+          {session.git?.worktrees && session.git.worktrees.length > 1 && (
+            <select
+              class="worktree-selector"
+              title="Worktree 比較"
+              onChange={(e) => {
+                const targetWt = (e.target as HTMLSelectElement).value;
+                if (targetWt && targetWt !== session.targetDir) {
+                  controller.startGitSession(session.targetDir, {
+                    worktreePath: targetWt,
+                  });
+                }
+              }}
+            >
+              <option value="">Worktree 比較...</option>
+              {session.git.worktrees.map((wt) => (
+                <option key={wt.path} value={wt.path}>
+                  {wt.branch ? `${wt.branch} (${wt.path})` : wt.path}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
       <div class="dir-tree-toolbar">
         <div class="dir-tree-summary">
           {summary.modified > 0 && (
@@ -128,8 +158,22 @@ function TreeNodeItem({
   const isSelected = model.selectedPath === node.relativePath;
   const isDirty = model.dirtyFiles.has(node.relativePath);
 
-  const getStatusBadge = (status: FileDiffStatus) => {
-    switch (status) {
+  const getStatusBadge = (n: DirectoryTreeNode) => {
+    if (n.gitStatus) {
+      switch (n.gitStatus) {
+        case "M":
+          return <span class="tree-badge badge-mod">M</span>;
+        case "A":
+          return <span class="tree-badge badge-add">A</span>;
+        case "D":
+          return <span class="tree-badge badge-del">D</span>;
+        case "R":
+          return <span class="tree-badge badge-rename">R</span>;
+        case "?":
+          return <span class="tree-badge badge-untracked">?</span>;
+      }
+    }
+    switch (n.status) {
       case "modified":
         return <span class="tree-badge badge-mod">M</span>;
       case "added":
@@ -168,7 +212,7 @@ function TreeNodeItem({
         </span>
         {isDirty && <span class="tree-dirty-dot" title="未保存の変更">●</span>}
         <span class="tree-badge-container">
-          {getStatusBadge(node.status)}
+          {getStatusBadge(node)}
         </span>
       </div>
 

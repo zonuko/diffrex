@@ -1,4 +1,4 @@
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/dist/preact.module.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/dist/preact.module.js
 var n;
 var l;
 var u;
@@ -255,7 +255,7 @@ n = w.slice, l = { __e: function(n2, l3, u4, t4) {
   return n2.__v.__b - l3.__v.__b;
 }, H.__r = 0, f = Math.random().toString(8), c = "__d" + f, a = "__a" + f, s = /(PointerCapture)$|Capture$/i, h = 0, p = V(false), v = V(true), y = 0;
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/hooks/dist/hooks.module.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/hooks/dist/hooks.module.js
 var t2;
 var r2;
 var u2;
@@ -1260,6 +1260,14 @@ var DirectoryDiffModel = class extends Observable {
   get lastSession() {
     return this._lastSession;
   }
+  get isGitRepo() {
+    return Boolean(
+      this._dirSession?.isGitRepo || this._dirSession?.git?.isGitRepo
+    );
+  }
+  get gitInfo() {
+    return this._dirSession?.git;
+  }
   // --- ドメインミューテーション ---
   setHistoryData(history2, lastSession) {
     this._history = history2;
@@ -1569,6 +1577,15 @@ var DirectoryController = class {
       baseDir,
       targetDir,
       readOnly: readOnly2
+    });
+  }
+  startGitSession(repoPath, options = {}) {
+    this.sendMessage({
+      type: "git:start_session",
+      repoPath,
+      branch: options.branch,
+      worktreePath: options.worktreePath,
+      readOnly: options.readOnly
     });
   }
   startFileSession(leftPath, rightPath, readOnly2) {
@@ -2201,7 +2218,7 @@ function useModel(model) {
   return model;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
 var f3 = 0;
 function u3(e3, t4, n2, o3, i3, u4) {
   t4 || (t4 = {});
@@ -2415,7 +2432,7 @@ function StatusBar({ model }) {
   ] });
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@marijn/find-cluster-break@1.0.3/node_modules/@marijn/find-cluster-break/src/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@marijn/find-cluster-break@1.0.3/node_modules/@marijn/find-cluster-break/src/index.js
 var rangeFrom = [];
 var rangeTo = [];
 (() => {
@@ -2489,7 +2506,7 @@ function codePointSize(code) {
   return code < 65536 ? 1 : 2;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/state@6.7.1/node_modules/@codemirror/state/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/state@6.7.1/node_modules/@codemirror/state/dist/index.js
 var Text = class _Text {
   /**
   Get the line description around the given position.
@@ -5857,7 +5874,7 @@ function findColumn(string2, col, tabSize, strict) {
   return strict === true ? -1 : string2.length;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js
 var C3 = "\u037C";
 var COUNT = typeof Symbol == "undefined" ? "__" + C3 : Symbol.for(C3);
 var SET = typeof Symbol == "undefined" ? "__styleSet" + Math.floor(Math.random() * 1e8) : Symbol("styleSet");
@@ -5988,7 +6005,7 @@ var StyleSet = class {
   }
 };
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js
 var base = {
   8: "Backspace",
   9: "Tab",
@@ -6094,7 +6111,7 @@ function keyName(event) {
   return name2;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/view@6.43.8/node_modules/@codemirror/view/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/view@6.43.8/node_modules/@codemirror/view/dist/index.js
 var nav = typeof navigator != "undefined" ? navigator : { userAgent: "", vendor: "", platform: "" };
 var doc = typeof document != "undefined" ? document : { documentElement: { style: {} } };
 var ie_edge = /* @__PURE__ */ /Edge\/(\d+)/.exec(nav.userAgent);
@@ -14985,7 +15002,7 @@ function maxLineNumber(lines) {
   return last;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/common@1.5.2/node_modules/@lezer/common/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/common@1.5.2/node_modules/@lezer/common/dist/index.js
 var DefaultBufferLength = 1024;
 var nextPropID = 0;
 var Range2 = class {
@@ -17036,7 +17053,7 @@ function enterFragments(mounts, ranges) {
   return result;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js
 var nextTagID = 0;
 var Tag = class _Tag {
   /**
@@ -17760,7 +17777,7 @@ var classHighlighter = tagHighlighter([
   { tag: tags.punctuation, class: "tok-punctuation" }
 ]);
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/language@6.12.4/node_modules/@codemirror/language/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/language@6.12.4/node_modules/@codemirror/language/dist/index.js
 var _a;
 var languageDataProp = /* @__PURE__ */ new NodeProp();
 function defineLanguageFacet(baseData) {
@@ -18974,7 +18991,7 @@ var marks = {
   auto: /* @__PURE__ */ Decoration.mark({ class: "cm-iso", inclusive: true, attributes: { dir: "auto" }, bidiIsolate: null })
 };
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/commands@6.10.4/node_modules/@codemirror/commands/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/commands@6.10.4/node_modules/@codemirror/commands/dist/index.js
 var toggleComment = (target) => {
   let { state } = target, line = state.doc.lineAt(state.selection.main.from), config = getConfig(target.state, line.from);
   return config.line ? toggleLineComment(target) : config.block ? toggleBlockCommentByLine(target) : false;
@@ -20068,7 +20085,7 @@ var defaultKeymap = /* @__PURE__ */ [
   { key: "Ctrl-m", mac: "Shift-Alt-m", run: toggleTabFocusMode }
 ].concat(standardKeymap);
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/theme-one-dark@6.1.3/node_modules/@codemirror/theme-one-dark/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/theme-one-dark@6.1.3/node_modules/@codemirror/theme-one-dark/dist/index.js
 var chalky = "#e5c07b";
 var coral = "#e06c75";
 var cyan = "#56b6c2";
@@ -20212,7 +20229,7 @@ var oneDarkHighlightStyle = /* @__PURE__ */ HighlightStyle.define([
 ]);
 var oneDark = [oneDarkTheme, /* @__PURE__ */ syntaxHighlighting(oneDarkHighlightStyle)];
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/merge@6.12.2/node_modules/@codemirror/merge/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/merge@6.12.2/node_modules/@codemirror/merge/dist/index.js
 var Change = class _Change {
   constructor(fromA, toA, fromB, toB) {
     this.fromA = fromA;
@@ -21456,7 +21473,7 @@ function rm(elt2) {
   return next;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/lr@1.4.10/node_modules/@lezer/lr/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/lr@1.4.10/node_modules/@lezer/lr/dist/index.js
 var Stack = class _Stack {
   /**
   @internal
@@ -23218,7 +23235,7 @@ function getSpecializer(spec) {
   return spec.get;
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js
 var noSemi = 316;
 var noSemiType = 317;
 var incdec = 1;
@@ -23430,7 +23447,7 @@ var parser = LRParser.deserialize({
   tokenPrec: 15201
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/autocomplete@6.20.3/node_modules/@codemirror/autocomplete/dist/index.js
 var CompletionContext = class {
   /**
   Create a new completion context. (Mostly useful for testing
@@ -23895,7 +23912,7 @@ closedBracket.startSide = 1;
 closedBracket.endSide = -1;
 var android = typeof navigator == "object" && /* @__PURE__ */ /Android\b/.test(navigator.userAgent);
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js
 var snippets = [
   /* @__PURE__ */ snippetCompletion("function ${name}(${params}) {\n	${}\n}", {
     label: "function",
@@ -24207,7 +24224,7 @@ var autoCloseTags = /* @__PURE__ */ EditorView.inputHandler.of((view, from, to, 
   return true;
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/json@1.0.3/node_modules/@lezer/json/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/json@1.0.3/node_modules/@lezer/json/dist/index.js
 var jsonHighlighting = styleTags({
   String: tags.string,
   Number: tags.number,
@@ -24239,7 +24256,7 @@ var parser2 = LRParser.deserialize({
   tokenPrec: 0
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js
 var jsonLanguage = /* @__PURE__ */ LRLanguage.define({
   name: "json",
   parser: /* @__PURE__ */ parser2.configure({
@@ -24262,7 +24279,7 @@ function json() {
   return new LanguageSupport(jsonLanguage);
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/markdown@1.7.2/node_modules/@lezer/markdown/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/markdown@1.7.2/node_modules/@lezer/markdown/dist/index.js
 var CompositeBlock = class _CompositeBlock {
   static create(type, value, from, parentHash, end) {
     let hash3 = parentHash + (parentHash << 8) + type + (value << 4) | 0;
@@ -26326,7 +26343,7 @@ var Emoji = {
   }]
 };
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/html@1.3.13/node_modules/@lezer/html/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/html@1.3.13/node_modules/@lezer/html/dist/index.js
 var scriptText = 55;
 var StartCloseScriptTag = 1;
 var styleText = 56;
@@ -26670,7 +26687,7 @@ function configureNesting(tags3 = [], attributes = []) {
   });
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/css@1.3.6/node_modules/@lezer/css/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/css@1.3.6/node_modules/@lezer/css/dist/index.js
 var descendantOp = 148;
 var Unit = 1;
 var identifier = 149;
@@ -26845,7 +26862,7 @@ var parser5 = LRParser.deserialize({
   tokenPrec: 2444
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js
 var _properties = null;
 function properties() {
   if (!_properties && typeof document == "object" && document.body) {
@@ -27706,7 +27723,7 @@ function css() {
   return new LanguageSupport(cssLanguage, cssLanguage.data.of({ autocomplete: cssCompletionSource }));
 }
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-html@6.4.12/node_modules/@codemirror/lang-html/dist/index.js
 var Targets = ["_blank", "_self", "_top", "_parent"];
 var Charsets = ["ascii", "utf-8", "utf-16", "latin1", "latin1"];
 var Methods = ["get", "post", "put", "delete"];
@@ -28446,7 +28463,7 @@ var autoCloseTags2 = /* @__PURE__ */ EditorView.inputHandler.of((view, from, to,
   return true;
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/dist/index.js
 var data = /* @__PURE__ */ defineLanguageFacet({ commentTokens: { block: { open: "<!--", close: "-->" } } });
 var headingProp = /* @__PURE__ */ new NodeProp();
 var commonmark = /* @__PURE__ */ parser3.configure({
@@ -28867,7 +28884,7 @@ var pasteURLAsLink = /* @__PURE__ */ EditorView.domEventHandlers({
   }
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@lezer/python@1.1.19/node_modules/@lezer/python/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@lezer/python@1.1.19/node_modules/@lezer/python/dist/index.js
 var printKeyword = 1;
 var indent = 194;
 var dedent = 195;
@@ -29203,7 +29220,7 @@ var parser6 = LRParser.deserialize({
   tokenPrec: 7668
 });
 
-// ../../../Library/Caches/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js
 var cache2 = /* @__PURE__ */ new NodeWeakMap();
 var ScopeNodes2 = /* @__PURE__ */ new Set([
   "Script",
@@ -32945,6 +32962,32 @@ function DirectoryTreeView({
   const { tree, summary } = session;
   const filterStatus = model.filterStatus;
   return /* @__PURE__ */ u3("aside", { class: "dir-tree-pane", children: [
+    model.isGitRepo && /* @__PURE__ */ u3("div", { class: "dir-git-header", children: [
+      /* @__PURE__ */ u3("span", { class: "git-branch-badge", title: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u5DEE\u5206\u30E2\u30FC\u30C9", children: [
+        "\u{1F33F} ",
+        session.git?.branch ?? "HEAD"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "git-mode-label", children: "HEAD vs Working Tree" }),
+      session.git?.worktrees && session.git.worktrees.length > 1 && /* @__PURE__ */ u3(
+        "select",
+        {
+          class: "worktree-selector",
+          title: "Worktree \u6BD4\u8F03",
+          onChange: (e3) => {
+            const targetWt = e3.target.value;
+            if (targetWt && targetWt !== session.targetDir) {
+              controller.startGitSession(session.targetDir, {
+                worktreePath: targetWt
+              });
+            }
+          },
+          children: [
+            /* @__PURE__ */ u3("option", { value: "", children: "Worktree \u6BD4\u8F03..." }),
+            session.git.worktrees.map((wt) => /* @__PURE__ */ u3("option", { value: wt.path, children: wt.branch ? `${wt.branch} (${wt.path})` : wt.path }, wt.path))
+          ]
+        }
+      )
+    ] }),
     /* @__PURE__ */ u3("div", { class: "dir-tree-toolbar", children: [
       /* @__PURE__ */ u3("div", { class: "dir-tree-summary", children: [
         summary.modified > 0 && /* @__PURE__ */ u3("span", { class: "badge-count badge-mod", children: [
@@ -33039,8 +33082,22 @@ function TreeNodeItem({
   const isExpanded = model.expandedDirs.has(node.relativePath);
   const isSelected = model.selectedPath === node.relativePath;
   const isDirty = model.dirtyFiles.has(node.relativePath);
-  const getStatusBadge = (status) => {
-    switch (status) {
+  const getStatusBadge = (n2) => {
+    if (n2.gitStatus) {
+      switch (n2.gitStatus) {
+        case "M":
+          return /* @__PURE__ */ u3("span", { class: "tree-badge badge-mod", children: "M" });
+        case "A":
+          return /* @__PURE__ */ u3("span", { class: "tree-badge badge-add", children: "A" });
+        case "D":
+          return /* @__PURE__ */ u3("span", { class: "tree-badge badge-del", children: "D" });
+        case "R":
+          return /* @__PURE__ */ u3("span", { class: "tree-badge badge-rename", children: "R" });
+        case "?":
+          return /* @__PURE__ */ u3("span", { class: "tree-badge badge-untracked", children: "?" });
+      }
+    }
+    switch (n2.status) {
       case "modified":
         return /* @__PURE__ */ u3("span", { class: "tree-badge badge-mod", children: "M" });
       case "added":
@@ -33071,7 +33128,7 @@ function TreeNodeItem({
           /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : "\u{1F4C4}" }),
           /* @__PURE__ */ u3("span", { class: "tree-name", title: node.relativePath, children: node.name }),
           isDirty && /* @__PURE__ */ u3("span", { class: "tree-dirty-dot", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
-          /* @__PURE__ */ u3("span", { class: "tree-badge-container", children: getStatusBadge(node.status) })
+          /* @__PURE__ */ u3("span", { class: "tree-badge-container", children: getStatusBadge(node) })
         ]
       }
     ),
@@ -33851,12 +33908,26 @@ function WelcomeView({ controller }) {
   const [tab2, setTab] = d2("dir");
   const [basePath, setBasePath] = d2("");
   const [targetPath, setTargetPath] = d2("");
+  const [gitRepoPath, setGitRepoPath] = d2("");
+  const [gitBranch, setGitBranch] = d2("");
   const [readOnly2, setReadOnly] = d2(false);
   const [errorMsg, setErrorMsg] = d2("");
   const [dragOverZone, setDragOverZone] = d2(null);
   const history2 = controller.model.history;
   const lastSession = controller.model.lastSession;
   const handleStart = () => {
+    if (tab2 === "git") {
+      if (!gitRepoPath.trim()) {
+        setErrorMsg("Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+        return;
+      }
+      setErrorMsg("");
+      controller.startGitSession(gitRepoPath.trim(), {
+        branch: gitBranch.trim() || void 0,
+        readOnly: readOnly2
+      });
+      return;
+    }
     if (!basePath.trim() || !targetPath.trim()) {
       setErrorMsg("\u4E21\u65B9\u306E\u30D1\u30B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
       return;
@@ -33877,6 +33948,12 @@ function WelcomeView({ controller }) {
     }
   };
   const handleBrowse = (field) => {
+    if (tab2 === "git") {
+      controller.openDialog("dir", "base", (selected) => {
+        setGitRepoPath(selected);
+      });
+      return;
+    }
     controller.openDialog(tab2, field, (selected) => {
       if (field === "base") {
         setBasePath(selected);
@@ -33936,11 +34013,15 @@ function WelcomeView({ controller }) {
   };
   const handleLaunchHistory = (item) => {
     if (item.mode === "directory") {
-      controller.startDirectorySession(
-        item.leftPath,
-        item.rightPath,
-        item.readOnly
-      );
+      if (item.leftPath === item.rightPath) {
+        controller.startGitSession(item.leftPath, { readOnly: item.readOnly });
+      } else {
+        controller.startDirectorySession(
+          item.leftPath,
+          item.rightPath,
+          item.readOnly
+        );
+      }
     } else {
       controller.startFileSession(
         item.leftPath,
@@ -34025,89 +34106,166 @@ function WelcomeView({ controller }) {
                     },
                     children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
                   }
+                ),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: `welcome-tab ${tab2 === "git" ? "active" : ""}`,
+                    onClick: () => {
+                      setTab("git");
+                      setErrorMsg("");
+                    },
+                    children: "\u{1F33F} Git \u5DEE\u5206"
+                  }
                 )
               ] }),
               /* @__PURE__ */ u3("div", { class: "welcome-form", children: [
-                /* @__PURE__ */ u3(
-                  "div",
-                  {
-                    class: `welcome-form-group ${dragOverZone === "base" ? "drop-active" : ""}`,
-                    onDragOver: (e3) => {
-                      e3.preventDefault();
-                      e3.stopPropagation();
-                      setDragOverZone("base");
-                    },
-                    onDragLeave: () => setDragOverZone(null),
-                    onDrop: (e3) => handleDropFiles(e3, "base"),
-                    children: [
-                      /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
-                        tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" : "Base \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u524D / \u65E7\uFF09",
-                        /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
-                      ] }),
-                      /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
-                        /* @__PURE__ */ u3(
-                          "input",
-                          {
-                            type: "text",
-                            class: "welcome-input",
-                            placeholder: tab2 === "dir" ? "C:/path/to/base_dir" : "C:/path/to/base.ts",
-                            value: basePath,
-                            onInput: (e3) => setBasePath(e3.target.value)
-                          }
-                        ),
-                        /* @__PURE__ */ u3(
-                          "button",
-                          {
-                            type: "button",
-                            class: "welcome-browse-btn",
-                            onClick: () => handleBrowse("base"),
-                            children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
-                          }
-                        )
-                      ] })
-                    ]
-                  }
-                ),
-                /* @__PURE__ */ u3(
-                  "div",
-                  {
-                    class: `welcome-form-group ${dragOverZone === "target" ? "drop-active" : ""}`,
-                    onDragOver: (e3) => {
-                      e3.preventDefault();
-                      e3.stopPropagation();
-                      setDragOverZone("target");
-                    },
-                    onDragLeave: () => setDragOverZone(null),
-                    onDrop: (e3) => handleDropFiles(e3, "target"),
-                    children: [
-                      /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
-                        tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" : "Target \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09",
-                        /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
-                      ] }),
-                      /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
-                        /* @__PURE__ */ u3(
-                          "input",
-                          {
-                            type: "text",
-                            class: "welcome-input",
-                            placeholder: tab2 === "dir" ? "C:/path/to/target_dir" : "C:/path/to/target.ts",
-                            value: targetPath,
-                            onInput: (e3) => setTargetPath(e3.target.value)
-                          }
-                        ),
-                        /* @__PURE__ */ u3(
-                          "button",
-                          {
-                            type: "button",
-                            class: "welcome-browse-btn",
-                            onClick: () => handleBrowse("target"),
-                            children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
-                          }
-                        )
-                      ] })
-                    ]
-                  }
-                ),
+                tab2 === "git" ? /* @__PURE__ */ u3(S, { children: [
+                  /* @__PURE__ */ u3(
+                    "div",
+                    {
+                      class: `welcome-form-group ${dragOverZone === "base" ? "drop-active" : ""}`,
+                      onDragOver: (e3) => {
+                        e3.preventDefault();
+                        e3.stopPropagation();
+                        setDragOverZone("base");
+                      },
+                      onDragLeave: () => setDragOverZone(null),
+                      onDrop: (e3) => {
+                        e3.preventDefault();
+                        e3.stopPropagation();
+                        setDragOverZone(null);
+                        const files = e3.dataTransfer?.files;
+                        if (files && files.length > 0) {
+                          const file = files[0];
+                          if (file.path) setGitRepoPath(file.path);
+                        }
+                      },
+                      children: [
+                        /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                          "Git \u30EA\u30DD\u30B8\u30C8\u30EA / \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC \u30D5\u30A9\u30EB\u30C0",
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                        ] }),
+                        /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
+                          /* @__PURE__ */ u3(
+                            "input",
+                            {
+                              type: "text",
+                              class: "welcome-input",
+                              placeholder: "C:/path/to/git_repository",
+                              value: gitRepoPath,
+                              onInput: (e3) => setGitRepoPath(e3.target.value)
+                            }
+                          ),
+                          /* @__PURE__ */ u3(
+                            "button",
+                            {
+                              type: "button",
+                              class: "welcome-browse-btn",
+                              onClick: () => handleBrowse("base"),
+                              children: "\u{1F4C1} \u53C2\u7167..."
+                            }
+                          )
+                        ] })
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ u3("div", { class: "welcome-form-group", children: [
+                    /* @__PURE__ */ u3("label", { class: "welcome-label", children: "\u6BD4\u8F03\u30D6\u30E9\u30F3\u30C1\uFF08\u4EFB\u610F\u3002\u7701\u7565\u6642\u306F HEAD \u3068\u306E\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\uFF09" }),
+                    /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: /* @__PURE__ */ u3(
+                      "input",
+                      {
+                        type: "text",
+                        class: "welcome-input",
+                        placeholder: "main / feature-branch",
+                        value: gitBranch,
+                        onInput: (e3) => setGitBranch(e3.target.value)
+                      }
+                    ) })
+                  ] })
+                ] }) : /* @__PURE__ */ u3(S, { children: [
+                  /* @__PURE__ */ u3(
+                    "div",
+                    {
+                      class: `welcome-form-group ${dragOverZone === "base" ? "drop-active" : ""}`,
+                      onDragOver: (e3) => {
+                        e3.preventDefault();
+                        e3.stopPropagation();
+                        setDragOverZone("base");
+                      },
+                      onDragLeave: () => setDragOverZone(null),
+                      onDrop: (e3) => handleDropFiles(e3, "base"),
+                      children: [
+                        /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                          tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" : "Base \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u524D / \u65E7\uFF09",
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                        ] }),
+                        /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
+                          /* @__PURE__ */ u3(
+                            "input",
+                            {
+                              type: "text",
+                              class: "welcome-input",
+                              placeholder: tab2 === "dir" ? "C:/path/to/base_dir" : "C:/path/to/base.ts",
+                              value: basePath,
+                              onInput: (e3) => setBasePath(e3.target.value)
+                            }
+                          ),
+                          /* @__PURE__ */ u3(
+                            "button",
+                            {
+                              type: "button",
+                              class: "welcome-browse-btn",
+                              onClick: () => handleBrowse("base"),
+                              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                            }
+                          )
+                        ] })
+                      ]
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "div",
+                    {
+                      class: `welcome-form-group ${dragOverZone === "target" ? "drop-active" : ""}`,
+                      onDragOver: (e3) => {
+                        e3.preventDefault();
+                        e3.stopPropagation();
+                        setDragOverZone("target");
+                      },
+                      onDragLeave: () => setDragOverZone(null),
+                      onDrop: (e3) => handleDropFiles(e3, "target"),
+                      children: [
+                        /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                          tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" : "Target \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09",
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                        ] }),
+                        /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
+                          /* @__PURE__ */ u3(
+                            "input",
+                            {
+                              type: "text",
+                              class: "welcome-input",
+                              placeholder: tab2 === "dir" ? "C:/path/to/target_dir" : "C:/path/to/target.ts",
+                              value: targetPath,
+                              onInput: (e3) => setTargetPath(e3.target.value)
+                            }
+                          ),
+                          /* @__PURE__ */ u3(
+                            "button",
+                            {
+                              type: "button",
+                              class: "welcome-browse-btn",
+                              onClick: () => handleBrowse("target"),
+                              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                            }
+                          )
+                        ] })
+                      ]
+                    }
+                  )
+                ] }),
                 /* @__PURE__ */ u3("div", { class: "welcome-options", children: /* @__PURE__ */ u3("label", { class: "welcome-checkbox-label", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -34126,7 +34284,7 @@ function WelcomeView({ controller }) {
                     type: "button",
                     class: "welcome-submit-btn",
                     onClick: handleStart,
-                    children: "\u6BD4\u8F03\u3092\u958B\u59CB"
+                    children: tab2 === "git" ? "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\u3092\u958B\u304F" : "\u6BD4\u8F03\u3092\u958B\u59CB"
                   }
                 ),
                 /* @__PURE__ */ u3("div", { class: "welcome-dropzone-notice", children: /* @__PURE__ */ u3("span", { children: "\u{1F4A1} 2\u3064\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u307E\u3068\u3081\u3066\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\u3057\u3066\u3082\u6BD4\u8F03\u3092\u958B\u59CB\u3067\u304D\u307E\u3059" }) })
@@ -34156,18 +34314,26 @@ function WelcomeView({ controller }) {
               children: [
                 /* @__PURE__ */ u3("div", { class: "welcome-history-main", children: [
                   /* @__PURE__ */ u3("div", { class: "welcome-history-tag-row", children: [
-                    /* @__PURE__ */ u3("span", { class: `welcome-mode-badge ${item.mode}`, children: item.mode === "directory" ? "\u{1F4C1} DIR" : item.mode === "3way" ? "\u{1F33F} 3-WAY" : item.mode === "image" ? "\u{1F5BC}\uFE0F IMG" : "\u{1F4C4} 2-WAY" }),
+                    /* @__PURE__ */ u3(
+                      "span",
+                      {
+                        class: `welcome-mode-badge ${item.mode === "directory" && item.leftPath === item.rightPath ? "git" : item.mode}`,
+                        children: item.mode === "directory" ? item.leftPath === item.rightPath ? "\u{1F33F} GIT" : "\u{1F4C1} DIR" : item.mode === "3way" ? "\u{1F33F} 3-WAY" : item.mode === "image" ? "\u{1F5BC}\uFE0F IMG" : "\u{1F4C4} 2-WAY"
+                      }
+                    ),
                     /* @__PURE__ */ u3("span", { class: "welcome-history-time", children: formatTimestamp(item.timestamp) })
                   ] }),
                   /* @__PURE__ */ u3(
                     "div",
                     {
                       class: "welcome-history-paths",
-                      title: `${item.leftPath} \u21C4 ${item.rightPath}`,
+                      title: item.leftPath === item.rightPath ? `${item.leftPath} (HEAD vs Working Tree)` : `${item.leftPath} \u21C4 ${item.rightPath}`,
                       children: [
                         /* @__PURE__ */ u3("div", { class: "welcome-history-path", children: item.leftPath }),
-                        /* @__PURE__ */ u3("div", { class: "welcome-history-arrow", children: "\u21C4" }),
-                        /* @__PURE__ */ u3("div", { class: "welcome-history-path", children: item.rightPath })
+                        item.leftPath !== item.rightPath && /* @__PURE__ */ u3(S, { children: [
+                          /* @__PURE__ */ u3("div", { class: "welcome-history-arrow", children: "\u21C4" }),
+                          /* @__PURE__ */ u3("div", { class: "welcome-history-path", children: item.rightPath })
+                        ] })
                       ]
                     }
                   )

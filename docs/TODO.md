@@ -401,13 +401,13 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-7. Git Worktree & 単一リポジトリ ワーキングツリー差分統合
 
-- [ ] **B7-01** `src/core/git/worktree.ts` に Git リポジトリおよび Worktree の検出ロジック（`.git` ディレクトリおよび `gitdir:` ファイルのパース、`git worktree list` 一覧取得）を実装。
-- [ ] **B7-02** `src/core/git/status.ts` に単一 Git フォルダ（リポジトリ / Worktree）の変更ファイル自動検出（`git status` / `git diff --name-status` 相当）および `git show HEAD:<path>` による Base コンテンツ取得ロジックを実装。
-- [ ] **B7-03** `src/cli/args.ts` & `src/cli/validate.ts` に単一 Git フォルダ指定時の起動（`Diffrex <git_repo_or_worktree_path>`）および Worktree 比較引数のサポートを追加。
-- [ ] **B7-04** `src/ui/model/dir_diff_model.ts` & `src/ui/components/DirectoryTreeView.tsx` に Git 差分モード（HEAD vs Working Tree）と Git ステータスバッジ（M, A, D, R, ?）の表示を統合。
-- [ ] **B7-05** `src/core/git/temp_worktree.ts` にブランチ指定時の一時 Worktree 自動作成・ライフサイクル管理・終了時クリーンアップを実装。
-- [ ] **B7-06** `src/ui/components/WelcomeView.tsx` およびメニューに、単一 Git フォルダを開いた際の「未コミット差分を開く」クイックアクションおよび Worktree 選択パネルを実装。
-- [ ] **B7-07** テスト: `tests/worktree_test.ts` / `tests/git_status_diff_test.ts`（単一 Git フォルダオープン時の HEAD 差分自動抽出、Worktree 検出、一時 Worktree の生成と破棄、編集保存の検証）。
+- [x] **B7-01** `src/core/git/worktree.ts` に Git リポジトリおよび Worktree の検出ロジック（`.git` ディレクトリおよび `gitdir:` ファイルのパース、`git worktree list` 一覧取得）を実装。
+- [x] **B7-02** `src/core/git/status.ts` に単一 Git フォルダ（リポジトリ / Worktree）の変更ファイル自動検出（`git status` / `git diff --name-status` 相当）および `git show HEAD:<path>` による Base コンテンツ取得ロジックを実装。
+- [x] **B7-03** `src/cli/args.ts` & `src/cli/validate.ts` に単一 Git フォルダ指定時の起動（`Diffrex <git_repo_or_worktree_path>`）および Worktree 比較引数のサポートを追加。
+- [x] **B7-04** `src/ui/model/dir_diff_model.ts` & `src/ui/components/DirectoryTreeView.tsx` に Git 差分モード（HEAD vs Working Tree）と Git ステータスバッジ（M, A, D, R, ?）の表示を統合。
+- [x] **B7-05** `src/core/git/temp_worktree.ts` にブランチ指定時の一時 Worktree 自動作成・ライフサイクル管理・終了時クリーンアップを実装。
+- [x] **B7-06** `src/ui/components/WelcomeView.tsx` およびメニューに、単一 Git フォルダを開いた際の「未コミット差分を開く」クイックアクションおよび Worktree 選択パネルを実装。
+- [x] **B7-07** テスト: `tests/worktree_test.ts` / `tests/git_status_diff_test.ts`（単一 Git フォルダオープン時の HEAD 差分自動抽出、Worktree 検出、一時 Worktree の生成と破棄、編集保存の検証）。
 
 **AC:** `.git` を含むフォルダを単独で開いた際に、自動的に HEAD との未コミット差分が一覧化され、ファイルを選択して差分確認・編集・保存ができる。複数 Worktree 間の比較や一時 Worktree 比較も正常に動作する。
 

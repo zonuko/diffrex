@@ -151,13 +151,45 @@ export async function runMain(
             },
           );
         } else if (parsed.mode === "directory") {
-          diffOutput = await formatDirectoryUnifiedDiff(
-            parsed.left!,
-            parsed.right!,
-            {
-              contextLines: parsed.unified,
-            },
-          );
+          if (parsed.isGitRepo) {
+            const { join } = await import("@std/path");
+            const { detectGitChangedFiles, getGitBaseContent } = await import(
+              "./src/core/git/status.ts"
+            );
+            const changes = await detectGitChangedFiles(parsed.left!);
+            const diffs: string[] = [];
+            for (const c of changes) {
+              const baseContent =
+                await getGitBaseContent(parsed.left!, c.relativePath, "HEAD") ??
+                  "";
+              let targetContent = "";
+              if (c.status !== "deleted") {
+                try {
+                  targetContent = await Deno.readTextFile(
+                    join(parsed.left!, c.relativePath),
+                  );
+                } catch {
+                  // ignore
+                }
+              }
+              const d = formatUnifiedDiff(baseContent, targetContent, {
+                leftLabel: `a/${c.relativePath}`,
+                rightLabel: `b/${c.relativePath}`,
+                contextLines: parsed.unified,
+                gitHeader: true,
+              });
+              if (d) diffs.push(d);
+            }
+            diffOutput = diffs.join("\n");
+          } else {
+            diffOutput = await formatDirectoryUnifiedDiff(
+              parsed.left!,
+              parsed.right!,
+              {
+                contextLines: parsed.unified,
+              },
+            );
+          }
         } else if (parsed.mode === "stdin") {
           const stdinRes = await readStdinTarget({ readOnly: true });
           diffOutput = stdinRes.target.content;
@@ -253,16 +285,61 @@ export async function runMain(
       session = { mode: "welcome" };
     } else if (parsed.mode === "directory") {
       try {
-        const dirSession: DirectoryDiffSessionData = await compareDirectories(
-          parsed.left!,
-          parsed.right!,
-          {
-            readOnly: parsed.readOnly,
-            prompt: parsed.prompt,
-            agent: parsed.agent,
-            model: parsed.model,
-          },
-        );
+        let dirSession: DirectoryDiffSessionData;
+        if (parsed.isGitRepo) {
+          if (parsed.worktree) {
+            dirSession = await compareDirectories(
+              parsed.worktree,
+              parsed.left!,
+              {
+                readOnly: parsed.readOnly,
+                prompt: parsed.prompt,
+                agent: parsed.agent,
+                model: parsed.model,
+              },
+            );
+          } else if (parsed.branch) {
+            const { createTempWorktree } = await import(
+              "./src/core/git/temp_worktree.ts"
+            );
+            const tempWt = await createTempWorktree(
+              parsed.left!,
+              parsed.branch,
+            );
+            dirSession = await compareDirectories(
+              tempWt.path,
+              parsed.left!,
+              {
+                readOnly: parsed.readOnly,
+                prompt: parsed.prompt,
+                agent: parsed.agent,
+                model: parsed.model,
+              },
+            );
+          } else {
+            const { buildGitDirectoryDiffSession } = await import(
+              "./src/core/git/status.ts"
+            );
+            dirSession = await buildGitDirectoryDiffSession(parsed.left!, {
+              readOnly: parsed.readOnly,
+              prompt: parsed.prompt,
+              agent: parsed.agent,
+              model: parsed.model,
+              branch: parsed.branch,
+            });
+          }
+        } else {
+          dirSession = await compareDirectories(
+            parsed.left!,
+            parsed.right!,
+            {
+              readOnly: parsed.readOnly,
+              prompt: parsed.prompt,
+              agent: parsed.agent,
+              model: parsed.model,
+            },
+          );
+        }
         session = dirSession;
         await recordHistoryEntry({
           mode: "directory",

@@ -96,6 +96,27 @@ export type FileDiffStatus =
   | "binary"
   | "image";
 
+/** Git のファイル変更ステータス（M: 変更, A: 追加, D: 削除, R: リネーム, ?: 未追跡） */
+export type GitFileStatus = "M" | "A" | "D" | "R" | "?";
+
+/** Git Worktree 情報 */
+export interface GitWorktreeInfo {
+  path: string;
+  head: string;
+  branch?: string;
+  bare?: boolean;
+  isCurrent?: boolean;
+}
+
+/** 単一 Git リポジトリ / ワーキングツリーメタ情報 */
+export interface GitRepoInfo {
+  isGitRepo: boolean;
+  branch?: string;
+  headCommit?: string;
+  worktrees?: GitWorktreeInfo[];
+  tempWorktreePath?: string;
+}
+
 /** ディレクトリツリーの各ノード。 */
 export interface DirectoryTreeNode {
   name: string;
@@ -103,6 +124,7 @@ export interface DirectoryTreeNode {
   relativePath: string;
   isDir: boolean;
   status: FileDiffStatus;
+  gitStatus?: GitFileStatus;
   sizeLeft?: number;
   sizeRight?: number;
   children?: DirectoryTreeNode[];
@@ -129,6 +151,8 @@ export interface DirectoryDiffSessionData {
   readOnly: boolean;
   tree: DirectoryTreeNode;
   summary: DirectoryDiffSummary;
+  isGitRepo?: boolean;
+  git?: GitRepoInfo;
   aiContext?: {
     prompt?: string;
     agent?: string;
