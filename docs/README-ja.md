@@ -1,5 +1,7 @@
 # Diffrex
 
+[![CI](https://github.com/zonuko/diffrex/actions/workflows/ci.yml/badge.svg)](https://github.com/zonuko/diffrex/actions/workflows/ci.yml)
+
 [English](../README.md) | **日本語**
 
 > [!WARNING]
@@ -39,33 +41,122 @@ AI 生成コードのレビューを支援する Deno Desktop 製の差分・マ
 
 ## 📋 必須要件
 
-- **Deno v2.9.0** 以降
+- **Deno v2.9.0** 以降（ソースコードからのローカル実行・ビルド時に必要）
 
 > [!NOTE]
-> Deno Desktop 機能は Deno v2.9 以降で `deno desktop` サブコマンドおよび `Deno.BrowserWindow` API として提供されています。
+> Deno Desktop 機能は Deno v2.9 以降で `deno desktop` サブコマンドおよび `Deno.BrowserWindow` API として提供されています。配布されている事前ビルド済みバイナリを利用する場合は、システムへの Deno のインストールは不要です。
 
 ---
 
-## 📦 ビルド & インストール手順
+## 📦 インストール & セットアップ
 
-> [!NOTE]
-> **事前ビルド済みバイナリ未配布に関する注記**: 現在の初期開発（WIP）期間中は GitHub Releases による事前ビルド済みバイナリの配布を行っていません。そのため、Diffrex を実行・導入するにはリポジトリをクローンして**手元でビルド**するか、**Deno から直接実行**する必要があります。
+### 1. ワンライナーインストーラー（推奨・最速）
 
-### 1. リポジトリのクローン
+ターミナルから1行のコマンドを実行するだけで、OS・アーキテクチャの自動判別、最新バイナリのダウンロード・チェックサム検証、および `PATH` の設定まで自動で行われます。
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh
+```
+
+*(アンインストール: `curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh -s -- --uninstall`)*
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex
+```
+
+*(アンインストール: `irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex -args -Uninstall`)*
+
+---
+
+### 2. パッケージマネージャー
+
+#### Homebrew (macOS / Linux)
+
+```bash
+brew tap zonuko/diffrex https://github.com/zonuko/diffrex
+brew install diffrex
+```
+
+#### Scoop (Windows)
+
+```powershell
+scoop install https://raw.githubusercontent.com/zonuko/diffrex/main/packaging/scoop/diffrex.json
+```
+
+---
+
+### 3. Deno から直接グローバルインストール (`deno install`)
+
+開発機に Deno v2.9+ が導入されている場合、リポジトリから直接グローバルコマンドとしてインストールできます。
+
+```bash
+deno install -g -A -n diffrex https://raw.githubusercontent.com/zonuko/diffrex/main/main.ts
+```
+
+---
+
+### 4. 事前ビルド済みバイナリの手動ダウンロード
+
+Windows, macOS, Linux 向けにコンパイル済みのバイナリパッケージを [GitHub Releases](https://github.com/zonuko/diffrex/releases) からダウンロードできます。
+
+| プラットフォーム | アーキテクチャ | 配布アーカイブ | 備考 |
+| :--- | :--- | :--- | :--- |
+| **Windows** | x86_64 | `diffrex-windows-x86_64.zip` | 単体実行可能パッケージ (`diffrex.exe` + `.dll`) |
+| **macOS** | Apple Silicon (aarch64) | `diffrex-macos-aarch64.tar.gz` | Apple Silicon ネイティブバイナリ |
+| **macOS** | Intel (x86_64) | `diffrex-macos-x86_64.tar.gz` | Intel x86_64 ネイティブバイナリ |
+| **Linux** | x86_64 | `diffrex-linux-x86_64.tar.gz` | Linux x86_64 実行可能パッケージ |
+
+各リリースには整合性検証用の SHA-256 チェックサムファイル（`.sha256` および `SHA256SUMS.txt`）が同梱されています。
+
+#### 手動セットアップ手順
+
+**Windows (PowerShell):**
+
+```powershell
+# ダウンロードした zip を任意のプログラム配置フォルダへ展開
+Expand-Archive -Path diffrex-windows-x86_64.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
+
+# ユーザ環境変数 PATH に追加
+[Environment]::SetEnvironmentVariable(
+    "Path",
+    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User) + ";$env:LOCALAPPDATA\Programs\diffrex-windows-x86_64",
+    [EnvironmentVariableTarget]::User
+)
+```
+
+**macOS / Linux (ターミナル):**
+
+```bash
+# アーカイブを展開
+tar -xzf diffrex-linux-x86_64.tar.gz  # または diffrex-macos-*.tar.gz
+
+# PATH の通ったディレクトリ（/usr/local/bin や ~/.local/bin 等）へ配置
+sudo mv diffrex-*/diffrex /usr/local/bin/
+```
+
+### 5. ソースコードからのビルド（開発者向け）
+
+ローカル環境で直接ビルドする場合の手順です。
+
+#### リポジトリのクローン
 
 ```powershell
 git clone https://github.com/zonuko/diffrex.git
 cd diffrex
 ```
 
-### 2. アセットの準備（UI バンドル & Tree-sitter WASM）
+#### アセットの準備（UI バンドル & Tree-sitter WASM）
 
 ```powershell
 deno task build:ui
 deno task setup:wasms
 ```
 
-### 3. スタンドアロンバイナリのビルド（コンパイル）
+#### スタンドアロンバイナリのビルド（コンパイル）
 
 Diffrex を単体実行バイナリとしてビルドします。
 
@@ -73,9 +164,9 @@ Diffrex を単体実行バイナリとしてビルドします。
 deno task compile
 ```
 
-実行すると `dist/diffrex`（Windows では `dist/diffrex.exe`）が生成されます。`dist/` ディレクトリを環境変数 `PATH` に追加するか、パスの通ったディレクトリへバイナリを配置してご利用ください。
+実行すると `dist/diffrex`（Windows では `dist/diffrex/diffrex.exe` 等）が生成されます。フォルダを環境変数 `PATH` に追加するか、パスの通ったディレクトリへバイナリを配置してご利用ください。
 
-### 4. Deno から直接実行する場合（ビルド不要）
+#### Deno から直接実行する場合（ビルド不要）
 
 バイナリのコンパイルを行わずに、Deno から直接実行することも可能です。
 

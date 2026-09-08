@@ -1,5 +1,7 @@
 # Diffrex
 
+[![CI](https://github.com/zonuko/diffrex/actions/workflows/ci.yml/badge.svg)](https://github.com/zonuko/diffrex/actions/workflows/ci.yml)
+
 **English** | [日本語 (Japanese)](docs/README-ja.md)
 
 > [!WARNING]
@@ -60,49 +62,141 @@ supports the code review experience in the AI ​​era**.
 
 ## 📋 Prerequisites
 
-- **Deno v2.9.0** or higher
+- **Deno v2.9.0** or higher (required for local development/running from source)
 
 > [!NOTE]
 > Deno Desktop features are available in Deno v2.9+ via the `deno desktop`
-> subcommand and `Deno.BrowserWindow` API.
+> subcommand and `Deno.BrowserWindow` API. Pre-built standalone binaries do not
+> require Deno to be installed on the host system.
 
 ---
 
-## 📦 Installation & Local Build
+## 📦 Installation & Setup
 
-> [!NOTE]
-> **No Pre-built Releases Yet**: Since GitHub Releases are not yet provided
-> during this early WIP phase, running Diffrex as an installed application
-> requires cloning the repository and building it locally (or running it
-> directly via Deno).
+### 1. One-line Installer (Fastest)
 
-### 1. Clone the Repository
+You can automatically download, verify, and install the latest Diffrex binary
+with automatic `PATH` configuration using a single terminal command:
+
+**macOS / Linux:**
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh
+```
+
+_(To uninstall:
+`curl -fsSL https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.sh | sh -s -- --uninstall`)_
+
+**Windows (PowerShell):**
+
+```powershell
+irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex
+```
+
+_(To uninstall:
+`irm https://raw.githubusercontent.com/zonuko/diffrex/main/scripts/install.ps1 | iex -args -Uninstall`)_
+
+---
+
+### 2. Package Managers
+
+#### Homebrew (macOS / Linux)
+
+```bash
+brew tap zonuko/diffrex https://github.com/zonuko/diffrex
+brew install diffrex
+```
+
+#### Scoop (Windows)
+
+```powershell
+scoop install https://raw.githubusercontent.com/zonuko/diffrex/main/packaging/scoop/diffrex.json
+```
+
+---
+
+### 3. Via Deno Directly (`deno install`)
+
+If you have Deno v2.9+ installed on your machine, you can install Diffrex
+globally directly from the repository:
+
+```bash
+deno install -g -A -n diffrex https://raw.githubusercontent.com/zonuko/diffrex/main/main.ts
+```
+
+---
+
+### 4. Download Pre-built Binaries Manually
+
+Pre-compiled standalone binaries for Windows, macOS, and Linux are automatically
+built and published on every release. You can download the latest archive for
+your platform from
+[GitHub Releases](https://github.com/zonuko/diffrex/releases).
+
+| Platform    | Architecture            | Archive                        | Notes                                          |
+| :---------- | :---------------------- | :----------------------------- | :--------------------------------------------- |
+| **Windows** | x86_64                  | `diffrex-windows-x86_64.zip`   | Standalone executable (`diffrex.exe` + `.dll`) |
+| **macOS**   | Apple Silicon (aarch64) | `diffrex-macos-aarch64.tar.gz` | Native Apple Silicon binary                    |
+| **macOS**   | Intel (x86_64)          | `diffrex-macos-x86_64.tar.gz`  | Native Intel x86_64 binary                     |
+| **Linux**   | x86_64                  | `diffrex-linux-x86_64.tar.gz`  | Linux x86_64 executable package                |
+
+Each release includes SHA-256 checksums (`.sha256` files and a unified
+`SHA256SUMS.txt`) to verify file integrity.
+
+#### Manual Setup Guide
+
+**Windows (PowerShell):**
+
+```powershell
+# Extract the downloaded archive to your preferred programs folder
+Expand-Archive -Path diffrex-windows-x86_64.zip -DestinationPath "$env:LOCALAPPDATA\Programs"
+
+# Add to user PATH
+[Environment]::SetEnvironmentVariable(
+    "Path",
+    [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User) + ";$env:LOCALAPPDATA\Programs\diffrex-windows-x86_64",
+    [EnvironmentVariableTarget]::User
+)
+```
+
+**macOS / Linux (Terminal):**
+
+```bash
+# Extract the archive
+tar -xzf diffrex-linux-x86_64.tar.gz   # or diffrex-macos-*.tar.gz
+
+# Move binary to a directory in your PATH (e.g. /usr/local/bin or ~/.local/bin)
+sudo mv diffrex-*/diffrex /usr/local/bin/
+```
+
+### 5. Building from Source (Local Development)
+
+If you prefer building Diffrex locally:
+
+#### Clone the Repository
 
 ```powershell
 git clone https://github.com/zonuko/diffrex.git
 cd diffrex
 ```
 
-### 2. Prepare Assets (UI Bundle & Tree-sitter WASM)
+#### Prepare Assets (UI Bundle & Tree-sitter WASMs)
 
 ```powershell
 deno task build:ui
 deno task setup:wasms
 ```
 
-### 3. Compile Standalone Binary
-
-Compile Diffrex into a standalone binary:
+#### Compile Standalone Binary
 
 ```powershell
 deno task compile
 ```
 
-This outputs the executable to `dist/diffrex` (or `dist/diffrex.exe` on
-Windows). Add the `dist/` directory to your `PATH` or copy the binary to a
-directory already in your `PATH` to run `diffrex` from any terminal.
+This generates `dist/diffrex` (or `dist/diffrex/diffrex.exe` on Windows). Add
+the folder to your `PATH` or copy the binary to a directory in your `PATH`.
 
-### 4. Run Directly with Deno (No Compilation Needed)
+#### Run Directly with Deno (No Compilation)
 
 Alternatively, you can run Diffrex directly with Deno during development:
 

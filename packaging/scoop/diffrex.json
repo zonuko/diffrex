@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0",
+  "description": "AI-friendly diff and merge tool built with Deno Desktop",
+  "homepage": "https://github.com/zonuko/diffrex",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/zonuko/diffrex/releases/download/v0.1.0/diffrex-windows-x86_64.zip",
+      "extract_dir": "diffrex-windows-x86_64"
+    }
+  },
+  "bin": "diffrex.exe",
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/zonuko/diffrex/releases/download/v$version/diffrex-windows-x86_64.zip",
+        "extract_dir": "diffrex-windows-x86_64"
+      }
+    }
+  }
+}

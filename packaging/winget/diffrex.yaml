@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.singleton.1.6.0.schema.json
+# Winget Singleton Manifest for Diffrex
+PackageIdentifier: zonuko.diffrex
+PackageVersion: 0.1.0
+PackageName: Diffrex
+Publisher: zonuko
+Author: zonuko
+License: MIT
+LicenseUrl: https://github.com/zonuko/diffrex/blob/main/LICENSE
+ShortDescription: AI-friendly diff and merge tool built with Deno Desktop
+PackageUrl: https://github.com/zonuko/diffrex
+Installers:
+  - Architecture: x64
+    InstallerType: zip
+    InstallerUrl: https://github.com/zonuko/diffrex/releases/download/v0.1.0/diffrex-windows-x86_64.zip
+    NestedInstallerType: portable
+    NestedInstallerFiles:
+      - RelativeFilePath: diffrex-windows-x86_64/diffrex.exe
+        PortableCommandAlias: diffrex
+ManifestType: singleton
+ManifestVersion: 1.6.0

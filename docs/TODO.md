@@ -376,22 +376,22 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-10. CI/CD & 自動リリース・マルチプラットフォーム配布
 
-- [ ] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
-- [ ] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
-- [ ] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
-- [ ] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
-- [ ] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
+- [x] **B10-01** `.github/workflows/ci.yml` を作成し、PR/Push 時に `deno fmt --check`, `deno lint`, `deno check main.ts`, `deno task test` を自動実行する CI パイプラインを構築（Ubuntu / Windows / macOS マトリクス対応）。
+- [x] **B10-02** CI 上で `src/ui/bundle.js` が最新ソースから差分なくビルドできるかを検証するチェックステップを追加。
+- [x] **B10-03** `.github/workflows/release.yml` を作成し、`v*` タグ push 時に Windows (`x86_64`), macOS (`x86_64`, `aarch64`), Linux (`x86_64`) 向け単一バイナリ / パッケージを自動ビルドする matrix ジョブを実装。
+- [x] **B10-04** 各プラットフォームのビルド生成物のアーカイブ化（`.zip` / `.tar.gz`）、SHA-256 チェックサム算出、および `softprops/action-gh-release` を用いた GitHub Releases への自動アップロードを構築。
+- [x] **B10-05** `README.md` に CI ステータスバッジおよび GitHub Releases からの各 OS 向けダウンロード・インストール・実行手順を追記。
 
 **AC:** PR や push 時に全プラットフォームでテストと静的検査が自動実行され、リリースタグ push 時に Windows / macOS / Linux 向けの実行可能バイナリが GitHub Releases ページに自動公開される。
 
 #### B-12. ワンライナーインストールスクリプト & インストーラー / パッケージ配布
 
-- [ ] **B12-01** `scripts/install.sh`（macOS / Linux 向けシェルスクリプト）を作成し、`curl -fsSL https://.../install.sh | sh` で最新 GitHub Release バイナリの自動ダウンロード・解凍・実行権限付与・パス（`~/.local/bin` 等）配置を実装。
-- [ ] **B12-02** `scripts/install.ps1`（Windows PowerShell 向けスクリプト）を作成し、`irm https://.../install.ps1 | iex` で最新 GitHub Release バイナリの自動ダウンロード・展開・ユーザ環境変数 PATH（`$env:LOCALAPPDATA\Programs\Diffrex` 等）への追加を実装。
-- [ ] **B12-03** `deno install` による Deno ランタイム直接インストールコマンド（`deno install -g -A -n diffrex ...`）のサポートとドキュメント化。
-- [ ] **B12-04** （発展/任意）主要パッケージマネージャー（Homebrew Formula, Scoop manifest, winget 等）向けの配布定義ファイルの作成およびリリースタスクとの連携。
-- [ ] **B12-05** インストールスクリプトのアンインストール機能（`--uninstall` オプション等）および動作検証テストの追加。
-- [ ] **B12-06** `README.md` のインストールセクションを更新し、ワンライナーインストールコマンド（curl / PowerShell）および各プラットフォームでのセットアップ手順を反映。
+- [x] **B12-01** `scripts/install.sh`（macOS / Linux 向けシェルスクリプト）を作成し、`curl -fsSL https://.../install.sh | sh` で最新 GitHub Release バイナリの自動ダウンロード・解凍・実行権限付与・パス（`~/.local/bin` 等）配置を実装。
+- [x] **B12-02** `scripts/install.ps1`（Windows PowerShell 向けスクリプト）を作成し、`irm https://.../install.ps1 | iex` で最新 GitHub Release バイナリの自動ダウンロード・展開・ユーザ環境変数 PATH（`$env:LOCALAPPDATA\Programs\Diffrex` 等）への追加を実装。
+- [x] **B12-03** `deno install` による Deno ランタイム直接インストールコマンド（`deno install -g -A -n diffrex ...`）のサポートとドキュメント化。
+- [x] **B12-04** （発展/任意）主要パッケージマネージャー（Homebrew Formula, Scoop manifest, winget 等）向けの配布定義ファイルの作成およびリリースタスクとの連携。
+- [x] **B12-05** インストールスクリプトのアンインストール機能（`--uninstall` オプション等）および動作検証テストの追加。
+- [x] **B12-06** `README.md` のインストールセクションを更新し、ワンライナーインストールコマンド（curl / PowerShell）および各プラットフォームでのセットアップ手順を反映。
 
 **AC:** macOS / Linux では `curl -fsSL ... | sh`、Windows では `irm ... | iex` のワンライナーコマンドで Diffrex の最新バイナリがダウンロード・PATH 登録され、ターミナルから `diffrex` コマンドで即座に起動できる。
 
@@ -410,6 +410,17 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 - [ ] **B7-07** テスト: `tests/worktree_test.ts` / `tests/git_status_diff_test.ts`（単一 Git フォルダオープン時の HEAD 差分自動抽出、Worktree 検出、一時 Worktree の生成と破棄、編集保存の検証）。
 
 **AC:** `.git` を含むフォルダを単独で開いた際に、自動的に HEAD との未コミット差分が一覧化され、ファイルを選択して差分確認・編集・保存ができる。複数 Worktree 間の比較や一時 Worktree 比較も正常に動作する。
+
+#### B-13. サブディレクトリ内 Git リポジトリ（.git）の差分検出 & マルチリポジトリ対応
+
+- [ ] **B13-01** `src/core/git/sub_repos.ts` にディレクトリ配下の再帰スキャンロジックを実装。サブディレクトリに `.git` フォルダ（または `.git` ファイル / サブモジュール）を含むリポジトリを検出（`node_modules` / `.cache` などの除外、最大探索深度の設定）。
+- [ ] **B13-02** 指定フォルダ直下が Git リポジトリでない場合、あるいは直下に Git リポジトリがあってもサブディレクトリ内に別の Git リポジトリ（サブモジュールやネストされたリポジトリ）が存在する場合、各リポジトリに対して B-7 と同様の差分検出（`git status` / 未コミット変更の抽出）を実行・集約する処理を実装。
+- [ ] **B13-03** `src/cli/args.ts` にサブディレクトリ走査オプション（自動検出または `--scan-git` 等）および単一ディレクトリ指定時のフォールバック処理を追加。
+- [ ] **B13-04** `src/ui/model/dir_diff_model.ts` & `src/ui/components/DirectoryTreeView.tsx` にマルチリポジトリ表示を統合。リポジトリ単位のグルーピングまたはリポジトリ切り替えセレクタを配置し、各サブディレクトリリポジトリの Git 差分をシームレスに表示。
+- [ ] **B13-05** サブモジュール（`.gitmodules`）連携のサポート。サブモジュールのコミットハッシュ変更とサブモジュール内部の変更差分を連動して表示・レビュー可能にする。
+- [ ] **B13-06** テスト: `tests/sub_repos_diff_test.ts`（サブディレクトリに `.git` を含む複数リポジトリ構成のモック、深い階層での検出・除外条件、各サブディレクトリでの HEAD 差分抽出および編集・保存の検証）。
+
+**AC:** 指定したフォルダの直下またはサブディレクトリに `.git` を含むフォルダが存在する場合に自動検出し、B-7 と同様に各リポジトリの未コミット差分を検出・一覧表示して、シームレスに差分確認・マージ・編集保存ができる。
 
 ---
 
