@@ -13,6 +13,7 @@ import type {
 } from "../types.ts";
 import { getCurrentBranch, listGitWorktrees } from "./worktree.ts";
 import { createTempWorktree } from "./temp_worktree.ts";
+import { runGitCommand } from "./exec.ts";
 
 export interface GitStatusEntry {
   relativePath: string;
@@ -122,20 +123,12 @@ export function parseGitStatusPorcelain(output: string): GitStatusEntry[] {
 export async function detectGitChangedFiles(
   repoPath: string,
 ): Promise<GitStatusEntry[]> {
-  try {
-    const cmd = new Deno.Command("git", {
-      args: ["status", "--porcelain=v1", "-uall"],
-      cwd: repoPath,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await cmd.output();
-    if (output.code === 0) {
-      const text = new TextDecoder().decode(output.stdout);
-      return parseGitStatusPorcelain(text);
-    }
-  } catch {
-    // git コマンド失敗
+  const res = await runGitCommand(
+    ["status", "--porcelain=v1", "-uall"],
+    repoPath,
+  );
+  if (res.code === 0) {
+    return parseGitStatusPorcelain(res.stdout);
   }
   return [];
 }
@@ -149,20 +142,10 @@ export async function getGitBaseContent(
   relativePath: string,
   ref = "HEAD",
 ): Promise<string | null> {
-  try {
-    const gitPath = relativePath.replace(/\\/g, "/");
-    const cmd = new Deno.Command("git", {
-      args: ["show", `${ref}:${gitPath}`],
-      cwd: repoPath,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await cmd.output();
-    if (output.code === 0) {
-      return new TextDecoder().decode(output.stdout);
-    }
-  } catch {
-    // ignore
+  const gitPath = relativePath.replace(/\\/g, "/");
+  const res = await runGitCommand(["show", `${ref}:${gitPath}`], repoPath);
+  if (res.code === 0) {
+    return res.stdout;
   }
   return null;
 }

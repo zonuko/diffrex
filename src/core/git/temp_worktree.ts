@@ -2,6 +2,8 @@
  * ブランチ・コミット指定時の一時 Worktree 自動作成およびライフサイクル管理（B7-05）。
  */
 
+import { runGitCommand } from "./exec.ts";
+
 export interface TempWorktree {
   path: string;
   ref: string;
@@ -21,16 +23,13 @@ export async function createTempWorktree(
   const tempDir = await Deno.makeTempDir({ prefix: "diffrex-wt-" });
 
   try {
-    const cmd = new Deno.Command("git", {
-      args: ["worktree", "add", "--detach", tempDir, ref],
-      cwd: repoPath,
-      stdout: "piped",
-      stderr: "piped",
-    });
+    const res = await runGitCommand(
+      ["worktree", "add", "--detach", tempDir, ref],
+      repoPath,
+    );
 
-    const output = await cmd.output();
-    if (output.code !== 0) {
-      const errText = new TextDecoder().decode(output.stderr);
+    if (res.code !== 0) {
+      const errText = res.stderr;
       // 一時ディレクトリを削除
       try {
         await Deno.remove(tempDir, { recursive: true });
@@ -61,13 +60,10 @@ export async function createTempWorktree(
       activeTempWorktrees.delete(tempWorktree);
 
       try {
-        const cmd = new Deno.Command("git", {
-          args: ["worktree", "remove", "--force", tempDir],
-          cwd: repoPath,
-          stdout: "piped",
-          stderr: "piped",
-        });
-        await cmd.output();
+        await runGitCommand(
+          ["worktree", "remove", "--force", tempDir],
+          repoPath,
+        );
       } catch {
         // ignore
       }
@@ -79,13 +75,7 @@ export async function createTempWorktree(
       }
 
       try {
-        const pruneCmd = new Deno.Command("git", {
-          args: ["worktree", "prune"],
-          cwd: repoPath,
-          stdout: "piped",
-          stderr: "piped",
-        });
-        await pruneCmd.output();
+        await runGitCommand(["worktree", "prune"], repoPath);
       } catch {
         // ignore
       }
@@ -128,14 +118,6 @@ if (typeof globalThis.addEventListener === "function") {
   globalThis.addEventListener("unload", () => {
     // 同期・非同期のベストエフォートクリーンアップ
     for (const wt of activeTempWorktrees) {
-      try {
-        new Deno.Command("git", {
-          args: ["worktree", "remove", "--force", wt.path],
-          cwd: wt.repoPath,
-        }).outputSync();
-      } catch {
-        // ignore
-      }
       try {
         Deno.removeSync(wt.path, { recursive: true });
       } catch {

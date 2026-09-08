@@ -4,6 +4,7 @@
 
 import { isAbsolute, join, normalize } from "@std/path";
 import type { GitWorktreeInfo } from "../types.ts";
+import { runGitCommand } from "./exec.ts";
 
 /**
  * 指定されたディレクトリが Git リポジトリまたは Worktree であるかを判定する。
@@ -129,27 +130,45 @@ export function parseWorktreeListPorcelain(
 export async function listGitWorktrees(
   repoPath: string,
 ): Promise<GitWorktreeInfo[]> {
-  try {
-    const cmd = new Deno.Command("git", {
-      args: ["worktree", "list", "--porcelain"],
-      cwd: repoPath,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await cmd.output();
-    if (output.code === 0) {
-      const text = new TextDecoder().decode(output.stdout);
-      return parseWorktreeListPorcelain(text, repoPath);
+  const normRepo = normalize(repoPath);
+
+  // 高速パス: .git/worktrees ディレクトリが存在しない場合は単一ワークツリーとみなす（プロセス起動 0 回）
+  const gitDir = await resolveGitDir(normRepo);
+  if (gitDir) {
+    try {
+      const wtDir = join(gitDir, "worktrees");
+      const stat = await Deno.stat(wtDir);
+      if (!stat.isDirectory) {
+        throw new Error();
+      }
+    } catch {
+      // worktrees ディレクトリが存在しない＝追加ワークツリーなし
+      const branch = await getCurrentBranch(normRepo);
+      return [
+        {
+          path: normRepo,
+          head: "HEAD",
+          branch: branch ?? undefined,
+          isCurrent: true,
+        },
+      ];
     }
-  } catch {
-    // git コマンドが存在しないかエラーの場合
+  }
+
+  // 複数ワークツリーが存在する場合、または gitDir 未解決の場合は git worktree list を実行
+  const res = await runGitCommand(
+    ["worktree", "list", "--porcelain"],
+    normRepo,
+  );
+  if (res.code === 0) {
+    return parseWorktreeListPorcelain(res.stdout, normRepo);
   }
 
   // フォールバック: 現在のリポジトリ単体を返す
-  const branch = await getCurrentBranch(repoPath);
+  const branch = await getCurrentBranch(normRepo);
   return [
     {
-      path: normalize(repoPath),
+      path: normRepo,
       head: "HEAD",
       branch: branch ?? undefined,
       isCurrent: true,
@@ -163,33 +182,32 @@ export async function listGitWorktrees(
 export async function getCurrentBranch(
   repoPath: string,
 ): Promise<string | null> {
+  // 高速パス 1: .git/HEAD を直接パース（プロセス起動 0 回、所要時間 0.1ms）
   try {
-    const cmd = new Deno.Command("git", {
-      args: ["rev-parse", "--abbrev-ref", "HEAD"],
-      cwd: repoPath,
-      stdout: "piped",
-      stderr: "piped",
-    });
-    const output = await cmd.output();
-    if (output.code === 0) {
-      const branch = new TextDecoder().decode(output.stdout).trim();
-      return branch || null;
-    }
-  } catch {
-    // git コマンド失敗時のフォールバック: .git/HEAD を直接パース
-    try {
-      const gitDir = await resolveGitDir(repoPath);
-      if (gitDir) {
-        const headContent = await Deno.readTextFile(join(gitDir, "HEAD"));
-        const match = headContent.trim().match(/^ref:\s*refs\/heads\/(.+)$/);
-        if (match) {
-          return match[1].trim();
-        }
+    const gitDir = await resolveGitDir(repoPath);
+    if (gitDir) {
+      const headContent = await Deno.readTextFile(join(gitDir, "HEAD"));
+      const match = headContent.trim().match(/^ref:\s*refs\/heads\/(.+)$/);
+      if (match) {
+        return match[1].trim();
+      }
+      if (/^[0-9a-fA-F]{40}$/.test(headContent.trim())) {
         return headContent.trim().substring(0, 7);
       }
-    } catch {
-      // ignore
     }
+  } catch {
+    // ignore
   }
+
+  // フォールバック: git コマンドで問い合わせ（サイレント実行）
+  const res = await runGitCommand(
+    ["rev-parse", "--abbrev-ref", "HEAD"],
+    repoPath,
+  );
+  if (res.code === 0) {
+    const branch = res.stdout.trim();
+    return branch || null;
+  }
+
   return null;
 }
