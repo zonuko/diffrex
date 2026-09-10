@@ -15,7 +15,10 @@ import { ImageDiffModel } from "./model/image_diff_model.ts";
 import { ImageController } from "./controller/image_controller.ts";
 import { CsvDiffModel } from "./model/csv_diff_model.ts";
 import { CsvController } from "./controller/csv_controller.ts";
+import { MenuModel } from "./model/menu_model.ts";
+import { MenuController } from "./controller/menu_controller.ts";
 import { setupGlobalKeybindings } from "./controller/keymap.ts";
+import { MenuBar } from "./components/MenuBar.tsx";
 import { Header } from "./components/Header.tsx";
 import { StatusBar } from "./components/StatusBar.tsx";
 import { DiffView } from "./components/DiffView.tsx";
@@ -24,6 +27,10 @@ import { ThreeWayDiffView } from "./components/ThreeWayDiffView.tsx";
 import { ImageDiffView } from "./components/ImageDiffView.tsx";
 import { CsvDiffView } from "./components/CsvDiffView.tsx";
 import { WelcomeView } from "./components/WelcomeView.tsx";
+import { ShortcutsModal } from "./components/ShortcutsModal.tsx";
+import { AboutModal } from "./components/AboutModal.tsx";
+import { CommandPalette } from "./components/CommandPalette.tsx";
+import { OpenSessionModal } from "./components/OpenSessionModal.tsx";
 import { useModel } from "./hooks/use_model.ts";
 import type { DiffSessionData } from "../core/types.ts";
 
@@ -34,6 +41,8 @@ export interface AppProps {
   dirController?: DirectoryController;
   threeWayModel?: ThreeWaySessionModel;
   threeWayController?: ThreeWayController;
+  menuModel?: MenuModel;
+  menuController?: MenuController;
 }
 
 function MainContent({
@@ -78,6 +87,8 @@ export function App(
     dirController: propDirController,
     threeWayModel: propThreeWayModel,
     threeWayController: propThreeWayController,
+    menuModel: propMenuModel,
+    menuController: propMenuController,
   }: AppProps,
 ) {
   const diffModel = useMemo(
@@ -115,9 +126,38 @@ export function App(
 
   dirController.setDiffController(diffController);
 
+  const menuModel = useMemo(
+    () => propMenuModel ?? new MenuModel(),
+    [propMenuModel],
+  );
+  const menuController = useMemo(
+    () =>
+      propMenuController ??
+        new MenuController(
+          menuModel,
+          diffModel,
+          diffController,
+          dirModel,
+          dirController,
+          threeWayModel,
+          threeWayController,
+        ),
+    [
+      propMenuController,
+      menuModel,
+      diffModel,
+      diffController,
+      dirModel,
+      dirController,
+      threeWayModel,
+      threeWayController,
+    ],
+  );
+
   useModel(diffModel);
   useModel(dirModel);
   useModel(threeWayModel);
+  useModel(menuModel);
 
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
@@ -133,6 +173,25 @@ export function App(
       threeWayModel.setSession(diffModel.session);
     }
   }, [diffModel.session]);
+
+  // セッション状態・モデル状態に応じたメニュー再構築
+  useEffect(() => {
+    menuController.setThreeWay(threeWayModel, threeWayController);
+    menuController.rebuildMenu();
+  }, [
+    diffModel.session,
+    diffModel.isDirty,
+    diffModel.mode,
+    diffModel.noiseFolded,
+    dirModel.dirSession,
+    dirModel.selectedPath,
+    dirModel.history,
+    dirModel.lastSession,
+    threeWayModel.session,
+    menuController,
+    threeWayModel,
+    threeWayController,
+  ]);
 
   // ウィンドウタイトル & Dirty 状態の同期 (B14-02)
   useEffect(() => {
@@ -150,13 +209,32 @@ export function App(
     }
   }, [diffModel.isDirty, dirController]);
 
-  // グローバルキーバインド
+  // グローバルキーバインド (Keymap & MenuController)
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const handled = menuController.handleGlobalKeyDown(e);
+      if (handled) return;
+    };
+
+    globalThis.addEventListener("keydown", handleKeyDown, true);
+
+    let unbindKeymap: (() => void) | undefined;
     if (diffModel.session?.mode === "3way") {
-      return setupGlobalKeybindings(threeWayController);
+      unbindKeymap = setupGlobalKeybindings(threeWayController);
+    } else {
+      unbindKeymap = setupGlobalKeybindings(diffController);
     }
-    return setupGlobalKeybindings(diffController);
-  }, [diffController, threeWayController, diffModel.session?.mode]);
+
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown, true);
+      if (unbindKeymap) unbindKeymap();
+    };
+  }, [
+    diffController,
+    threeWayController,
+    menuController,
+    diffModel.session?.mode,
+  ]);
 
   // 自動セッションスナップショット保存 (B6-03)
   useEffect(() => {
@@ -322,8 +400,23 @@ export function App(
   }
 
   return (
-    <>
-      {contentNode}
+    <div class="app-root-layout">
+      <MenuBar model={menuModel} controller={menuController} />
+      <div class="app-body-area">
+        {contentNode}
+      </div>
+
+      {/* モーダル群 */}
+      {menuModel.isShortcutsModalOpen && <ShortcutsModal model={menuModel} />}
+      {menuModel.isAboutModalOpen && <AboutModal model={menuModel} />}
+      {menuModel.isCommandPaletteOpen && (
+        <CommandPalette model={menuModel} controller={menuController} />
+      )}
+      {menuModel.isOpenSessionModalOpen && (
+        <OpenSessionModal model={menuModel} controller={dirController} />
+      )}
+
+      {/* グローバルドラッグ＆ドロップ オーバーレイ */}
       {isGlobalDragging && (
         <div class="global-drop-overlay">
           <div class="global-drop-badge">
@@ -334,6 +427,6 @@ export function App(
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

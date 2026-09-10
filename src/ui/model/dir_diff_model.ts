@@ -110,11 +110,17 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     this.notify(this);
   }
 
-  setDirSession(session: DirectoryDiffSessionData): void {
+  setDirSession(session: DirectoryDiffSessionData | null): void {
     this._dirSession = session;
     this._selectedPath = null;
     this._activeFileSession = null;
     this._dirtyFiles.clear();
+
+    if (!session) {
+      this._expandedDirs.clear();
+      this.notify(this);
+      return;
+    }
 
     // デフォルトでルート直下を展開
     this._expandedDirs.clear();
@@ -134,6 +140,10 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     }
 
     this.notify(this);
+  }
+
+  clearSession(): void {
+    this.setDirSession(null);
   }
 
   toggleDir(relPath: string): void {

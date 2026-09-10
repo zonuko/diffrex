@@ -12,7 +12,7 @@
 - 各フェーズ完了時に `deno task check`（fmt/lint/test）が全て green であることを確認する。
 - `deno fmt` は日本語の Markdown を強制的に折り返すため、`docs/` は fmt 対象から除外する（`deno.json` の `fmt.exclude`）。
 
-## 現状（Phase 5 & B-14 完了）
+## 現状（Phase 5, B-14, B-8 完了）
 
 - CLI 引数パース、ファイル I/O、改行/BOM保持、バイナリ判定、セッション生成、WebSocket 通信を実装（Phase 1）。
 - Preact (TSX) + esbuild によるフロントエンド配信・ビルド基盤を整備（Phase 1.1 / 1.2）。
@@ -23,7 +23,8 @@
 - AI メタデータ表示・ノイズ差分折りたたみ・危険変更ハイライト・AI差分サマリー・レビュー判定UIを実装（Phase 4）。
 - ディレクトリ比較、3-Wayマージ、画像差分、構造化データ（CSV/TSV）差分、Git Worktree & 未コミット差分検出、CLI/CI 自動ビルド & リリース配布基盤を整備（Phase 5, B-1, B-2, B-4, B-5, B-6, B-7, B-9, B-10, B-12）。
 - デスクトップ基本 UI の調整（B-14: 初期1280x800/最小800x600サイズ制限と前回位置/サイズ復元永続化、ウィンドウタイトルと未保存マーク `*` の OS / HTML 完全同期、アプリケーションアイコン SVG/PNG/ICO 配備、Flexbox `min-height: 0` 欠落修正による CodeMirror / 3-Way / TreeView / CSV / Welcome 全画面での縦スクロールバー表示・ホイールスクロール保証、ダークテーマカスタムスクロールバー整備）。
-- `deno task check`（fmt / lint / check / test）が全 191 テストで green。
+- アプリケーション メニューバー & コマンド統合（B-8: Smalltalk-80 MVC に基づく MenuModel / MenuController、最上部 MenuBar（File, Edit, Merge, View, Git, Help）およびサブメニュー UI、開くダイアログモーダル、最近開いたセッション履歴連携、ShortcutsModal、AboutModal、`Ctrl+Shift+P` によるクイックコマンドパレット）。
+- `deno task check`（fmt / lint / check / test）が全 198 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
@@ -441,12 +442,12 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-8. アプリケーション メニューバー & コマンド統合
 
-- [ ] **B8-01** `src/ui/model/menu_model.ts` & `src/ui/controller/menu_controller.ts` に Smalltalk-80 MVC に基づくメニュー定義データ構造とコマンドディスパッチャ（モードに応じた有効/無効制御）を実装。
-- [ ] **B8-02** `src/ui/components/MenuBar.tsx` & `src/ui/components/MenuItem.tsx` にトップメニューバー（File, Edit, Merge, View, Git, Help）およびサブメニュー UI を実装。キーボード操作（`Alt` キーナビゲーション、ショートカットキー連動）に対応。
-- [ ] **B8-03** 各種「開く」ダイアログ連携（ファイル比較、フォルダ比較、単一Gitリポジトリ、3-Way マージ、画像/CSV、Worktree）および「最近開いたセッション」サブメニューからの即時セッション切り替えを実装。
-- [ ] **B8-04** `src/ui/components/ShortcutsModal.tsx` & `AboutModal.tsx` にキーボードショートカット一覧およびバージョン情報ダイアログを実装。
-- [ ] **B8-05** （任意/発展）`Ctrl+Shift+P` で全メニューコマンドをインクリメンタル検索・実行できる「クイックコマンドパレット」を実装。
-- [ ] **B8-06** テスト: `tests/menu_test.ts`（メニューコマンドの実行、モードごとの enable/disable 状態、キーバインド連携のテスト）。
+- [x] **B8-01** `src/ui/model/menu_model.ts` & `src/ui/controller/menu_controller.ts` に Smalltalk-80 MVC に基づくメニュー定義データ構造とコマンドディスパッチャ（モードに応じた有効/無効制御）を実装。
+- [x] **B8-02** `src/ui/components/MenuBar.tsx` & `src/ui/components/MenuItem.tsx` にトップメニューバー（File, Edit, Merge, View, Git, Help）およびサブメニュー UI を実装。キーボード操作（`Alt` キーナビゲーション、ショートカットキー連動）に対応。
+- [x] **B8-03** 各種「開く」ダイアログ連携（ファイル比較、フォルダ比較、単一Gitリポジトリ、3-Way マージ、画像/CSV、Worktree）および「最近開いたセッション」サブメニューからの即時セッション切り替えを実装。
+- [x] **B8-04** `src/ui/components/ShortcutsModal.tsx` & `AboutModal.tsx` にキーボードショートカット一覧およびバージョン情報ダイアログを実装。
+- [x] **B8-05** （任意/発展）`Ctrl+Shift+P` で全メニューコマンドをインクリメンタル検索・実行できる「クイックコマンドパレット」を実装。
+- [x] **B8-06** テスト: `tests/menu_test.ts`（メニューコマンドの実行、モードごとの enable/disable 状態、キーバインド連携のテスト）。
 
 **AC:** 画面最上部にメニューバーが表示され、「ファイルを開く」「フォルダを開く」「単一Gitリポジトリを開く」「最近開いた履歴」「各種マージ・表示操作」がメニューから実行できる。キーボードショートカットやモーダルダイアログが正しく動作する。
 

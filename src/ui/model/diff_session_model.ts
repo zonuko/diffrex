@@ -463,6 +463,44 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
   }
 
   /**
+   * すべての未レビュー Hunk を承認済みにする。
+   */
+  acceptAllHunks(): void {
+    if (!this._session?.hunks) return;
+    for (const hunk of this._session.hunks) {
+      if (hunk.status === "unreviewed") {
+        hunk.status = "accepted";
+      }
+    }
+    this.setStatusMessage("✨ すべての差分を一括承認しました");
+    this.notify(this);
+  }
+
+  /**
+   * すべての未レビュー Hunk を拒否済みにする。
+   */
+  rejectAllHunks(): void {
+    if (!this._session?.hunks) return;
+    for (const hunk of this._session.hunks) {
+      if (hunk.status === "unreviewed") {
+        hunk.status = "rejected";
+      }
+    }
+    this.setStatusMessage("すべての差分を一括拒否しました");
+    this.notify(this);
+  }
+
+  /**
+   * すべての折りたたまれたノイズ Hunk を展開する。
+   */
+  expandAllHunks(): void {
+    this._noiseFolded = false;
+    this._expandedHunkIds.clear();
+    this.setStatusMessage("すべての差分ブロックを展開しました");
+    this.notify(this);
+  }
+
+  /**
    * 保存ステータスを設定する。
    */
   setSaveStatus(status: SaveStatus): void {

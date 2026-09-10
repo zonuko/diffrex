@@ -12,6 +12,7 @@ import type {
   UiToBackendMessage,
 } from "../../desktop/ipc.ts";
 import type { DiffSessionData } from "../../core/types.ts";
+import { redo, undo } from "@codemirror/commands";
 
 export class DiffController {
   private model: DiffSessionModel;
@@ -129,6 +130,54 @@ export class DiffController {
         selection: { anchor: chunk.fromB, head: chunk.fromB },
       });
     }
+  }
+
+  /**
+   * 編集モードをトグル切り替えする。
+   */
+  toggleEditMode(): void {
+    if (this.model.mode === "editing") {
+      this.exitEditMode();
+    } else {
+      this.enterEditMode();
+    }
+  }
+
+  /**
+   * Target エディタの変更を元に戻す (Undo)。
+   */
+  undo(): boolean {
+    if (!this.mergeView) return false;
+    return undo(this.mergeView.b);
+  }
+
+  /**
+   * Target エディタの変更をやり直す (Redo)。
+   */
+  redo(): boolean {
+    if (!this.mergeView) return false;
+    return redo(this.mergeView.b);
+  }
+
+  /**
+   * すべての未レビュー Hunk を一括承認する。
+   */
+  acceptAllHunks(): void {
+    this.model.acceptAllHunks();
+  }
+
+  /**
+   * すべての未レビュー Hunk を一括拒否する。
+   */
+  rejectAllHunks(): void {
+    this.model.rejectAllHunks();
+  }
+
+  /**
+   * すべての折りたたみを展開する。
+   */
+  expandAllHunks(): void {
+    this.model.expandAllHunks();
   }
 
   /**

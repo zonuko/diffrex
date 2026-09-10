@@ -799,6 +799,41 @@ var DiffSessionModel = class extends Observable {
     return this.isAllReviewed;
   }
   /**
+   * すべての未レビュー Hunk を承認済みにする。
+   */
+  acceptAllHunks() {
+    if (!this._session?.hunks) return;
+    for (const hunk of this._session.hunks) {
+      if (hunk.status === "unreviewed") {
+        hunk.status = "accepted";
+      }
+    }
+    this.setStatusMessage("\u2728 \u3059\u3079\u3066\u306E\u5DEE\u5206\u3092\u4E00\u62EC\u627F\u8A8D\u3057\u307E\u3057\u305F");
+    this.notify(this);
+  }
+  /**
+   * すべての未レビュー Hunk を拒否済みにする。
+   */
+  rejectAllHunks() {
+    if (!this._session?.hunks) return;
+    for (const hunk of this._session.hunks) {
+      if (hunk.status === "unreviewed") {
+        hunk.status = "rejected";
+      }
+    }
+    this.setStatusMessage("\u3059\u3079\u3066\u306E\u5DEE\u5206\u3092\u4E00\u62EC\u62D2\u5426\u3057\u307E\u3057\u305F");
+    this.notify(this);
+  }
+  /**
+   * すべての折りたたまれたノイズ Hunk を展開する。
+   */
+  expandAllHunks() {
+    this._noiseFolded = false;
+    this._expandedHunkIds.clear();
+    this.setStatusMessage("\u3059\u3079\u3066\u306E\u5DEE\u5206\u30D6\u30ED\u30C3\u30AF\u3092\u5C55\u958B\u3057\u307E\u3057\u305F");
+    this.notify(this);
+  }
+  /**
    * 保存ステータスを設定する。
    */
   setSaveStatus(status) {
@@ -809,1632 +844,6 @@ var DiffSessionModel = class extends Observable {
     this.notify(this);
   }
 };
-
-// src/ui/controller/diff_controller.ts
-var DiffController = class {
-  model;
-  mergeView = null;
-  ws = null;
-  fallbackTimer = null;
-  pendingExit = false;
-  pendingExitCode = 0;
-  constructor(model) {
-    this.model = model;
-  }
-  // --- MergeView ライフサイクル ---
-  /**
-   * CodeMirror MergeView インスタンスをアタッチする。
-   */
-  attachMergeView(mergeView) {
-    this.mergeView = mergeView;
-  }
-  getMergeView() {
-    return this.mergeView;
-  }
-  // --- 差分 / Hunk 操作 ---
-  /**
-   * CodeMirror からの差分 Chunks 更新を処理する。
-   */
-  handleChunksUpdated(chunks, newActiveIndex) {
-    this.model.setChunks(chunks, newActiveIndex);
-  }
-  /**
-   * カーソル移動やクリックによる Hunk 選択を処理する。
-   */
-  handleCursorChunkSelect(chunkIndex) {
-    this.model.setActiveChunkIndex(chunkIndex);
-  }
-  /**
-   * エディタ内容変更時の処理（Dirty フラグ設定、edited ステータス更新、Chunks 同期）。
-   */
-  handleDocumentChanged() {
-    this.model.setDirty(true);
-    this.model.markCurrentHunkEdited();
-    if (this.mergeView) {
-      const updatedChunks = this.mergeView.chunks;
-      const currentActive = this.model.activeChunkIndex;
-      const newIndex = updatedChunks.length > 0 ? Math.min(Math.max(0, currentActive), updatedChunks.length - 1) : -1;
-      this.model.setChunks(updatedChunks, newIndex);
-    }
-  }
-  /**
-   * 次の Hunk へ移動する。
-   */
-  nextHunk() {
-    this.model.selectNextHunk();
-  }
-  /**
-   * 前の Hunk へ移動する。
-   */
-  prevHunk() {
-    this.model.selectPrevHunk();
-  }
-  /**
-   * 現在の Hunk を承認 (accepted) にし、次の未レビュー Hunk へ進める (P4-12)。
-   */
-  acceptHunk() {
-    this.model.acceptCurrentHunk();
-  }
-  /**
-   * 現在の Hunk を拒否 (rejected) にし、Target（右側）の変更を破棄して Base の内容に戻す (P4-13)。
-   */
-  rejectHunk() {
-    if (this.mergeView) {
-      const chunk = this.model.activeChunk;
-      if (chunk) {
-        this.model.setDirty(true);
-        const baseText = this.mergeView.a.state.sliceDoc(
-          chunk.fromA,
-          chunk.toA
-        );
-        this.mergeView.b.dispatch({
-          changes: { from: chunk.fromB, to: chunk.toB, insert: baseText }
-        });
-        this.syncChunksAfterMerge();
-      }
-    }
-    this.model.rejectCurrentHunk();
-  }
-  /**
-   * 編集モードに入り、対象 Hunk またはエディタにフォーカスする。
-   */
-  enterEditMode() {
-    this.model.setMode("editing");
-    if (!this.mergeView) return;
-    const chunk = this.model.activeChunk;
-    this.mergeView.b.focus();
-    if (chunk) {
-      this.mergeView.b.dispatch({
-        selection: { anchor: chunk.fromB, head: chunk.fromB }
-      });
-    }
-  }
-  /**
-   * 編集モードを終了し、ナビゲーションモードに戻る。
-   */
-  exitEditMode() {
-    this.model.setMode("navigation");
-    if (typeof document !== "undefined") {
-      document.activeElement?.blur();
-    }
-    const g2 = globalThis;
-    if (typeof g2.focus === "function") {
-      g2.focus();
-    }
-  }
-  /**
-   * ブロックマージ (Base -> Target / 左 -> 右) を実行する。
-   */
-  mergeLeftToRight() {
-    if (!this.mergeView) return;
-    const chunk = this.model.activeChunk;
-    if (!chunk) return;
-    this.model.setDirty(true);
-    const baseText = this.mergeView.a.state.sliceDoc(chunk.fromA, chunk.toA);
-    this.mergeView.b.dispatch({
-      changes: { from: chunk.fromB, to: chunk.toB, insert: baseText }
-    });
-    this.syncChunksAfterMerge();
-  }
-  /**
-   * ブロックマージ (Target -> Base / 右 -> 左) を実行する。
-   */
-  mergeRightToLeft() {
-    if (!this.mergeView) return;
-    const chunk = this.model.activeChunk;
-    if (!chunk) return;
-    this.model.setDirty(true);
-    const targetText = this.mergeView.b.state.sliceDoc(chunk.fromB, chunk.toB);
-    this.mergeView.a.dispatch({
-      changes: { from: chunk.fromA, to: chunk.toA, insert: targetText }
-    });
-    this.syncChunksAfterMerge();
-  }
-  /**
-   * マージ実行後に CodeMirror の最新 chunks を取得して Model に同期する。
-   */
-  syncChunksAfterMerge() {
-    setTimeout(() => {
-      if (!this.mergeView) return;
-      const updatedChunks = this.mergeView.chunks;
-      const currentActive = this.model.activeChunkIndex;
-      const newIndex = updatedChunks.length > 0 ? Math.min(currentActive, updatedChunks.length - 1) : -1;
-      this.model.setChunks(updatedChunks, newIndex);
-    }, 10);
-  }
-  /**
-   * ノイズ hunk の一括折りたたみ/展開を切り替える。
-   */
-  toggleNoiseFolded() {
-    this.model.toggleNoiseFolded();
-  }
-  /**
-   * 個別 hunk の折りたたみ/展開を切り替える。
-   */
-  toggleHunkFold(hunkId) {
-    this.model.toggleHunkFold(hunkId);
-  }
-  // --- キーボード入力ハンドリング ---
-  /**
-   * グローバルキーダウンイベントを解釈して適切な操作を実行する。
-   */
-  handleKeyDown(e3) {
-    const isEditorFocused = typeof document !== "undefined" && Boolean(
-      document.activeElement && (document.activeElement.closest?.(".cm-editor") || document.activeElement.classList?.contains("cm-content"))
-    );
-    const key = e3.key;
-    const isAlt = e3.altKey;
-    const isCtrl = e3.ctrlKey || e3.metaKey;
-    if (isAlt && key === "ArrowDown" || !isEditorFocused && !isCtrl && !isAlt && (key === "j" || key === "J")) {
-      e3.preventDefault();
-      this.nextHunk();
-      return;
-    }
-    if (isAlt && key === "ArrowUp" || !isEditorFocused && !isCtrl && !isAlt && (key === "k" || key === "K")) {
-      e3.preventDefault();
-      this.prevHunk();
-      return;
-    }
-    if (!isEditorFocused && !isCtrl && !isAlt && (key === "a" || key === "A")) {
-      e3.preventDefault();
-      this.acceptHunk();
-      return;
-    }
-    if (!isEditorFocused && !isCtrl && !isAlt && (key === "r" || key === "R")) {
-      e3.preventDefault();
-      this.rejectHunk();
-      return;
-    }
-    if (!isEditorFocused && !isCtrl && !isAlt && (key === "Enter" || key === "e" || key === "E")) {
-      e3.preventDefault();
-      this.enterEditMode();
-      return;
-    }
-    if (key === "Escape") {
-      e3.preventDefault();
-      this.exitEditMode();
-      return;
-    }
-    if (isCtrl && !isAlt && (key === "r" || key === "R") || isAlt && !isCtrl && key === "ArrowRight") {
-      e3.preventDefault();
-      this.mergeLeftToRight();
-      return;
-    }
-    if (isCtrl && !isAlt && (key === "l" || key === "L") || isAlt && !isCtrl && key === "ArrowLeft") {
-      e3.preventDefault();
-      this.mergeRightToLeft();
-      return;
-    }
-    if (isCtrl && !isAlt && (key === "n" || key === "N")) {
-      e3.preventDefault();
-      this.toggleNoiseFolded();
-      return;
-    }
-    if (isCtrl && !isAlt && key === "Enter") {
-      e3.preventDefault();
-      this.saveAndExit();
-      return;
-    }
-    if (isCtrl && !isAlt && (key === "s" || key === "S")) {
-      e3.preventDefault();
-      this.requestSave();
-      return;
-    }
-  }
-  // --- IPC / 通信管理 ---
-  /**
-   * WebSocket / HTTP 通信をセットアップする。
-   */
-  connectWebSocket(wsUrl) {
-    const fetchSession = async () => {
-      try {
-        const res = await fetch("/api/session");
-        if (res.ok) {
-          const data2 = await res.json();
-          this.model.setSession(data2);
-          this.model.setConnectionStatus("connected");
-        }
-      } catch (err) {
-        console.warn("fetchSession failed:", err);
-      }
-    };
-    const defaultWsUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
-    const targetUrl = wsUrl || defaultWsUrl;
-    try {
-      this.ws = new WebSocket(targetUrl);
-      this.ws.onopen = () => {
-        this.model.setConnectionStatus("connected");
-        this.sendIpcMessage({ type: "ui:ready" });
-      };
-      this.ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          this.handleIpcMessage(msg);
-        } catch (err) {
-          console.error("Failed to parse incoming WS message:", err);
-        }
-      };
-      this.ws.onclose = () => {
-        this.model.setConnectionStatus("disconnected");
-      };
-      this.ws.onerror = () => {
-        this.fallbackTimer = setTimeout(() => {
-          fetchSession();
-        }, 500);
-      };
-    } catch {
-      fetchSession();
-    }
-    const beforeUnloadListener = (e3) => {
-      if (this.model.isDirty) {
-        e3.preventDefault();
-        e3.returnValue = "\u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u3002\u7834\u68C4\u3057\u3066\u7D42\u4E86\u3057\u307E\u3059\u304B\uFF1F";
-        return "\u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u3002\u7834\u68C4\u3057\u3066\u7D42\u4E86\u3057\u307E\u3059\u304B\uFF1F";
-      }
-    };
-    const pageHideListener = () => {
-      if (this.model.isDirty) {
-        this.sendIpcMessage({ type: "exit:request", code: 1 });
-      }
-    };
-    if (typeof globalThis.addEventListener === "function") {
-      globalThis.addEventListener("beforeunload", beforeUnloadListener);
-      globalThis.addEventListener("pagehide", pageHideListener);
-    }
-    return () => {
-      if (this.ws) {
-        this.ws.close();
-        this.ws = null;
-      }
-      if (this.fallbackTimer) {
-        clearTimeout(this.fallbackTimer);
-        this.fallbackTimer = null;
-      }
-      if (typeof globalThis.removeEventListener === "function") {
-        globalThis.removeEventListener("beforeunload", beforeUnloadListener);
-        globalThis.removeEventListener("pagehide", pageHideListener);
-      }
-    };
-  }
-  /**
-   * バックエンドからの IPC メッセージを処理する。
-   */
-  handleIpcMessage(msg) {
-    if (msg.type === "session:init") {
-      this.model.setSession(msg.data);
-    } else if (msg.type === "save:result") {
-      this.model.setSaveStatus({
-        status: msg.success ? "saved" : "error",
-        message: msg.message
-      });
-      if (msg.message) {
-        this.model.setStatusMessage(msg.message);
-      }
-      if (this.pendingExit) {
-        if (msg.success) {
-          const code = this.pendingExitCode;
-          this.pendingExit = false;
-          this.requestExit(code);
-          if (typeof document !== "undefined") {
-            const g2 = globalThis;
-            if (typeof g2.close === "function") {
-              try {
-                g2.close();
-              } catch {
-              }
-            }
-          }
-        } else {
-          this.pendingExit = false;
-        }
-      }
-    }
-  }
-  /**
-   * UI からバックエンドへメッセージを送信する。
-   */
-  sendIpcMessage(msg) {
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    }
-  }
-  /**
-   * 保存要求 (Phase 3 連携)
-   */
-  requestSave() {
-    if (this.model.isReadOnly) {
-      const msg = "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u306E\u305F\u3081\u4FDD\u5B58\u3067\u304D\u307E\u305B\u3093";
-      this.model.setStatusMessage(msg);
-      this.model.setSaveStatus({ status: "error", message: msg });
-      if (this.pendingExit) {
-        this.pendingExit = false;
-      }
-      return;
-    }
-    const rightContent = this.mergeView?.b.state.doc.toString() ?? this.model.session?.files?.right?.content ?? "";
-    this.model.setSaveStatus({ status: "saving" });
-    this.sendIpcMessage({ type: "save:request", content: rightContent });
-  }
-  /**
-   * 保存して終了 (Ctrl+Enter / Cmd+Enter)
-   */
-  saveAndExit() {
-    if (this.model.isReadOnly) {
-      this.requestExit(0);
-      if (typeof document !== "undefined") {
-        const g2 = globalThis;
-        if (typeof g2.close === "function") {
-          try {
-            g2.close();
-          } catch {
-          }
-        }
-      }
-      return;
-    }
-    this.pendingExit = true;
-    this.pendingExitCode = 0;
-    this.requestSave();
-  }
-  /**
-   * 終了要求
-   */
-  requestExit(code) {
-    this.sendIpcMessage({ type: "exit:request", code });
-  }
-};
-
-// src/ui/model/dir_diff_model.ts
-var DirectoryDiffModel = class extends Observable {
-  _dirSession = null;
-  _selectedPath = null;
-  _expandedDirs = /* @__PURE__ */ new Set();
-  _filterStatus = "all";
-  _filterText = "";
-  _activeFileSession = null;
-  _isLoadingFile = false;
-  _fileError = null;
-  _dirtyFiles = /* @__PURE__ */ new Set();
-  _history = [];
-  _lastSession = null;
-  constructor(initialSession = null) {
-    super();
-    if (initialSession) {
-      this.setDirSession(initialSession);
-    }
-  }
-  // --- 状態ゲッター ---
-  get dirSession() {
-    return this._dirSession;
-  }
-  get selectedPath() {
-    return this._selectedPath;
-  }
-  get expandedDirs() {
-    return this._expandedDirs;
-  }
-  get filterStatus() {
-    return this._filterStatus;
-  }
-  get filterText() {
-    return this._filterText;
-  }
-  get activeFileSession() {
-    return this._activeFileSession;
-  }
-  get isLoadingFile() {
-    return this._isLoadingFile;
-  }
-  get fileError() {
-    return this._fileError;
-  }
-  get dirtyFiles() {
-    return this._dirtyFiles;
-  }
-  get hasDirtyFiles() {
-    return this._dirtyFiles.size > 0;
-  }
-  get history() {
-    return this._history;
-  }
-  get lastSession() {
-    return this._lastSession;
-  }
-  get isGitRepo() {
-    return Boolean(
-      this._dirSession?.isGitRepo || this._dirSession?.git?.isGitRepo
-    );
-  }
-  get gitInfo() {
-    return this._dirSession?.git;
-  }
-  // --- ドメインミューテーション ---
-  setHistoryData(history2, lastSession) {
-    this._history = history2;
-    this._lastSession = lastSession;
-    this.notify(this);
-  }
-  removeHistoryItem(id2) {
-    this._history = this._history.filter((item) => item.id !== id2);
-    this.notify(this);
-  }
-  setDirSession(session) {
-    this._dirSession = session;
-    this._selectedPath = null;
-    this._activeFileSession = null;
-    this._dirtyFiles.clear();
-    this._expandedDirs.clear();
-    this._expandedDirs.add("");
-    if (session.tree.children) {
-      for (const child of session.tree.children) {
-        if (child.isDir) {
-          this._expandedDirs.add(child.relativePath);
-        }
-      }
-    }
-    const firstDiff = this.findFirstDiffFile(session.tree);
-    if (firstDiff) {
-      this._selectedPath = firstDiff.relativePath;
-    }
-    this.notify(this);
-  }
-  toggleDir(relPath) {
-    if (this._expandedDirs.has(relPath)) {
-      this._expandedDirs.delete(relPath);
-    } else {
-      this._expandedDirs.add(relPath);
-    }
-    this.notify(this);
-  }
-  expandAll() {
-    if (!this._dirSession) return;
-    const addAll = (node) => {
-      if (node.isDir) {
-        this._expandedDirs.add(node.relativePath);
-        node.children?.forEach(addAll);
-      }
-    };
-    addAll(this._dirSession.tree);
-    this.notify(this);
-  }
-  collapseAll() {
-    this._expandedDirs.clear();
-    this.notify(this);
-  }
-  setSelectedPath(path) {
-    if (this._selectedPath === path) return;
-    this._selectedPath = path;
-    this._activeFileSession = null;
-    this._fileError = null;
-    this.notify(this);
-  }
-  setFilterStatus(status) {
-    this._filterStatus = status;
-    this.notify(this);
-  }
-  setFilterText(text) {
-    this._filterText = text;
-    this.notify(this);
-  }
-  startLoadingFile(path) {
-    this._selectedPath = path;
-    this._isLoadingFile = true;
-    this._fileError = null;
-    this.notify(this);
-  }
-  setActiveFileSession(path, session, error) {
-    if (this._selectedPath === path) {
-      this._isLoadingFile = false;
-      this._activeFileSession = session;
-      this._fileError = error ?? null;
-      this.notify(this);
-    }
-  }
-  setFileDirty(path, isDirty) {
-    if (isDirty) {
-      this._dirtyFiles.add(path);
-    } else {
-      this._dirtyFiles.delete(path);
-    }
-    this.notify(this);
-  }
-  // --- ヘルパー ---
-  findFirstDiffFile(node) {
-    if (!node.isDir && node.status !== "identical") {
-      return node;
-    }
-    if (node.children) {
-      for (const child of node.children) {
-        const found = this.findFirstDiffFile(child);
-        if (found) return found;
-      }
-    }
-    return null;
-  }
-};
-
-// src/ui/controller/dir_controller.ts
-var DirectoryController = class {
-  _model;
-  _diffModel;
-  _diffController = null;
-  _ws = null;
-  _dialogCallbacks = /* @__PURE__ */ new Map();
-  constructor(model, diffModel, diffController) {
-    this._model = model;
-    this._diffModel = diffModel;
-    this._diffController = diffController ?? null;
-  }
-  get model() {
-    return this._model;
-  }
-  get diffModel() {
-    return this._diffModel;
-  }
-  setDiffController(diffController) {
-    this._diffController = diffController;
-  }
-  connectWebSocket(url) {
-    const wsUrl = url || `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
-    try {
-      this._ws = new WebSocket(wsUrl);
-      this._ws.onopen = () => {
-        this._diffModel.setConnectionStatus("connected");
-        this.sendMessage({ type: "ui:ready" });
-        this.requestHistory();
-      };
-      this._ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          this.handleBackendMessage(msg);
-        } catch (e3) {
-          console.error("Failed to parse backend message:", e3);
-        }
-      };
-      this._ws.onclose = () => {
-        this._diffModel.setConnectionStatus("disconnected");
-        this._ws = null;
-      };
-      this._ws.onerror = (err) => {
-        console.error("WebSocket error:", err);
-      };
-    } catch (err) {
-      console.error("Failed to create WebSocket:", err);
-    }
-    return () => {
-      if (this._ws) {
-        this._ws.close();
-        this._ws = null;
-      }
-    };
-  }
-  handleBackendMessage(msg) {
-    switch (msg.type) {
-      case "session:init": {
-        this._diffModel.setSession(msg.data);
-        break;
-      }
-      case "dir:tree_data": {
-        this._model.setDirSession(msg.data);
-        if (this._model.selectedPath) {
-          this.selectFile(this._model.selectedPath);
-        }
-        break;
-      }
-      case "file:diff_data": {
-        this._model.setActiveFileSession(
-          msg.relativePath,
-          msg.data,
-          msg.error
-        );
-        if (msg.data && this._model.selectedPath === msg.relativePath) {
-          this._diffModel.setSession(msg.data);
-        }
-        break;
-      }
-      case "dialog:result": {
-        if (msg.path) {
-          const cb = this._dialogCallbacks.get(msg.targetField);
-          if (cb) {
-            cb(msg.path);
-          }
-        }
-        break;
-      }
-      case "history:data": {
-        this._model.setHistoryData(msg.history, msg.lastSession);
-        break;
-      }
-      case "window:title_update": {
-        document.title = msg.title;
-        break;
-      }
-      case "save:result": {
-        if (msg.relativePath) {
-          if (msg.success) {
-            this._model.setFileDirty(msg.relativePath, false);
-            this._diffModel.setSaveStatus({
-              status: "saved",
-              message: msg.message
-            });
-            this._diffModel.setDirty(false);
-          } else {
-            this._diffModel.setSaveStatus({
-              status: "error",
-              message: msg.message
-            });
-          }
-        } else {
-          if (msg.success) {
-            this._diffModel.setSaveStatus({
-              status: "saved",
-              message: msg.message
-            });
-            this._diffModel.setDirty(false);
-          } else {
-            this._diffModel.setSaveStatus({
-              status: "error",
-              message: msg.message
-            });
-          }
-        }
-        break;
-      }
-    }
-  }
-  sendMessage(msg) {
-    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
-      this._ws.send(JSON.stringify(msg));
-    }
-  }
-  requestHistory() {
-    this.sendMessage({ type: "history:get" });
-  }
-  clearHistory() {
-    this.sendMessage({ type: "history:clear" });
-  }
-  removeHistoryItem(id2) {
-    this.sendMessage({ type: "history:remove", id: id2 });
-  }
-  restoreLastSession() {
-    this.sendMessage({ type: "session:restore_last" });
-  }
-  startDropSession(paths, readOnly2) {
-    this.sendMessage({
-      type: "file:drop_session",
-      paths,
-      readOnly: readOnly2
-    });
-  }
-  startDropContentSession(leftName, leftContent, rightName, rightContent, readOnly2) {
-    this.sendMessage({
-      type: "file:drop_content_session",
-      leftName,
-      leftContent,
-      rightName,
-      rightContent,
-      readOnly: readOnly2
-    });
-  }
-  saveSnapshot(snapshot) {
-    this.sendMessage({
-      type: "session:save_snapshot",
-      snapshot
-    });
-  }
-  selectFile(relativePath) {
-    if (this._model.selectedPath === relativePath && this._model.activeFileSession) {
-      return;
-    }
-    this._model.startLoadingFile(relativePath);
-    this.sendMessage({
-      type: "file:diff_request",
-      relativePath
-    });
-  }
-  toggleDir(relPath) {
-    this._model.toggleDir(relPath);
-  }
-  saveCurrentFile() {
-    const selectedPath = this._model.selectedPath;
-    if (!selectedPath) return;
-    const editorView = this._diffController?.getMergeView();
-    const content2 = editorView ? editorView.b.state.doc.toString() : "";
-    this._diffModel.setSaveStatus({ status: "saving" });
-    this.sendMessage({
-      type: "save:file_request",
-      relativePath: selectedPath,
-      content: content2
-    });
-  }
-  openDialog(dialogType, targetField, onSelected) {
-    this._dialogCallbacks.set(targetField, onSelected);
-    this.sendMessage({
-      type: "dialog:open",
-      dialogType,
-      targetField
-    });
-  }
-  startDirectorySession(baseDir, targetDir, readOnly2) {
-    this.sendMessage({
-      type: "dir:start_session",
-      baseDir,
-      targetDir,
-      readOnly: readOnly2
-    });
-  }
-  startGitSession(repoPath, options = {}) {
-    this.sendMessage({
-      type: "git:start_session",
-      repoPath,
-      branch: options.branch,
-      worktreePath: options.worktreePath,
-      readOnly: options.readOnly
-    });
-  }
-  startFileSession(leftPath, rightPath, readOnly2) {
-    this.sendMessage({
-      type: "file:start_session",
-      leftPath,
-      rightPath,
-      readOnly: readOnly2
-    });
-  }
-  requestExit(code = 0) {
-    this.sendMessage({
-      type: "exit:request",
-      code
-    });
-  }
-};
-
-// src/ui/model/three_way_session_model.ts
-var ThreeWaySessionModel = class extends Observable {
-  _session = null;
-  _connectionStatus = "connecting";
-  _hunks = [];
-  _activeHunkIndex = 0;
-  _resolutions = /* @__PURE__ */ new Map();
-  _mergedContent = "";
-  _mode = "navigation";
-  _statusMessage = "";
-  _saveStatus = { status: "idle" };
-  _isDirty = false;
-  constructor(initialSession = null) {
-    super();
-    if (initialSession) {
-      this.setSession(initialSession);
-    }
-  }
-  // --- ゲッター ---
-  get session() {
-    return this._session;
-  }
-  get connectionStatus() {
-    return this._connectionStatus;
-  }
-  get hunks() {
-    return this._hunks;
-  }
-  get conflicts() {
-    return this._hunks.filter((h3) => h3.type === "conflict");
-  }
-  get activeHunkIndex() {
-    return this._activeHunkIndex;
-  }
-  get activeHunk() {
-    if (this._activeHunkIndex >= 0 && this._activeHunkIndex < this._hunks.length) {
-      return this._hunks[this._activeHunkIndex];
-    }
-    return null;
-  }
-  get mergedContent() {
-    return this._mergedContent;
-  }
-  get mode() {
-    return this._mode;
-  }
-  get statusMessage() {
-    return this._statusMessage;
-  }
-  get saveStatus() {
-    return this._saveStatus;
-  }
-  get isDirty() {
-    return this._isDirty;
-  }
-  get isReadOnly() {
-    return Boolean(
-      this._session?.options && this._session.readOnly
-    );
-  }
-  get totalConflicts() {
-    return this.conflicts.length;
-  }
-  get resolvedConflictsCount() {
-    return this.conflicts.filter((h3) => {
-      const res = this._resolutions.get(h3.id);
-      return res && res !== "unresolved";
-    }).length;
-  }
-  get remainingConflictsCount() {
-    return this.totalConflicts - this.resolvedConflictsCount;
-  }
-  getResolution(hunkId) {
-    return this._resolutions.get(hunkId) ?? "unresolved";
-  }
-  // --- ドメインロジック / 状態変更アクション ---
-  setConnectionStatus(status) {
-    if (this._connectionStatus === status) return;
-    this._connectionStatus = status;
-    this.notify(this);
-  }
-  setSession(session) {
-    this._session = session;
-    this._hunks = session.threeWay ? [...session.threeWay.hunks] : [];
-    this._resolutions.clear();
-    for (const h3 of this._hunks) {
-      this._resolutions.set(h3.id, h3.resolution);
-    }
-    this._mergedContent = session.threeWay?.initialMergedContent ?? session.files.left.content;
-    this._activeHunkIndex = 0;
-    this._isDirty = false;
-    this._saveStatus = { status: "idle" };
-    this._statusMessage = `3-Way \u30DE\u30FC\u30B8\u6E96\u5099\u5B8C\u4E86 (${this.totalConflicts} \u7AF6\u5408)`;
-    this.notify(this);
-  }
-  setMergedContent(content2, markDirty = true) {
-    if (this._mergedContent === content2) return;
-    this._mergedContent = content2;
-    if (markDirty) {
-      this._isDirty = true;
-    }
-    this.notify(this);
-  }
-  setActiveHunkIndex(index) {
-    if (this._hunks.length === 0) return;
-    const clamped = Math.max(0, Math.min(index, this._hunks.length - 1));
-    if (this._activeHunkIndex === clamped) return;
-    this._activeHunkIndex = clamped;
-    this.notify(this);
-  }
-  goToNextConflict() {
-    const conflictIndices = this._hunks.map((h3, i3) => h3.type === "conflict" ? i3 : -1).filter((i3) => i3 >= 0);
-    if (conflictIndices.length === 0) return;
-    const next = conflictIndices.find((i3) => i3 > this._activeHunkIndex);
-    if (next !== void 0) {
-      this.setActiveHunkIndex(next);
-    } else {
-      this.setActiveHunkIndex(conflictIndices[0]);
-    }
-  }
-  goToPrevConflict() {
-    const conflictIndices = this._hunks.map((h3, i3) => h3.type === "conflict" ? i3 : -1).filter((i3) => i3 >= 0);
-    if (conflictIndices.length === 0) return;
-    const prevs = conflictIndices.filter((i3) => i3 < this._activeHunkIndex);
-    if (prevs.length > 0) {
-      this.setActiveHunkIndex(prevs[prevs.length - 1]);
-    } else {
-      this.setActiveHunkIndex(conflictIndices[conflictIndices.length - 1]);
-    }
-  }
-  resolveHunk(hunkId, resolution) {
-    const hunk = this._hunks.find((h3) => h3.id === hunkId);
-    if (!hunk) return;
-    this._resolutions.set(hunkId, resolution);
-    let chosenLines;
-    switch (resolution) {
-      case "local":
-        chosenLines = hunk.localLines;
-        break;
-      case "remote":
-        chosenLines = hunk.remoteLines;
-        break;
-      case "base":
-        chosenLines = hunk.baseLines;
-        break;
-      case "both_local_first":
-        chosenLines = [...hunk.localLines, ...hunk.remoteLines];
-        break;
-      case "both_remote_first":
-        chosenLines = [...hunk.remoteLines, ...hunk.localLines];
-        break;
-      default:
-        chosenLines = hunk.localLines;
-        break;
-    }
-    hunk.resolvedLines = chosenLines;
-    hunk.resolution = resolution;
-    this.rebuildMergedContent();
-    this._isDirty = true;
-    this._statusMessage = `\u7AF6\u5408 ${hunkId} \u3092\u300C${resolution}\u300D\u3067\u89E3\u6C7A\u3057\u307E\u3057\u305F`;
-    this.notify(this);
-  }
-  resolveAll(resolution) {
-    for (const h3 of this._hunks) {
-      if (h3.type === "conflict") {
-        this.resolveHunk(h3.id, resolution);
-      }
-    }
-    this._statusMessage = `\u3059\u3079\u3066\u306E\u7AF6\u5408\u3092\u300C${resolution}\u300D\u3067\u4E00\u62EC\u89E3\u6C7A\u3057\u307E\u3057\u305F`;
-    this.notify(this);
-  }
-  rebuildMergedContent() {
-    const lines = [];
-    for (const h3 of this._hunks) {
-      lines.push(...h3.resolvedLines);
-    }
-    const eol = this._session?.files.left.content.includes("\r\n") ? "\r\n" : "\n";
-    this._mergedContent = lines.join(eol);
-  }
-  setMode(mode) {
-    if (this._mode === mode) return;
-    this._mode = mode;
-    this.notify(this);
-  }
-  setStatusMessage(msg) {
-    if (this._statusMessage === msg) return;
-    this._statusMessage = msg;
-    this.notify(this);
-  }
-  setSaveStatus(status) {
-    this._saveStatus = status;
-    if (status.status === "saved") {
-      this._isDirty = false;
-    }
-    this.notify(this);
-  }
-};
-
-// src/ui/controller/three_way_controller.ts
-var ThreeWayController = class {
-  model;
-  ws = null;
-  customSend;
-  constructor(model, options) {
-    this.model = model;
-    this.customSend = options?.sendMessage;
-    if (options?.wsUrl) {
-      this.initWebSocket(options.wsUrl);
-    }
-  }
-  initWebSocket(url) {
-    try {
-      this.ws = new WebSocket(url);
-      this.ws.onopen = () => {
-        this.model.setConnectionStatus("connected");
-        this.send({ type: "ui:ready" });
-      };
-      this.ws.onclose = () => {
-        this.model.setConnectionStatus("disconnected");
-      };
-      this.ws.onerror = () => {
-        this.model.setConnectionStatus("disconnected");
-      };
-      this.ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          this.handleBackendMessage(msg);
-        } catch (e3) {
-          console.error("Failed to parse backend message:", e3);
-        }
-      };
-    } catch (e3) {
-      console.error("Failed to init WebSocket:", e3);
-      this.model.setConnectionStatus("disconnected");
-    }
-  }
-  send(msg) {
-    if (this.customSend) {
-      this.customSend(msg);
-      return;
-    }
-    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
-    }
-  }
-  handleBackendMessage(msg) {
-    switch (msg.type) {
-      case "session:init":
-        if (msg.data.mode === "3way") {
-          this.model.setSession(msg.data);
-        }
-        break;
-      case "save:result":
-        if (msg.success) {
-          this.model.setSaveStatus({
-            status: "saved",
-            message: msg.message
-          });
-          this.model.setStatusMessage(msg.message ?? "\u4FDD\u5B58\u3057\u307E\u3057\u305F");
-        } else {
-          this.model.setSaveStatus({
-            status: "error",
-            message: msg.message
-          });
-          this.model.setStatusMessage(`\u4FDD\u5B58\u30A8\u30E9\u30FC: ${msg.message ?? ""}`);
-        }
-        break;
-    }
-  }
-  resolveHunk(hunkId, resolution) {
-    this.model.resolveHunk(hunkId, resolution);
-  }
-  resolveActiveHunk(resolution) {
-    const active = this.model.activeHunk;
-    if (active) {
-      this.model.resolveHunk(active.id, resolution);
-    }
-  }
-  resolveAll(resolution) {
-    this.model.resolveAll(resolution);
-  }
-  nextConflict() {
-    this.model.goToNextConflict();
-  }
-  prevConflict() {
-    this.model.goToPrevConflict();
-  }
-  save() {
-    const session = this.model.session;
-    if (!session) return;
-    this.model.setSaveStatus({ status: "saving" });
-    this.model.setStatusMessage("\u4FDD\u5B58\u4E2D...");
-    this.send({
-      type: "save:request",
-      content: this.model.mergedContent
-    });
-  }
-  saveAndExit() {
-    this.save();
-    setTimeout(() => {
-      const exitCode = this.model.remainingConflictsCount > 0 ? 1 : 0;
-      this.send({
-        type: "exit:request",
-        code: exitCode
-      });
-    }, 150);
-  }
-  cancelAndExit() {
-    this.send({
-      type: "exit:request",
-      code: 1
-      // 未解決・キャンセル時は非0
-    });
-  }
-  handleKeyDown(e3) {
-    const isCtrlOrCmd = e3.ctrlKey || e3.metaKey;
-    if (isCtrlOrCmd && e3.key.toLowerCase() === "s") {
-      e3.preventDefault();
-      this.save();
-      return true;
-    }
-    if (isCtrlOrCmd && e3.key === "Enter") {
-      e3.preventDefault();
-      this.saveAndExit();
-      return true;
-    }
-    if (this.model.mode === "navigation") {
-      if (e3.key === "j" || e3.key === "J" || e3.altKey && e3.key === "ArrowDown") {
-        e3.preventDefault();
-        this.nextConflict();
-        return true;
-      }
-      if (e3.key === "k" || e3.key === "K" || e3.altKey && e3.key === "ArrowUp") {
-        e3.preventDefault();
-        this.prevConflict();
-        return true;
-      }
-      if (e3.key === "1" || e3.key.toLowerCase() === "l") {
-        e3.preventDefault();
-        this.resolveActiveHunk("local");
-        return true;
-      }
-      if (e3.key === "2" || e3.key.toLowerCase() === "r") {
-        e3.preventDefault();
-        this.resolveActiveHunk("remote");
-        return true;
-      }
-      if (e3.key === "3" || e3.key.toLowerCase() === "b") {
-        e3.preventDefault();
-        this.resolveActiveHunk("base");
-        return true;
-      }
-    }
-    return false;
-  }
-};
-
-// src/ui/model/image_diff_model.ts
-var ImageDiffModel = class {
-  state;
-  listeners = /* @__PURE__ */ new Set();
-  constructor(leftImage, rightImage) {
-    this.state = {
-      viewMode: "swipe",
-      zoom: 1,
-      panX: 0,
-      panY: 0,
-      sliderPos: 50,
-      onionOpacity: 50,
-      tolerance: 5,
-      leftImage,
-      rightImage
-    };
-  }
-  getState() {
-    return this.state;
-  }
-  subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-  notify() {
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-  setViewMode(mode) {
-    if (this.state.viewMode !== mode) {
-      this.state = { ...this.state, viewMode: mode };
-      this.notify();
-    }
-  }
-  setZoom(zoom) {
-    const clamped = Math.max(0.1, Math.min(8, zoom));
-    if (this.state.zoom !== clamped) {
-      this.state = { ...this.state, zoom: clamped };
-      this.notify();
-    }
-  }
-  resetZoomAndPan() {
-    this.state = { ...this.state, zoom: 1, panX: 0, panY: 0 };
-    this.notify();
-  }
-  setPan(panX, panY) {
-    this.state = { ...this.state, panX, panY };
-    this.notify();
-  }
-  setSliderPos(pos) {
-    const clamped = Math.max(0, Math.min(100, pos));
-    if (this.state.sliderPos !== clamped) {
-      this.state = { ...this.state, sliderPos: clamped };
-      this.notify();
-    }
-  }
-  setOnionOpacity(opacity) {
-    const clamped = Math.max(0, Math.min(100, opacity));
-    if (this.state.onionOpacity !== clamped) {
-      this.state = { ...this.state, onionOpacity: clamped };
-      this.notify();
-    }
-  }
-  setTolerance(tolerance) {
-    const clamped = Math.max(0, Math.min(100, tolerance));
-    if (this.state.tolerance !== clamped) {
-      this.state = { ...this.state, tolerance: clamped };
-      this.notify();
-    }
-  }
-};
-
-// src/ui/controller/image_controller.ts
-var ImageController = class {
-  model;
-  isDraggingPan = false;
-  isDraggingSlider = false;
-  lastMouseX = 0;
-  lastMouseY = 0;
-  constructor(model) {
-    this.model = model;
-  }
-  handleKeyDown = (e3) => {
-    const target = e3.target;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
-      return;
-    }
-    if (e3.key === "1") {
-      this.model.setViewMode("2up");
-    } else if (e3.key === "2") {
-      this.model.setViewMode("swipe");
-    } else if (e3.key === "3") {
-      this.model.setViewMode("onion");
-    } else if (e3.key === "4") {
-      this.model.setViewMode("diff");
-    } else if (e3.key === "0") {
-      this.model.resetZoomAndPan();
-    } else if (e3.key === "+" || e3.key === "=") {
-      const current = this.model.getState().zoom;
-      this.model.setZoom(current * 1.2);
-    } else if (e3.key === "-" || e3.key === "_") {
-      const current = this.model.getState().zoom;
-      this.model.setZoom(current / 1.2);
-    }
-  };
-  handleWheel = (e3) => {
-    e3.preventDefault();
-    const current = this.model.getState().zoom;
-    const factor = e3.deltaY < 0 ? 1.15 : 0.85;
-    this.model.setZoom(current * factor);
-  };
-  handlePanMouseDown = (e3) => {
-    if (e3.button === 0 || e3.button === 1) {
-      this.isDraggingPan = true;
-      this.lastMouseX = e3.clientX;
-      this.lastMouseY = e3.clientY;
-    }
-  };
-  handlePanMouseMove = (e3) => {
-    if (!this.isDraggingPan) return;
-    const dx = e3.clientX - this.lastMouseX;
-    const dy = e3.clientY - this.lastMouseY;
-    this.lastMouseX = e3.clientX;
-    this.lastMouseY = e3.clientY;
-    const state = this.model.getState();
-    this.model.setPan(state.panX + dx, state.panY + dy);
-  };
-  handlePanMouseUp = () => {
-    this.isDraggingPan = false;
-  };
-  handleSliderMouseDown = (e3) => {
-    e3.stopPropagation();
-    this.isDraggingSlider = true;
-  };
-  handleSliderMouseMove = (e3, containerRect) => {
-    if (!this.isDraggingSlider) return;
-    const relativeX = e3.clientX - containerRect.left;
-    const pct = relativeX / containerRect.width * 100;
-    this.model.setSliderPos(pct);
-  };
-  handleSliderMouseUp = () => {
-    this.isDraggingSlider = false;
-  };
-  setMode(mode) {
-    this.model.setViewMode(mode);
-  }
-  setZoom(zoom) {
-    this.model.setZoom(zoom);
-  }
-  resetZoom() {
-    this.model.resetZoomAndPan();
-  }
-  setSliderPos(pos) {
-    this.model.setSliderPos(pos);
-  }
-  setOnionOpacity(opacity) {
-    this.model.setOnionOpacity(opacity);
-  }
-  setTolerance(tol) {
-    this.model.setTolerance(tol);
-  }
-};
-
-// src/ui/model/csv_diff_model.ts
-var CsvDiffModel = class {
-  state;
-  listeners = /* @__PURE__ */ new Set();
-  constructor(csvDiff, leftFileName, rightFileName) {
-    this.state = {
-      csvDiff,
-      filterMode: "all",
-      searchQuery: "",
-      leftFileName,
-      rightFileName
-    };
-  }
-  getState() {
-    return this.state;
-  }
-  subscribe(listener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-  notify() {
-    for (const listener of this.listeners) {
-      listener();
-    }
-  }
-  setFilterMode(mode) {
-    if (this.state.filterMode !== mode) {
-      this.state = { ...this.state, filterMode: mode };
-      this.notify();
-    }
-  }
-  setSearchQuery(query) {
-    if (this.state.searchQuery !== query) {
-      this.state = { ...this.state, searchQuery: query };
-      this.notify();
-    }
-  }
-  getFilteredRows() {
-    const { rows } = this.state.csvDiff;
-    const { filterMode, searchQuery } = this.state;
-    const query = searchQuery.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (filterMode === "modified-only" && row.status === "identical") {
-        return false;
-      }
-      if (query.length > 0) {
-        const matches = row.cells.some(
-          (cell) => cell.leftValue?.toLowerCase().includes(query) || cell.rightValue?.toLowerCase().includes(query)
-        );
-        if (!matches) return false;
-      }
-      return true;
-    });
-  }
-};
-
-// src/ui/controller/csv_controller.ts
-var CsvController = class {
-  model;
-  constructor(model) {
-    this.model = model;
-  }
-  setFilterMode(mode) {
-    this.model.setFilterMode(mode);
-  }
-  setSearchQuery(query) {
-    this.model.setSearchQuery(query);
-  }
-};
-
-// src/ui/controller/keymap.ts
-function setupGlobalKeybindings(controller) {
-  const handler = (e3) => {
-    controller.handleKeyDown(e3);
-  };
-  globalThis.addEventListener("keydown", handler);
-  return () => {
-    globalThis.removeEventListener("keydown", handler);
-  };
-}
-
-// src/ui/hooks/use_model.ts
-function useModel(model) {
-  const [, setTick] = d2(0);
-  h2(() => {
-    const unsubscribe = model.subscribe(() => {
-      setTick((tick) => tick + 1);
-    });
-    return unsubscribe;
-  }, [model]);
-  return model;
-}
-
-// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
-var f3 = 0;
-function u3(e3, t4, n2, o3, i3, u4) {
-  t4 || (t4 = {});
-  var a3, c3, p3 = t4;
-  if ("ref" in p3) for (c3 in p3 = {}, t4) "ref" == c3 ? a3 = t4[c3] : p3[c3] = t4[c3];
-  var l3 = { type: e3, props: p3, key: n2, ref: a3, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f3, __i: -1, __u: 0, __source: i3, __self: u4 };
-  if ("function" == typeof e3 && (a3 = e3.defaultProps)) for (c3 in a3) void 0 === p3[c3] && (p3[c3] = a3[c3]);
-  return l.vnode && l.vnode(l3), l3;
-}
-
-// src/ui/components/Header.tsx
-function Header({ model, controller }) {
-  useModel(model);
-  const [isPromptExpanded, setIsPromptExpanded] = d2(false);
-  const session = model.session;
-  const connectionStatus = model.connectionStatus;
-  const mode = session?.mode?.toUpperCase() ?? "2-WAY";
-  const agent = session?.aiContext?.agent;
-  const modelName = session?.aiContext?.model;
-  const prompt = session?.aiContext?.prompt;
-  const isConnected = connectionStatus === "connected";
-  const statusLabel = connectionStatus === "connected" ? "Connected" : connectionStatus === "connecting" ? "Connecting..." : "Disconnected";
-  const totalHunks = session?.hunks?.length ?? model.chunks.length;
-  const unreviewed = model.unreviewedCount;
-  const statusCounts = model.statusCounts;
-  const isAllReviewed = model.isAllReviewed;
-  const noiseCount = model.noiseCount;
-  const riskCounts = model.riskCounts;
-  const isNoiseFolded = model.noiseFolded;
-  const isPromptLong = Boolean(prompt && prompt.length > 80);
-  return /* @__PURE__ */ u3("div", { class: "header-container", children: [
-    /* @__PURE__ */ u3("header", { class: "app-header", children: [
-      /* @__PURE__ */ u3("div", { class: "header-section header-left", children: [
-        /* @__PURE__ */ u3("div", { class: "brand", children: [
-          /* @__PURE__ */ u3("h1", { children: "Diffrex" }),
-          /* @__PURE__ */ u3("span", { class: "badge mode", children: mode })
-        ] }),
-        /* @__PURE__ */ u3("div", { class: "ai-meta", children: [
-          agent && /* @__PURE__ */ u3("span", { class: "badge agent", children: [
-            "Agent: ",
-            agent
-          ] }),
-          modelName && /* @__PURE__ */ u3("span", { class: "badge model", children: [
-            "Model: ",
-            modelName
-          ] })
-        ] })
-      ] }),
-      /* @__PURE__ */ u3("div", { class: "header-section header-center", children: [
-        totalHunks > 0 && /* @__PURE__ */ u3("div", { class: "hunk-stats", children: [
-          /* @__PURE__ */ u3(
-            "span",
-            {
-              class: `stat-item unreviewed ${isAllReviewed ? "completed" : ""}`,
-              title: `Accepted: ${statusCounts.accepted}, Rejected: ${statusCounts.rejected}, Edited: ${statusCounts.edited}`,
-              children: isAllReviewed ? /* @__PURE__ */ u3("span", { children: [
-                "\u2713 All Reviewed (",
-                totalHunks,
-                "/",
-                totalHunks,
-                ")"
-              ] }) : /* @__PURE__ */ u3("span", { children: [
-                "Unreviewed: ",
-                /* @__PURE__ */ u3("strong", { children: [
-                  unreviewed,
-                  "/",
-                  totalHunks
-                ] })
-              ] })
-            }
-          ),
-          statusCounts.accepted > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge accepted", title: "Accepted hunks", children: [
-            "\u2713 ",
-            statusCounts.accepted
-          ] }),
-          statusCounts.rejected > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge rejected", title: "Rejected hunks", children: [
-            "\u2717 ",
-            statusCounts.rejected
-          ] }),
-          statusCounts.edited > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge edited", title: "Edited hunks", children: [
-            "\u270E ",
-            statusCounts.edited
-          ] }),
-          riskCounts.danger > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge danger", title: "High Risk Changes", children: [
-            "\u26A0\uFE0F ",
-            riskCounts.danger,
-            " danger"
-          ] }),
-          riskCounts.warning > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge warning", title: "Warnings", children: [
-            "\u26A1 ",
-            riskCounts.warning,
-            " warn"
-          ] })
-        ] }),
-        noiseCount > 0 && /* @__PURE__ */ u3(
-          "button",
-          {
-            type: "button",
-            class: `filter-toggle-btn ${isNoiseFolded ? "active" : ""}`,
-            onClick: () => controller.toggleNoiseFolded(),
-            title: "Toggle noise hunks visibility (Ctrl+N)",
-            children: [
-              /* @__PURE__ */ u3("span", { class: "toggle-icon", children: isNoiseFolded ? "\u25B6" : "\u25BC" }),
-              /* @__PURE__ */ u3("span", { children: isNoiseFolded ? `Noise folded (${noiseCount})` : `Noise visible (${noiseCount})` }),
-              /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" })
-            ]
-          }
-        )
-      ] }),
-      /* @__PURE__ */ u3("div", { class: "header-section header-right", children: /* @__PURE__ */ u3("div", { class: "status-indicator", children: [
-        /* @__PURE__ */ u3("span", { class: `status-dot ${isConnected ? "connected" : ""}` }),
-        /* @__PURE__ */ u3("span", { children: statusLabel })
-      ] }) })
-    ] }),
-    prompt && /* @__PURE__ */ u3(
-      "div",
-      {
-        class: `prompt-banner ${isPromptExpanded ? "expanded" : "collapsed"}`,
-        children: [
-          /* @__PURE__ */ u3(
-            "div",
-            {
-              class: "prompt-header",
-              onClick: () => isPromptLong && setIsPromptExpanded(!isPromptExpanded),
-              children: [
-                /* @__PURE__ */ u3("span", { class: "prompt-label", children: "Prompt" }),
-                isPromptLong && /* @__PURE__ */ u3("span", { class: "prompt-expand-hint", children: isPromptExpanded ? "\u25B2 Collapse" : "\u25BC Expand full prompt" })
-              ]
-            }
-          ),
-          /* @__PURE__ */ u3(
-            "div",
-            {
-              class: "prompt-content",
-              onClick: () => isPromptLong && setIsPromptExpanded(!isPromptExpanded),
-              children: prompt
-            }
-          )
-        ]
-      }
-    )
-  ] });
-}
-
-// src/ui/components/StatusBar.tsx
-function StatusBar({ model }) {
-  useModel(model);
-  const totalHunks = model.chunks.length;
-  const activeHunkIndex = model.activeChunkIndex;
-  const session = model.session;
-  const message = model.statusMessage;
-  const isReadOnly = model.isReadOnly;
-  const isDirty = model.isDirty;
-  const saveStatus = model.saveStatus.status;
-  const isAllReviewed = model.isAllReviewed;
-  const hunkInfo = totalHunks > 0 ? `Hunk ${activeHunkIndex >= 0 ? activeHunkIndex + 1 : 0} / ${totalHunks}` : "No Diffs";
-  return /* @__PURE__ */ u3("footer", { class: `app-footer ${isAllReviewed ? "all-reviewed" : ""}`, children: [
-    /* @__PURE__ */ u3("div", { class: "footer-left", children: [
-      /* @__PURE__ */ u3("span", { class: "footer-badge hunk-badge", children: hunkInfo }),
-      isAllReviewed && /* @__PURE__ */ u3("span", { class: "footer-badge review-complete-badge", children: "\u2728 ALL REVIEWED" }),
-      isReadOnly ? /* @__PURE__ */ u3("span", { class: "footer-badge readonly-badge", children: "READ-ONLY" }) : /* @__PURE__ */ u3(S, { children: [
-        saveStatus === "saving" && /* @__PURE__ */ u3("span", { class: "footer-badge saving-badge", children: "SAVING..." }),
-        saveStatus === "saved" && !isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge saved-badge", children: "SAVED" }),
-        isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge dirty-badge", children: "MODIFIED *" })
-      ] }),
-      message && /* @__PURE__ */ u3("span", { class: "footer-message", children: message })
-    ] }),
-    /* @__PURE__ */ u3("div", { class: "footer-center key-guide", children: [
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "A" }),
-        " \u627F\u8A8D"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "R" }),
-        " \u62D2\u5426"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "E" }),
-        " \u7DE8\u96C6"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Alt+\u2193" }),
-        "/",
-        /* @__PURE__ */ u3("kbd", { children: "J" }),
-        " \u6B21"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Alt+\u2191" }),
-        "/",
-        /* @__PURE__ */ u3("kbd", { children: "K" }),
-        " \u524D"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Ctrl+R" }),
-        " \u30DE\u30FC\u30B8(\u2192)"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" }),
-        " \u30CE\u30A4\u30BA"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Ctrl+S" }),
-        " \u4FDD\u5B58"
-      ] }),
-      /* @__PURE__ */ u3("span", { class: "key-item", children: [
-        /* @__PURE__ */ u3("kbd", { children: "Ctrl+Enter" }),
-        " \u5B8C\u4E86"
-      ] })
-    ] }),
-    /* @__PURE__ */ u3("div", { class: "footer-right", children: /* @__PURE__ */ u3("span", { children: session?.sessionId ? `ID: ${session.sessionId.slice(0, 8)}` : "" }) })
-  ] });
-}
 
 // ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@marijn/find-cluster-break@1.0.3/node_modules/@marijn/find-cluster-break/src/index.js
 var rangeFrom = [];
@@ -20089,6 +18498,2542 @@ var defaultKeymap = /* @__PURE__ */ [
   { key: "Ctrl-m", mac: "Shift-Alt-m", run: toggleTabFocusMode }
 ].concat(standardKeymap);
 
+// src/ui/controller/diff_controller.ts
+var DiffController = class {
+  model;
+  mergeView = null;
+  ws = null;
+  fallbackTimer = null;
+  pendingExit = false;
+  pendingExitCode = 0;
+  constructor(model) {
+    this.model = model;
+  }
+  // --- MergeView ライフサイクル ---
+  /**
+   * CodeMirror MergeView インスタンスをアタッチする。
+   */
+  attachMergeView(mergeView) {
+    this.mergeView = mergeView;
+  }
+  getMergeView() {
+    return this.mergeView;
+  }
+  // --- 差分 / Hunk 操作 ---
+  /**
+   * CodeMirror からの差分 Chunks 更新を処理する。
+   */
+  handleChunksUpdated(chunks, newActiveIndex) {
+    this.model.setChunks(chunks, newActiveIndex);
+  }
+  /**
+   * カーソル移動やクリックによる Hunk 選択を処理する。
+   */
+  handleCursorChunkSelect(chunkIndex) {
+    this.model.setActiveChunkIndex(chunkIndex);
+  }
+  /**
+   * エディタ内容変更時の処理（Dirty フラグ設定、edited ステータス更新、Chunks 同期）。
+   */
+  handleDocumentChanged() {
+    this.model.setDirty(true);
+    this.model.markCurrentHunkEdited();
+    if (this.mergeView) {
+      const updatedChunks = this.mergeView.chunks;
+      const currentActive = this.model.activeChunkIndex;
+      const newIndex = updatedChunks.length > 0 ? Math.min(Math.max(0, currentActive), updatedChunks.length - 1) : -1;
+      this.model.setChunks(updatedChunks, newIndex);
+    }
+  }
+  /**
+   * 次の Hunk へ移動する。
+   */
+  nextHunk() {
+    this.model.selectNextHunk();
+  }
+  /**
+   * 前の Hunk へ移動する。
+   */
+  prevHunk() {
+    this.model.selectPrevHunk();
+  }
+  /**
+   * 現在の Hunk を承認 (accepted) にし、次の未レビュー Hunk へ進める (P4-12)。
+   */
+  acceptHunk() {
+    this.model.acceptCurrentHunk();
+  }
+  /**
+   * 現在の Hunk を拒否 (rejected) にし、Target（右側）の変更を破棄して Base の内容に戻す (P4-13)。
+   */
+  rejectHunk() {
+    if (this.mergeView) {
+      const chunk = this.model.activeChunk;
+      if (chunk) {
+        this.model.setDirty(true);
+        const baseText = this.mergeView.a.state.sliceDoc(
+          chunk.fromA,
+          chunk.toA
+        );
+        this.mergeView.b.dispatch({
+          changes: { from: chunk.fromB, to: chunk.toB, insert: baseText }
+        });
+        this.syncChunksAfterMerge();
+      }
+    }
+    this.model.rejectCurrentHunk();
+  }
+  /**
+   * 編集モードに入り、対象 Hunk またはエディタにフォーカスする。
+   */
+  enterEditMode() {
+    this.model.setMode("editing");
+    if (!this.mergeView) return;
+    const chunk = this.model.activeChunk;
+    this.mergeView.b.focus();
+    if (chunk) {
+      this.mergeView.b.dispatch({
+        selection: { anchor: chunk.fromB, head: chunk.fromB }
+      });
+    }
+  }
+  /**
+   * 編集モードをトグル切り替えする。
+   */
+  toggleEditMode() {
+    if (this.model.mode === "editing") {
+      this.exitEditMode();
+    } else {
+      this.enterEditMode();
+    }
+  }
+  /**
+   * Target エディタの変更を元に戻す (Undo)。
+   */
+  undo() {
+    if (!this.mergeView) return false;
+    return undo(this.mergeView.b);
+  }
+  /**
+   * Target エディタの変更をやり直す (Redo)。
+   */
+  redo() {
+    if (!this.mergeView) return false;
+    return redo(this.mergeView.b);
+  }
+  /**
+   * すべての未レビュー Hunk を一括承認する。
+   */
+  acceptAllHunks() {
+    this.model.acceptAllHunks();
+  }
+  /**
+   * すべての未レビュー Hunk を一括拒否する。
+   */
+  rejectAllHunks() {
+    this.model.rejectAllHunks();
+  }
+  /**
+   * すべての折りたたみを展開する。
+   */
+  expandAllHunks() {
+    this.model.expandAllHunks();
+  }
+  /**
+   * 編集モードを終了し、ナビゲーションモードに戻る。
+   */
+  exitEditMode() {
+    this.model.setMode("navigation");
+    if (typeof document !== "undefined") {
+      document.activeElement?.blur();
+    }
+    const g2 = globalThis;
+    if (typeof g2.focus === "function") {
+      g2.focus();
+    }
+  }
+  /**
+   * ブロックマージ (Base -> Target / 左 -> 右) を実行する。
+   */
+  mergeLeftToRight() {
+    if (!this.mergeView) return;
+    const chunk = this.model.activeChunk;
+    if (!chunk) return;
+    this.model.setDirty(true);
+    const baseText = this.mergeView.a.state.sliceDoc(chunk.fromA, chunk.toA);
+    this.mergeView.b.dispatch({
+      changes: { from: chunk.fromB, to: chunk.toB, insert: baseText }
+    });
+    this.syncChunksAfterMerge();
+  }
+  /**
+   * ブロックマージ (Target -> Base / 右 -> 左) を実行する。
+   */
+  mergeRightToLeft() {
+    if (!this.mergeView) return;
+    const chunk = this.model.activeChunk;
+    if (!chunk) return;
+    this.model.setDirty(true);
+    const targetText = this.mergeView.b.state.sliceDoc(chunk.fromB, chunk.toB);
+    this.mergeView.a.dispatch({
+      changes: { from: chunk.fromA, to: chunk.toA, insert: targetText }
+    });
+    this.syncChunksAfterMerge();
+  }
+  /**
+   * マージ実行後に CodeMirror の最新 chunks を取得して Model に同期する。
+   */
+  syncChunksAfterMerge() {
+    setTimeout(() => {
+      if (!this.mergeView) return;
+      const updatedChunks = this.mergeView.chunks;
+      const currentActive = this.model.activeChunkIndex;
+      const newIndex = updatedChunks.length > 0 ? Math.min(currentActive, updatedChunks.length - 1) : -1;
+      this.model.setChunks(updatedChunks, newIndex);
+    }, 10);
+  }
+  /**
+   * ノイズ hunk の一括折りたたみ/展開を切り替える。
+   */
+  toggleNoiseFolded() {
+    this.model.toggleNoiseFolded();
+  }
+  /**
+   * 個別 hunk の折りたたみ/展開を切り替える。
+   */
+  toggleHunkFold(hunkId) {
+    this.model.toggleHunkFold(hunkId);
+  }
+  // --- キーボード入力ハンドリング ---
+  /**
+   * グローバルキーダウンイベントを解釈して適切な操作を実行する。
+   */
+  handleKeyDown(e3) {
+    const isEditorFocused = typeof document !== "undefined" && Boolean(
+      document.activeElement && (document.activeElement.closest?.(".cm-editor") || document.activeElement.classList?.contains("cm-content"))
+    );
+    const key = e3.key;
+    const isAlt = e3.altKey;
+    const isCtrl = e3.ctrlKey || e3.metaKey;
+    if (isAlt && key === "ArrowDown" || !isEditorFocused && !isCtrl && !isAlt && (key === "j" || key === "J")) {
+      e3.preventDefault();
+      this.nextHunk();
+      return;
+    }
+    if (isAlt && key === "ArrowUp" || !isEditorFocused && !isCtrl && !isAlt && (key === "k" || key === "K")) {
+      e3.preventDefault();
+      this.prevHunk();
+      return;
+    }
+    if (!isEditorFocused && !isCtrl && !isAlt && (key === "a" || key === "A")) {
+      e3.preventDefault();
+      this.acceptHunk();
+      return;
+    }
+    if (!isEditorFocused && !isCtrl && !isAlt && (key === "r" || key === "R")) {
+      e3.preventDefault();
+      this.rejectHunk();
+      return;
+    }
+    if (!isEditorFocused && !isCtrl && !isAlt && (key === "Enter" || key === "e" || key === "E")) {
+      e3.preventDefault();
+      this.enterEditMode();
+      return;
+    }
+    if (key === "Escape") {
+      e3.preventDefault();
+      this.exitEditMode();
+      return;
+    }
+    if (isCtrl && !isAlt && (key === "r" || key === "R") || isAlt && !isCtrl && key === "ArrowRight") {
+      e3.preventDefault();
+      this.mergeLeftToRight();
+      return;
+    }
+    if (isCtrl && !isAlt && (key === "l" || key === "L") || isAlt && !isCtrl && key === "ArrowLeft") {
+      e3.preventDefault();
+      this.mergeRightToLeft();
+      return;
+    }
+    if (isCtrl && !isAlt && (key === "n" || key === "N")) {
+      e3.preventDefault();
+      this.toggleNoiseFolded();
+      return;
+    }
+    if (isCtrl && !isAlt && key === "Enter") {
+      e3.preventDefault();
+      this.saveAndExit();
+      return;
+    }
+    if (isCtrl && !isAlt && (key === "s" || key === "S")) {
+      e3.preventDefault();
+      this.requestSave();
+      return;
+    }
+  }
+  // --- IPC / 通信管理 ---
+  /**
+   * WebSocket / HTTP 通信をセットアップする。
+   */
+  connectWebSocket(wsUrl) {
+    const fetchSession = async () => {
+      try {
+        const res = await fetch("/api/session");
+        if (res.ok) {
+          const data2 = await res.json();
+          this.model.setSession(data2);
+          this.model.setConnectionStatus("connected");
+        }
+      } catch (err) {
+        console.warn("fetchSession failed:", err);
+      }
+    };
+    const defaultWsUrl = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
+    const targetUrl = wsUrl || defaultWsUrl;
+    try {
+      this.ws = new WebSocket(targetUrl);
+      this.ws.onopen = () => {
+        this.model.setConnectionStatus("connected");
+        this.sendIpcMessage({ type: "ui:ready" });
+      };
+      this.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          this.handleIpcMessage(msg);
+        } catch (err) {
+          console.error("Failed to parse incoming WS message:", err);
+        }
+      };
+      this.ws.onclose = () => {
+        this.model.setConnectionStatus("disconnected");
+      };
+      this.ws.onerror = () => {
+        this.fallbackTimer = setTimeout(() => {
+          fetchSession();
+        }, 500);
+      };
+    } catch {
+      fetchSession();
+    }
+    const beforeUnloadListener = (e3) => {
+      if (this.model.isDirty) {
+        e3.preventDefault();
+        e3.returnValue = "\u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u3002\u7834\u68C4\u3057\u3066\u7D42\u4E86\u3057\u307E\u3059\u304B\uFF1F";
+        return "\u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059\u3002\u7834\u68C4\u3057\u3066\u7D42\u4E86\u3057\u307E\u3059\u304B\uFF1F";
+      }
+    };
+    const pageHideListener = () => {
+      if (this.model.isDirty) {
+        this.sendIpcMessage({ type: "exit:request", code: 1 });
+      }
+    };
+    if (typeof globalThis.addEventListener === "function") {
+      globalThis.addEventListener("beforeunload", beforeUnloadListener);
+      globalThis.addEventListener("pagehide", pageHideListener);
+    }
+    return () => {
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+      }
+      if (this.fallbackTimer) {
+        clearTimeout(this.fallbackTimer);
+        this.fallbackTimer = null;
+      }
+      if (typeof globalThis.removeEventListener === "function") {
+        globalThis.removeEventListener("beforeunload", beforeUnloadListener);
+        globalThis.removeEventListener("pagehide", pageHideListener);
+      }
+    };
+  }
+  /**
+   * バックエンドからの IPC メッセージを処理する。
+   */
+  handleIpcMessage(msg) {
+    if (msg.type === "session:init") {
+      this.model.setSession(msg.data);
+    } else if (msg.type === "save:result") {
+      this.model.setSaveStatus({
+        status: msg.success ? "saved" : "error",
+        message: msg.message
+      });
+      if (msg.message) {
+        this.model.setStatusMessage(msg.message);
+      }
+      if (this.pendingExit) {
+        if (msg.success) {
+          const code = this.pendingExitCode;
+          this.pendingExit = false;
+          this.requestExit(code);
+          if (typeof document !== "undefined") {
+            const g2 = globalThis;
+            if (typeof g2.close === "function") {
+              try {
+                g2.close();
+              } catch {
+              }
+            }
+          }
+        } else {
+          this.pendingExit = false;
+        }
+      }
+    }
+  }
+  /**
+   * UI からバックエンドへメッセージを送信する。
+   */
+  sendIpcMessage(msg) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    }
+  }
+  /**
+   * 保存要求 (Phase 3 連携)
+   */
+  requestSave() {
+    if (this.model.isReadOnly) {
+      const msg = "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u306E\u305F\u3081\u4FDD\u5B58\u3067\u304D\u307E\u305B\u3093";
+      this.model.setStatusMessage(msg);
+      this.model.setSaveStatus({ status: "error", message: msg });
+      if (this.pendingExit) {
+        this.pendingExit = false;
+      }
+      return;
+    }
+    const rightContent = this.mergeView?.b.state.doc.toString() ?? this.model.session?.files?.right?.content ?? "";
+    this.model.setSaveStatus({ status: "saving" });
+    this.sendIpcMessage({ type: "save:request", content: rightContent });
+  }
+  /**
+   * 保存して終了 (Ctrl+Enter / Cmd+Enter)
+   */
+  saveAndExit() {
+    if (this.model.isReadOnly) {
+      this.requestExit(0);
+      if (typeof document !== "undefined") {
+        const g2 = globalThis;
+        if (typeof g2.close === "function") {
+          try {
+            g2.close();
+          } catch {
+          }
+        }
+      }
+      return;
+    }
+    this.pendingExit = true;
+    this.pendingExitCode = 0;
+    this.requestSave();
+  }
+  /**
+   * 終了要求
+   */
+  requestExit(code) {
+    this.sendIpcMessage({ type: "exit:request", code });
+  }
+};
+
+// src/ui/model/dir_diff_model.ts
+var DirectoryDiffModel = class extends Observable {
+  _dirSession = null;
+  _selectedPath = null;
+  _expandedDirs = /* @__PURE__ */ new Set();
+  _filterStatus = "all";
+  _filterText = "";
+  _activeFileSession = null;
+  _isLoadingFile = false;
+  _fileError = null;
+  _dirtyFiles = /* @__PURE__ */ new Set();
+  _history = [];
+  _lastSession = null;
+  constructor(initialSession = null) {
+    super();
+    if (initialSession) {
+      this.setDirSession(initialSession);
+    }
+  }
+  // --- 状態ゲッター ---
+  get dirSession() {
+    return this._dirSession;
+  }
+  get selectedPath() {
+    return this._selectedPath;
+  }
+  get expandedDirs() {
+    return this._expandedDirs;
+  }
+  get filterStatus() {
+    return this._filterStatus;
+  }
+  get filterText() {
+    return this._filterText;
+  }
+  get activeFileSession() {
+    return this._activeFileSession;
+  }
+  get isLoadingFile() {
+    return this._isLoadingFile;
+  }
+  get fileError() {
+    return this._fileError;
+  }
+  get dirtyFiles() {
+    return this._dirtyFiles;
+  }
+  get hasDirtyFiles() {
+    return this._dirtyFiles.size > 0;
+  }
+  get history() {
+    return this._history;
+  }
+  get lastSession() {
+    return this._lastSession;
+  }
+  get isGitRepo() {
+    return Boolean(
+      this._dirSession?.isGitRepo || this._dirSession?.git?.isGitRepo
+    );
+  }
+  get gitInfo() {
+    return this._dirSession?.git;
+  }
+  // --- ドメインミューテーション ---
+  setHistoryData(history2, lastSession) {
+    this._history = history2;
+    this._lastSession = lastSession;
+    this.notify(this);
+  }
+  removeHistoryItem(id2) {
+    this._history = this._history.filter((item) => item.id !== id2);
+    this.notify(this);
+  }
+  setDirSession(session) {
+    this._dirSession = session;
+    this._selectedPath = null;
+    this._activeFileSession = null;
+    this._dirtyFiles.clear();
+    if (!session) {
+      this._expandedDirs.clear();
+      this.notify(this);
+      return;
+    }
+    this._expandedDirs.clear();
+    this._expandedDirs.add("");
+    if (session.tree.children) {
+      for (const child of session.tree.children) {
+        if (child.isDir) {
+          this._expandedDirs.add(child.relativePath);
+        }
+      }
+    }
+    const firstDiff = this.findFirstDiffFile(session.tree);
+    if (firstDiff) {
+      this._selectedPath = firstDiff.relativePath;
+    }
+    this.notify(this);
+  }
+  clearSession() {
+    this.setDirSession(null);
+  }
+  toggleDir(relPath) {
+    if (this._expandedDirs.has(relPath)) {
+      this._expandedDirs.delete(relPath);
+    } else {
+      this._expandedDirs.add(relPath);
+    }
+    this.notify(this);
+  }
+  expandAll() {
+    if (!this._dirSession) return;
+    const addAll = (node) => {
+      if (node.isDir) {
+        this._expandedDirs.add(node.relativePath);
+        node.children?.forEach(addAll);
+      }
+    };
+    addAll(this._dirSession.tree);
+    this.notify(this);
+  }
+  collapseAll() {
+    this._expandedDirs.clear();
+    this.notify(this);
+  }
+  setSelectedPath(path) {
+    if (this._selectedPath === path) return;
+    this._selectedPath = path;
+    this._activeFileSession = null;
+    this._fileError = null;
+    this.notify(this);
+  }
+  setFilterStatus(status) {
+    this._filterStatus = status;
+    this.notify(this);
+  }
+  setFilterText(text) {
+    this._filterText = text;
+    this.notify(this);
+  }
+  startLoadingFile(path) {
+    this._selectedPath = path;
+    this._isLoadingFile = true;
+    this._fileError = null;
+    this.notify(this);
+  }
+  setActiveFileSession(path, session, error) {
+    if (this._selectedPath === path) {
+      this._isLoadingFile = false;
+      this._activeFileSession = session;
+      this._fileError = error ?? null;
+      this.notify(this);
+    }
+  }
+  setFileDirty(path, isDirty) {
+    if (isDirty) {
+      this._dirtyFiles.add(path);
+    } else {
+      this._dirtyFiles.delete(path);
+    }
+    this.notify(this);
+  }
+  // --- ヘルパー ---
+  findFirstDiffFile(node) {
+    if (!node.isDir && node.status !== "identical") {
+      return node;
+    }
+    if (node.children) {
+      for (const child of node.children) {
+        const found = this.findFirstDiffFile(child);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+};
+
+// src/ui/controller/dir_controller.ts
+var DirectoryController = class {
+  _model;
+  _diffModel;
+  _diffController = null;
+  _ws = null;
+  _dialogCallbacks = /* @__PURE__ */ new Map();
+  constructor(model, diffModel, diffController) {
+    this._model = model;
+    this._diffModel = diffModel;
+    this._diffController = diffController ?? null;
+  }
+  get model() {
+    return this._model;
+  }
+  get diffModel() {
+    return this._diffModel;
+  }
+  setDiffController(diffController) {
+    this._diffController = diffController;
+  }
+  connectWebSocket(url) {
+    const wsUrl = url || `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
+    try {
+      this._ws = new WebSocket(wsUrl);
+      this._ws.onopen = () => {
+        this._diffModel.setConnectionStatus("connected");
+        this.sendMessage({ type: "ui:ready" });
+        this.requestHistory();
+      };
+      this._ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          this.handleBackendMessage(msg);
+        } catch (e3) {
+          console.error("Failed to parse backend message:", e3);
+        }
+      };
+      this._ws.onclose = () => {
+        this._diffModel.setConnectionStatus("disconnected");
+        this._ws = null;
+      };
+      this._ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
+    } catch (err) {
+      console.error("Failed to create WebSocket:", err);
+    }
+    return () => {
+      if (this._ws) {
+        this._ws.close();
+        this._ws = null;
+      }
+    };
+  }
+  handleBackendMessage(msg) {
+    switch (msg.type) {
+      case "session:init": {
+        this._diffModel.setSession(msg.data);
+        break;
+      }
+      case "dir:tree_data": {
+        this._model.setDirSession(msg.data);
+        if (this._model.selectedPath) {
+          this.selectFile(this._model.selectedPath);
+        }
+        break;
+      }
+      case "file:diff_data": {
+        this._model.setActiveFileSession(
+          msg.relativePath,
+          msg.data,
+          msg.error
+        );
+        if (msg.data && this._model.selectedPath === msg.relativePath) {
+          this._diffModel.setSession(msg.data);
+        }
+        break;
+      }
+      case "dialog:result": {
+        if (msg.path) {
+          const cb = this._dialogCallbacks.get(msg.targetField);
+          if (cb) {
+            cb(msg.path);
+          }
+        }
+        break;
+      }
+      case "history:data": {
+        this._model.setHistoryData(msg.history, msg.lastSession);
+        break;
+      }
+      case "window:title_update": {
+        document.title = msg.title;
+        break;
+      }
+      case "save:result": {
+        if (msg.relativePath) {
+          if (msg.success) {
+            this._model.setFileDirty(msg.relativePath, false);
+            this._diffModel.setSaveStatus({
+              status: "saved",
+              message: msg.message
+            });
+            this._diffModel.setDirty(false);
+          } else {
+            this._diffModel.setSaveStatus({
+              status: "error",
+              message: msg.message
+            });
+          }
+        } else {
+          if (msg.success) {
+            this._diffModel.setSaveStatus({
+              status: "saved",
+              message: msg.message
+            });
+            this._diffModel.setDirty(false);
+          } else {
+            this._diffModel.setSaveStatus({
+              status: "error",
+              message: msg.message
+            });
+          }
+        }
+        break;
+      }
+    }
+  }
+  sendMessage(msg) {
+    if (this._ws && this._ws.readyState === WebSocket.OPEN) {
+      this._ws.send(JSON.stringify(msg));
+    }
+  }
+  requestHistory() {
+    this.sendMessage({ type: "history:get" });
+  }
+  clearHistory() {
+    this.sendMessage({ type: "history:clear" });
+  }
+  removeHistoryItem(id2) {
+    this.sendMessage({ type: "history:remove", id: id2 });
+  }
+  restoreLastSession() {
+    this.sendMessage({ type: "session:restore_last" });
+  }
+  startDropSession(paths, readOnly2) {
+    this.sendMessage({
+      type: "file:drop_session",
+      paths,
+      readOnly: readOnly2
+    });
+  }
+  startDropContentSession(leftName, leftContent, rightName, rightContent, readOnly2) {
+    this.sendMessage({
+      type: "file:drop_content_session",
+      leftName,
+      leftContent,
+      rightName,
+      rightContent,
+      readOnly: readOnly2
+    });
+  }
+  saveSnapshot(snapshot) {
+    this.sendMessage({
+      type: "session:save_snapshot",
+      snapshot
+    });
+  }
+  selectFile(relativePath) {
+    if (this._model.selectedPath === relativePath && this._model.activeFileSession) {
+      return;
+    }
+    this._model.startLoadingFile(relativePath);
+    this.sendMessage({
+      type: "file:diff_request",
+      relativePath
+    });
+  }
+  toggleDir(relPath) {
+    this._model.toggleDir(relPath);
+  }
+  saveCurrentFile() {
+    const selectedPath = this._model.selectedPath;
+    if (!selectedPath) return;
+    const editorView = this._diffController?.getMergeView();
+    const content2 = editorView ? editorView.b.state.doc.toString() : "";
+    this._diffModel.setSaveStatus({ status: "saving" });
+    this.sendMessage({
+      type: "save:file_request",
+      relativePath: selectedPath,
+      content: content2
+    });
+  }
+  openDialog(dialogType, targetField, onSelected) {
+    this._dialogCallbacks.set(targetField, onSelected);
+    this.sendMessage({
+      type: "dialog:open",
+      dialogType,
+      targetField
+    });
+  }
+  startDirectorySession(baseDir, targetDir, readOnly2) {
+    this.sendMessage({
+      type: "dir:start_session",
+      baseDir,
+      targetDir,
+      readOnly: readOnly2
+    });
+  }
+  startGitSession(repoPath, options = {}) {
+    this.sendMessage({
+      type: "git:start_session",
+      repoPath,
+      branch: options.branch,
+      worktreePath: options.worktreePath,
+      readOnly: options.readOnly
+    });
+  }
+  startFileSession(leftPath, rightPath, readOnly2) {
+    this.sendMessage({
+      type: "file:start_session",
+      leftPath,
+      rightPath,
+      readOnly: readOnly2
+    });
+  }
+  requestExit(code = 0) {
+    this.sendMessage({
+      type: "exit:request",
+      code
+    });
+  }
+};
+
+// src/ui/model/three_way_session_model.ts
+var ThreeWaySessionModel = class extends Observable {
+  _session = null;
+  _connectionStatus = "connecting";
+  _hunks = [];
+  _activeHunkIndex = 0;
+  _resolutions = /* @__PURE__ */ new Map();
+  _mergedContent = "";
+  _mode = "navigation";
+  _statusMessage = "";
+  _saveStatus = { status: "idle" };
+  _isDirty = false;
+  constructor(initialSession = null) {
+    super();
+    if (initialSession) {
+      this.setSession(initialSession);
+    }
+  }
+  // --- ゲッター ---
+  get session() {
+    return this._session;
+  }
+  get connectionStatus() {
+    return this._connectionStatus;
+  }
+  get hunks() {
+    return this._hunks;
+  }
+  get conflicts() {
+    return this._hunks.filter((h3) => h3.type === "conflict");
+  }
+  get activeHunkIndex() {
+    return this._activeHunkIndex;
+  }
+  get activeHunk() {
+    if (this._activeHunkIndex >= 0 && this._activeHunkIndex < this._hunks.length) {
+      return this._hunks[this._activeHunkIndex];
+    }
+    return null;
+  }
+  get mergedContent() {
+    return this._mergedContent;
+  }
+  get mode() {
+    return this._mode;
+  }
+  get statusMessage() {
+    return this._statusMessage;
+  }
+  get saveStatus() {
+    return this._saveStatus;
+  }
+  get isDirty() {
+    return this._isDirty;
+  }
+  get isReadOnly() {
+    return Boolean(
+      this._session?.options && this._session.readOnly
+    );
+  }
+  get totalConflicts() {
+    return this.conflicts.length;
+  }
+  get resolvedConflictsCount() {
+    return this.conflicts.filter((h3) => {
+      const res = this._resolutions.get(h3.id);
+      return res && res !== "unresolved";
+    }).length;
+  }
+  get remainingConflictsCount() {
+    return this.totalConflicts - this.resolvedConflictsCount;
+  }
+  getResolution(hunkId) {
+    return this._resolutions.get(hunkId) ?? "unresolved";
+  }
+  // --- ドメインロジック / 状態変更アクション ---
+  setConnectionStatus(status) {
+    if (this._connectionStatus === status) return;
+    this._connectionStatus = status;
+    this.notify(this);
+  }
+  setSession(session) {
+    this._session = session;
+    this._hunks = session.threeWay ? [...session.threeWay.hunks] : [];
+    this._resolutions.clear();
+    for (const h3 of this._hunks) {
+      this._resolutions.set(h3.id, h3.resolution);
+    }
+    this._mergedContent = session.threeWay?.initialMergedContent ?? session.files.left.content;
+    this._activeHunkIndex = 0;
+    this._isDirty = false;
+    this._saveStatus = { status: "idle" };
+    this._statusMessage = `3-Way \u30DE\u30FC\u30B8\u6E96\u5099\u5B8C\u4E86 (${this.totalConflicts} \u7AF6\u5408)`;
+    this.notify(this);
+  }
+  setMergedContent(content2, markDirty = true) {
+    if (this._mergedContent === content2) return;
+    this._mergedContent = content2;
+    if (markDirty) {
+      this._isDirty = true;
+    }
+    this.notify(this);
+  }
+  setActiveHunkIndex(index) {
+    if (this._hunks.length === 0) return;
+    const clamped = Math.max(0, Math.min(index, this._hunks.length - 1));
+    if (this._activeHunkIndex === clamped) return;
+    this._activeHunkIndex = clamped;
+    this.notify(this);
+  }
+  goToNextConflict() {
+    const conflictIndices = this._hunks.map((h3, i3) => h3.type === "conflict" ? i3 : -1).filter((i3) => i3 >= 0);
+    if (conflictIndices.length === 0) return;
+    const next = conflictIndices.find((i3) => i3 > this._activeHunkIndex);
+    if (next !== void 0) {
+      this.setActiveHunkIndex(next);
+    } else {
+      this.setActiveHunkIndex(conflictIndices[0]);
+    }
+  }
+  goToPrevConflict() {
+    const conflictIndices = this._hunks.map((h3, i3) => h3.type === "conflict" ? i3 : -1).filter((i3) => i3 >= 0);
+    if (conflictIndices.length === 0) return;
+    const prevs = conflictIndices.filter((i3) => i3 < this._activeHunkIndex);
+    if (prevs.length > 0) {
+      this.setActiveHunkIndex(prevs[prevs.length - 1]);
+    } else {
+      this.setActiveHunkIndex(conflictIndices[conflictIndices.length - 1]);
+    }
+  }
+  resolveHunk(hunkId, resolution) {
+    const hunk = this._hunks.find((h3) => h3.id === hunkId);
+    if (!hunk) return;
+    this._resolutions.set(hunkId, resolution);
+    let chosenLines;
+    switch (resolution) {
+      case "local":
+        chosenLines = hunk.localLines;
+        break;
+      case "remote":
+        chosenLines = hunk.remoteLines;
+        break;
+      case "base":
+        chosenLines = hunk.baseLines;
+        break;
+      case "both_local_first":
+        chosenLines = [...hunk.localLines, ...hunk.remoteLines];
+        break;
+      case "both_remote_first":
+        chosenLines = [...hunk.remoteLines, ...hunk.localLines];
+        break;
+      default:
+        chosenLines = hunk.localLines;
+        break;
+    }
+    hunk.resolvedLines = chosenLines;
+    hunk.resolution = resolution;
+    this.rebuildMergedContent();
+    this._isDirty = true;
+    this._statusMessage = `\u7AF6\u5408 ${hunkId} \u3092\u300C${resolution}\u300D\u3067\u89E3\u6C7A\u3057\u307E\u3057\u305F`;
+    this.notify(this);
+  }
+  resolveAll(resolution) {
+    for (const h3 of this._hunks) {
+      if (h3.type === "conflict") {
+        this.resolveHunk(h3.id, resolution);
+      }
+    }
+    this._statusMessage = `\u3059\u3079\u3066\u306E\u7AF6\u5408\u3092\u300C${resolution}\u300D\u3067\u4E00\u62EC\u89E3\u6C7A\u3057\u307E\u3057\u305F`;
+    this.notify(this);
+  }
+  rebuildMergedContent() {
+    const lines = [];
+    for (const h3 of this._hunks) {
+      lines.push(...h3.resolvedLines);
+    }
+    const eol = this._session?.files.left.content.includes("\r\n") ? "\r\n" : "\n";
+    this._mergedContent = lines.join(eol);
+  }
+  setMode(mode) {
+    if (this._mode === mode) return;
+    this._mode = mode;
+    this.notify(this);
+  }
+  setStatusMessage(msg) {
+    if (this._statusMessage === msg) return;
+    this._statusMessage = msg;
+    this.notify(this);
+  }
+  setSaveStatus(status) {
+    this._saveStatus = status;
+    if (status.status === "saved") {
+      this._isDirty = false;
+    }
+    this.notify(this);
+  }
+};
+
+// src/ui/controller/three_way_controller.ts
+var ThreeWayController = class {
+  model;
+  ws = null;
+  customSend;
+  constructor(model, options) {
+    this.model = model;
+    this.customSend = options?.sendMessage;
+    if (options?.wsUrl) {
+      this.initWebSocket(options.wsUrl);
+    }
+  }
+  initWebSocket(url) {
+    try {
+      this.ws = new WebSocket(url);
+      this.ws.onopen = () => {
+        this.model.setConnectionStatus("connected");
+        this.send({ type: "ui:ready" });
+      };
+      this.ws.onclose = () => {
+        this.model.setConnectionStatus("disconnected");
+      };
+      this.ws.onerror = () => {
+        this.model.setConnectionStatus("disconnected");
+      };
+      this.ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          this.handleBackendMessage(msg);
+        } catch (e3) {
+          console.error("Failed to parse backend message:", e3);
+        }
+      };
+    } catch (e3) {
+      console.error("Failed to init WebSocket:", e3);
+      this.model.setConnectionStatus("disconnected");
+    }
+  }
+  send(msg) {
+    if (this.customSend) {
+      this.customSend(msg);
+      return;
+    }
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify(msg));
+    }
+  }
+  handleBackendMessage(msg) {
+    switch (msg.type) {
+      case "session:init":
+        if (msg.data.mode === "3way") {
+          this.model.setSession(msg.data);
+        }
+        break;
+      case "save:result":
+        if (msg.success) {
+          this.model.setSaveStatus({
+            status: "saved",
+            message: msg.message
+          });
+          this.model.setStatusMessage(msg.message ?? "\u4FDD\u5B58\u3057\u307E\u3057\u305F");
+        } else {
+          this.model.setSaveStatus({
+            status: "error",
+            message: msg.message
+          });
+          this.model.setStatusMessage(`\u4FDD\u5B58\u30A8\u30E9\u30FC: ${msg.message ?? ""}`);
+        }
+        break;
+    }
+  }
+  resolveHunk(hunkId, resolution) {
+    this.model.resolveHunk(hunkId, resolution);
+  }
+  resolveActiveHunk(resolution) {
+    const active = this.model.activeHunk;
+    if (active) {
+      this.model.resolveHunk(active.id, resolution);
+    }
+  }
+  resolveAll(resolution) {
+    this.model.resolveAll(resolution);
+  }
+  nextConflict() {
+    this.model.goToNextConflict();
+  }
+  prevConflict() {
+    this.model.goToPrevConflict();
+  }
+  save() {
+    const session = this.model.session;
+    if (!session) return;
+    this.model.setSaveStatus({ status: "saving" });
+    this.model.setStatusMessage("\u4FDD\u5B58\u4E2D...");
+    this.send({
+      type: "save:request",
+      content: this.model.mergedContent
+    });
+  }
+  saveAndExit() {
+    this.save();
+    setTimeout(() => {
+      const exitCode = this.model.remainingConflictsCount > 0 ? 1 : 0;
+      this.send({
+        type: "exit:request",
+        code: exitCode
+      });
+    }, 150);
+  }
+  cancelAndExit() {
+    this.send({
+      type: "exit:request",
+      code: 1
+      // 未解決・キャンセル時は非0
+    });
+  }
+  handleKeyDown(e3) {
+    const isCtrlOrCmd = e3.ctrlKey || e3.metaKey;
+    if (isCtrlOrCmd && e3.key.toLowerCase() === "s") {
+      e3.preventDefault();
+      this.save();
+      return true;
+    }
+    if (isCtrlOrCmd && e3.key === "Enter") {
+      e3.preventDefault();
+      this.saveAndExit();
+      return true;
+    }
+    if (this.model.mode === "navigation") {
+      if (e3.key === "j" || e3.key === "J" || e3.altKey && e3.key === "ArrowDown") {
+        e3.preventDefault();
+        this.nextConflict();
+        return true;
+      }
+      if (e3.key === "k" || e3.key === "K" || e3.altKey && e3.key === "ArrowUp") {
+        e3.preventDefault();
+        this.prevConflict();
+        return true;
+      }
+      if (e3.key === "1" || e3.key.toLowerCase() === "l") {
+        e3.preventDefault();
+        this.resolveActiveHunk("local");
+        return true;
+      }
+      if (e3.key === "2" || e3.key.toLowerCase() === "r") {
+        e3.preventDefault();
+        this.resolveActiveHunk("remote");
+        return true;
+      }
+      if (e3.key === "3" || e3.key.toLowerCase() === "b") {
+        e3.preventDefault();
+        this.resolveActiveHunk("base");
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+// src/ui/model/image_diff_model.ts
+var ImageDiffModel = class {
+  state;
+  listeners = /* @__PURE__ */ new Set();
+  constructor(leftImage, rightImage) {
+    this.state = {
+      viewMode: "swipe",
+      zoom: 1,
+      panX: 0,
+      panY: 0,
+      sliderPos: 50,
+      onionOpacity: 50,
+      tolerance: 5,
+      leftImage,
+      rightImage
+    };
+  }
+  getState() {
+    return this.state;
+  }
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  notify() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+  setViewMode(mode) {
+    if (this.state.viewMode !== mode) {
+      this.state = { ...this.state, viewMode: mode };
+      this.notify();
+    }
+  }
+  setZoom(zoom) {
+    const clamped = Math.max(0.1, Math.min(8, zoom));
+    if (this.state.zoom !== clamped) {
+      this.state = { ...this.state, zoom: clamped };
+      this.notify();
+    }
+  }
+  resetZoomAndPan() {
+    this.state = { ...this.state, zoom: 1, panX: 0, panY: 0 };
+    this.notify();
+  }
+  setPan(panX, panY) {
+    this.state = { ...this.state, panX, panY };
+    this.notify();
+  }
+  setSliderPos(pos) {
+    const clamped = Math.max(0, Math.min(100, pos));
+    if (this.state.sliderPos !== clamped) {
+      this.state = { ...this.state, sliderPos: clamped };
+      this.notify();
+    }
+  }
+  setOnionOpacity(opacity) {
+    const clamped = Math.max(0, Math.min(100, opacity));
+    if (this.state.onionOpacity !== clamped) {
+      this.state = { ...this.state, onionOpacity: clamped };
+      this.notify();
+    }
+  }
+  setTolerance(tolerance) {
+    const clamped = Math.max(0, Math.min(100, tolerance));
+    if (this.state.tolerance !== clamped) {
+      this.state = { ...this.state, tolerance: clamped };
+      this.notify();
+    }
+  }
+};
+
+// src/ui/controller/image_controller.ts
+var ImageController = class {
+  model;
+  isDraggingPan = false;
+  isDraggingSlider = false;
+  lastMouseX = 0;
+  lastMouseY = 0;
+  constructor(model) {
+    this.model = model;
+  }
+  handleKeyDown = (e3) => {
+    const target = e3.target;
+    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") {
+      return;
+    }
+    if (e3.key === "1") {
+      this.model.setViewMode("2up");
+    } else if (e3.key === "2") {
+      this.model.setViewMode("swipe");
+    } else if (e3.key === "3") {
+      this.model.setViewMode("onion");
+    } else if (e3.key === "4") {
+      this.model.setViewMode("diff");
+    } else if (e3.key === "0") {
+      this.model.resetZoomAndPan();
+    } else if (e3.key === "+" || e3.key === "=") {
+      const current = this.model.getState().zoom;
+      this.model.setZoom(current * 1.2);
+    } else if (e3.key === "-" || e3.key === "_") {
+      const current = this.model.getState().zoom;
+      this.model.setZoom(current / 1.2);
+    }
+  };
+  handleWheel = (e3) => {
+    e3.preventDefault();
+    const current = this.model.getState().zoom;
+    const factor = e3.deltaY < 0 ? 1.15 : 0.85;
+    this.model.setZoom(current * factor);
+  };
+  handlePanMouseDown = (e3) => {
+    if (e3.button === 0 || e3.button === 1) {
+      this.isDraggingPan = true;
+      this.lastMouseX = e3.clientX;
+      this.lastMouseY = e3.clientY;
+    }
+  };
+  handlePanMouseMove = (e3) => {
+    if (!this.isDraggingPan) return;
+    const dx = e3.clientX - this.lastMouseX;
+    const dy = e3.clientY - this.lastMouseY;
+    this.lastMouseX = e3.clientX;
+    this.lastMouseY = e3.clientY;
+    const state = this.model.getState();
+    this.model.setPan(state.panX + dx, state.panY + dy);
+  };
+  handlePanMouseUp = () => {
+    this.isDraggingPan = false;
+  };
+  handleSliderMouseDown = (e3) => {
+    e3.stopPropagation();
+    this.isDraggingSlider = true;
+  };
+  handleSliderMouseMove = (e3, containerRect) => {
+    if (!this.isDraggingSlider) return;
+    const relativeX = e3.clientX - containerRect.left;
+    const pct = relativeX / containerRect.width * 100;
+    this.model.setSliderPos(pct);
+  };
+  handleSliderMouseUp = () => {
+    this.isDraggingSlider = false;
+  };
+  setMode(mode) {
+    this.model.setViewMode(mode);
+  }
+  setZoom(zoom) {
+    this.model.setZoom(zoom);
+  }
+  resetZoom() {
+    this.model.resetZoomAndPan();
+  }
+  setSliderPos(pos) {
+    this.model.setSliderPos(pos);
+  }
+  setOnionOpacity(opacity) {
+    this.model.setOnionOpacity(opacity);
+  }
+  setTolerance(tol) {
+    this.model.setTolerance(tol);
+  }
+};
+
+// src/ui/model/csv_diff_model.ts
+var CsvDiffModel = class {
+  state;
+  listeners = /* @__PURE__ */ new Set();
+  constructor(csvDiff, leftFileName, rightFileName) {
+    this.state = {
+      csvDiff,
+      filterMode: "all",
+      searchQuery: "",
+      leftFileName,
+      rightFileName
+    };
+  }
+  getState() {
+    return this.state;
+  }
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+  notify() {
+    for (const listener of this.listeners) {
+      listener();
+    }
+  }
+  setFilterMode(mode) {
+    if (this.state.filterMode !== mode) {
+      this.state = { ...this.state, filterMode: mode };
+      this.notify();
+    }
+  }
+  setSearchQuery(query) {
+    if (this.state.searchQuery !== query) {
+      this.state = { ...this.state, searchQuery: query };
+      this.notify();
+    }
+  }
+  getFilteredRows() {
+    const { rows } = this.state.csvDiff;
+    const { filterMode, searchQuery } = this.state;
+    const query = searchQuery.trim().toLowerCase();
+    return rows.filter((row) => {
+      if (filterMode === "modified-only" && row.status === "identical") {
+        return false;
+      }
+      if (query.length > 0) {
+        const matches = row.cells.some(
+          (cell) => cell.leftValue?.toLowerCase().includes(query) || cell.rightValue?.toLowerCase().includes(query)
+        );
+        if (!matches) return false;
+      }
+      return true;
+    });
+  }
+};
+
+// src/ui/controller/csv_controller.ts
+var CsvController = class {
+  model;
+  constructor(model) {
+    this.model = model;
+  }
+  setFilterMode(mode) {
+    this.model.setFilterMode(mode);
+  }
+  setSearchQuery(query) {
+    this.model.setSearchQuery(query);
+  }
+};
+
+// src/ui/model/menu_model.ts
+var MenuModel = class extends Observable {
+  _categories = [];
+  _activeCategoryIndex = null;
+  _isShortcutsModalOpen = false;
+  _isAboutModalOpen = false;
+  _isCommandPaletteOpen = false;
+  _isOpenSessionModalOpen = false;
+  _openSessionInitialTab = "file";
+  _commandPaletteQuery = "";
+  _commandPaletteSelectedIndex = 0;
+  get categories() {
+    return this._categories;
+  }
+  get activeCategoryIndex() {
+    return this._activeCategoryIndex;
+  }
+  get isShortcutsModalOpen() {
+    return this._isShortcutsModalOpen;
+  }
+  get isAboutModalOpen() {
+    return this._isAboutModalOpen;
+  }
+  get isCommandPaletteOpen() {
+    return this._isCommandPaletteOpen;
+  }
+  get isOpenSessionModalOpen() {
+    return this._isOpenSessionModalOpen;
+  }
+  get openSessionInitialTab() {
+    return this._openSessionInitialTab;
+  }
+  get commandPaletteQuery() {
+    return this._commandPaletteQuery;
+  }
+  get commandPaletteSelectedIndex() {
+    return this._commandPaletteSelectedIndex;
+  }
+  setCategories(categories) {
+    this._categories = categories;
+    this.notify(this);
+  }
+  openCategory(index) {
+    if (this._activeCategoryIndex !== index) {
+      this._activeCategoryIndex = index;
+      this.notify(this);
+    }
+  }
+  closeMenu() {
+    if (this._activeCategoryIndex !== null) {
+      this._activeCategoryIndex = null;
+      this.notify(this);
+    }
+  }
+  toggleCategory(index) {
+    if (this._activeCategoryIndex === index) {
+      this.closeMenu();
+    } else {
+      this.openCategory(index);
+    }
+  }
+  nextCategory() {
+    if (this._categories.length === 0) return;
+    if (this._activeCategoryIndex === null) {
+      this._activeCategoryIndex = 0;
+    } else {
+      this._activeCategoryIndex = (this._activeCategoryIndex + 1) % this._categories.length;
+    }
+    this.notify(this);
+  }
+  prevCategory() {
+    if (this._categories.length === 0) return;
+    if (this._activeCategoryIndex === null) {
+      this._activeCategoryIndex = this._categories.length - 1;
+    } else {
+      this._activeCategoryIndex = (this._activeCategoryIndex - 1 + this._categories.length) % this._categories.length;
+    }
+    this.notify(this);
+  }
+  setShortcutsModalOpen(open) {
+    if (this._isShortcutsModalOpen !== open) {
+      this._isShortcutsModalOpen = open;
+      if (open) {
+        this.closeMenu();
+        this._isAboutModalOpen = false;
+        this._isCommandPaletteOpen = false;
+        this._isOpenSessionModalOpen = false;
+      }
+      this.notify(this);
+    }
+  }
+  setAboutModalOpen(open) {
+    if (this._isAboutModalOpen !== open) {
+      this._isAboutModalOpen = open;
+      if (open) {
+        this.closeMenu();
+        this._isShortcutsModalOpen = false;
+        this._isCommandPaletteOpen = false;
+        this._isOpenSessionModalOpen = false;
+      }
+      this.notify(this);
+    }
+  }
+  setOpenSessionModalOpen(open, initialTab = "file") {
+    if (this._isOpenSessionModalOpen !== open || this._openSessionInitialTab !== initialTab) {
+      this._isOpenSessionModalOpen = open;
+      this._openSessionInitialTab = initialTab;
+      if (open) {
+        this.closeMenu();
+        this._isShortcutsModalOpen = false;
+        this._isAboutModalOpen = false;
+        this._isCommandPaletteOpen = false;
+      }
+      this.notify(this);
+    }
+  }
+  setCommandPaletteOpen(open) {
+    if (this._isCommandPaletteOpen !== open) {
+      this._isCommandPaletteOpen = open;
+      if (open) {
+        this.closeMenu();
+        this._isShortcutsModalOpen = false;
+        this._isAboutModalOpen = false;
+        this._isOpenSessionModalOpen = false;
+        this._commandPaletteQuery = "";
+        this._commandPaletteSelectedIndex = 0;
+      }
+      this.notify(this);
+    }
+  }
+  setCommandPaletteQuery(query) {
+    if (this._commandPaletteQuery !== query) {
+      this._commandPaletteQuery = query;
+      this._commandPaletteSelectedIndex = 0;
+      this.notify(this);
+    }
+  }
+  setCommandPaletteSelectedIndex(index) {
+    if (this._commandPaletteSelectedIndex !== index) {
+      this._commandPaletteSelectedIndex = index;
+      this.notify(this);
+    }
+  }
+};
+
+// src/ui/controller/menu_controller.ts
+var MenuController = class {
+  _model;
+  _diffModel;
+  _diffController;
+  _dirModel;
+  _dirController;
+  _threeWayModel;
+  _threeWayController;
+  constructor(model, diffModel, diffController, dirModel, dirController, threeWayModel, threeWayController) {
+    this._model = model;
+    this._diffModel = diffModel;
+    this._diffController = diffController;
+    this._dirModel = dirModel;
+    this._dirController = dirController;
+    this._threeWayModel = threeWayModel;
+    this._threeWayController = threeWayController;
+    this.rebuildMenu();
+  }
+  get model() {
+    return this._model;
+  }
+  setThreeWay(threeWayModel, threeWayController) {
+    this._threeWayModel = threeWayModel;
+    this._threeWayController = threeWayController;
+    this.rebuildMenu();
+  }
+  /**
+   * 現在のセッション状態・モデル状態からメニュー定義を再生成する。
+   */
+  rebuildMenu() {
+    const is3Way = this._diffModel.session?.mode === "3way";
+    const isDir = Boolean(this._dirModel.dirSession);
+    const isTextDiff = Boolean(
+      this._diffModel.session && !is3Way && this._diffModel.session.mode !== "image" && this._diffModel.session.mode !== "csv"
+    );
+    const hasSession = Boolean(this._diffModel.session || isDir);
+    const isGit = Boolean(isDir && this._dirModel.dirSession?.isGitRepo);
+    const canSave = isTextDiff && !this._diffModel.session?.files.right.readOnly || is3Way && !this._diffModel.session?.files.right.readOnly || isDir && Boolean(this._dirModel.selectedPath);
+    const history2 = this._dirModel.history || [];
+    const recentItems = history2.length > 0 ? [
+      ...history2.slice(0, 10).map((h3, i3) => ({
+        id: `recent_${i3}_${h3.id}`,
+        label: h3.mode === "directory" ? `\u{1F4C1} ${h3.leftPath} \u21C4 ${h3.rightPath}` : h3.mode === "3way" ? `\u{1F4A5} ${h3.leftPath} (3-Way)` : `\u{1F4C4} ${h3.leftPath} \u21C4 ${h3.rightPath}`,
+        action: () => {
+          this._model.closeMenu();
+          this.openHistoryEntry(h3);
+        }
+      })),
+      { id: "sep_recent", label: "", separator: true },
+      {
+        id: "recent_clear",
+        label: "\u5C65\u6B74\u3092\u3059\u3079\u3066\u6D88\u53BB",
+        action: () => {
+          this._model.closeMenu();
+          this._dirController.clearHistory();
+        }
+      }
+    ] : [
+      {
+        id: "recent_empty",
+        label: "(\u5C65\u6B74\u306F\u3042\u308A\u307E\u305B\u3093)",
+        disabled: true
+      }
+    ];
+    const categories = [
+      // 1. File (F)
+      {
+        id: "file",
+        label: "\u30D5\u30A1\u30A4\u30EB",
+        accessKey: "F",
+        items: [
+          {
+            id: "file:open_file",
+            label: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F...",
+            shortcut: "Ctrl+O",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setOpenSessionModalOpen(true, "file");
+            }
+          },
+          {
+            id: "file:open_dir",
+            label: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F...",
+            shortcut: "Ctrl+Shift+O",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setOpenSessionModalOpen(true, "dir");
+            }
+          },
+          {
+            id: "file:open_git",
+            label: "\u5358\u4E00 Git \u30EA\u30DD\u30B8\u30C8\u30EA\u3092\u958B\u304F...",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setOpenSessionModalOpen(true, "git");
+            }
+          },
+          {
+            id: "file:open_3way",
+            label: "3-Way \u30DE\u30FC\u30B8\u3092\u958B\u304F...",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setOpenSessionModalOpen(true, "3way");
+            }
+          },
+          { id: "file:sep1", label: "", separator: true },
+          {
+            id: "file:recent",
+            label: "\u6700\u8FD1\u958B\u3044\u305F\u30BB\u30C3\u30B7\u30E7\u30F3",
+            children: recentItems
+          },
+          {
+            id: "file:restore",
+            label: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
+            shortcut: "Ctrl+Shift+T",
+            disabled: !this._dirModel.lastSession,
+            action: () => {
+              this._model.closeMenu();
+              this._dirController.restoreLastSession();
+            }
+          },
+          { id: "file:sep2", label: "", separator: true },
+          {
+            id: "file:save",
+            label: "\u4FDD\u5B58",
+            shortcut: "Ctrl+S",
+            disabled: !canSave,
+            action: () => {
+              this._model.closeMenu();
+              if (isDir) {
+                this._dirController.saveCurrentFile();
+              } else if (is3Way && this._threeWayController) {
+                this._threeWayController.save();
+              } else {
+                this._diffController.requestSave();
+              }
+            }
+          },
+          { id: "file:sep3", label: "", separator: true },
+          {
+            id: "file:welcome",
+            label: "Welcome \u753B\u9762\u3092\u8868\u793A",
+            disabled: !hasSession,
+            action: () => {
+              this._model.closeMenu();
+              this._dirModel.setDirSession(null);
+              this._diffModel.setSession(null);
+            }
+          },
+          {
+            id: "file:exit",
+            label: "\u7D42\u4E86",
+            shortcut: "Ctrl+Q",
+            action: () => {
+              this._model.closeMenu();
+              this._dirController.requestExit(0);
+            }
+          }
+        ]
+      },
+      // 2. Edit (E)
+      {
+        id: "edit",
+        label: "\u7DE8\u96C6",
+        accessKey: "E",
+        items: [
+          {
+            id: "edit:toggle_mode",
+            label: this._diffModel.mode === "editing" ? "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B" : "\u30A8\u30C7\u30A3\u30BF\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B",
+            shortcut: "E / Enter",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.toggleEditMode();
+            }
+          },
+          { id: "edit:sep1", label: "", separator: true },
+          {
+            id: "edit:undo",
+            label: "\u5143\u306B\u623B\u3059",
+            shortcut: "Ctrl+Z",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.undo();
+            }
+          },
+          {
+            id: "edit:redo",
+            label: "\u3084\u308A\u76F4\u3059",
+            shortcut: "Ctrl+Y",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.redo();
+            }
+          },
+          { id: "edit:sep2", label: "", separator: true },
+          {
+            id: "edit:palette",
+            label: "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8...",
+            shortcut: "Ctrl+Shift+P",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setCommandPaletteOpen(true);
+            }
+          }
+        ]
+      },
+      // 3. Merge (M)
+      {
+        id: "merge",
+        label: "\u30DE\u30FC\u30B8",
+        accessKey: "M",
+        items: [
+          {
+            id: "merge:next_hunk",
+            label: "\u6B21\u306E\u5DEE\u5206 (Hunk)",
+            shortcut: "Alt+Down / J",
+            disabled: !isTextDiff && !is3Way,
+            action: () => {
+              this._model.closeMenu();
+              if (is3Way && this._threeWayController) {
+                this._threeWayController.nextConflict();
+              } else {
+                this._diffController.nextHunk();
+              }
+            }
+          },
+          {
+            id: "merge:prev_hunk",
+            label: "\u524D\u306E\u5DEE\u5206 (Hunk)",
+            shortcut: "Alt+Up / K",
+            disabled: !isTextDiff && !is3Way,
+            action: () => {
+              this._model.closeMenu();
+              if (is3Way && this._threeWayController) {
+                this._threeWayController.prevConflict();
+              } else {
+                this._diffController.prevHunk();
+              }
+            }
+          },
+          { id: "merge:sep1", label: "", separator: true },
+          {
+            id: "merge:left_to_right",
+            label: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)",
+            shortcut: "Ctrl+R",
+            disabled: !isTextDiff || this._diffModel.session?.files.right.readOnly,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.mergeLeftToRight();
+            }
+          },
+          {
+            id: "merge:right_to_left",
+            label: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)",
+            shortcut: "Ctrl+L",
+            disabled: !isTextDiff || this._diffModel.session?.files.left.readOnly,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.mergeRightToLeft();
+            }
+          },
+          { id: "merge:sep2", label: "", separator: true },
+          {
+            id: "merge:accept",
+            label: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D",
+            shortcut: "A",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.acceptHunk();
+            }
+          },
+          {
+            id: "merge:reject",
+            label: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426",
+            shortcut: "R",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.rejectHunk();
+            }
+          },
+          {
+            id: "merge:accept_all",
+            label: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u627F\u8A8D",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.acceptAllHunks();
+            }
+          },
+          {
+            id: "merge:reject_all",
+            label: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u62D2\u5426",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.rejectAllHunks();
+            }
+          },
+          ...is3Way ? [
+            { id: "merge:sep3", label: "", separator: true },
+            {
+              id: "merge:3way_base",
+              label: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528",
+              shortcut: "Alt+B",
+              action: () => {
+                this._model.closeMenu();
+                this._threeWayController?.resolveActiveHunk("base");
+              }
+            },
+            {
+              id: "merge:3way_left",
+              label: "[3-Way] Left (Ours) \u3092\u63A1\u7528",
+              shortcut: "Alt+L",
+              action: () => {
+                this._model.closeMenu();
+                this._threeWayController?.resolveActiveHunk("local");
+              }
+            },
+            {
+              id: "merge:3way_right",
+              label: "[3-Way] Right (Theirs) \u3092\u63A1\u7528",
+              shortcut: "Alt+R",
+              action: () => {
+                this._model.closeMenu();
+                this._threeWayController?.resolveActiveHunk("remote");
+              }
+            }
+          ] : []
+        ]
+      },
+      // 4. View (V)
+      {
+        id: "view",
+        label: "\u8868\u793A",
+        accessKey: "V",
+        items: [
+          {
+            id: "view:toggle_noise",
+            label: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u3092\u6298\u308A\u305F\u305F\u3080",
+            shortcut: "Ctrl+N",
+            checked: this._diffModel.noiseFolded,
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.toggleNoiseFolded();
+            }
+          },
+          {
+            id: "view:expand_all",
+            label: "\u3059\u3079\u3066\u306E\u6298\u308A\u305F\u305F\u307F\u3092\u5C55\u958B",
+            disabled: !isTextDiff,
+            action: () => {
+              this._model.closeMenu();
+              this._diffController.expandAllHunks();
+            }
+          }
+        ]
+      },
+      // 5. Git (G)
+      {
+        id: "git",
+        label: "Git",
+        accessKey: "G",
+        items: [
+          {
+            id: "git:rescan",
+            label: "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\u3092\u518D\u30B9\u30AD\u30E3\u30F3",
+            disabled: !isGit,
+            action: () => {
+              this._model.closeMenu();
+              if (this._dirModel.dirSession?.targetDir) {
+                this._dirController.startGitSession(
+                  this._dirModel.dirSession.targetDir,
+                  {
+                    branch: this._dirModel.dirSession.git?.branch,
+                    readOnly: this._dirModel.dirSession.readOnly
+                  }
+                );
+              }
+            }
+          },
+          {
+            id: "git:worktrees",
+            label: "Worktree \u4E00\u89A7\u3092\u8868\u793A...",
+            disabled: !isGit,
+            action: () => {
+              this._model.closeMenu();
+              if (this._dirModel.dirSession?.targetDir) {
+                this._dirController.sendMessage({
+                  type: "git:list_worktrees",
+                  repoPath: this._dirModel.dirSession.targetDir
+                });
+              }
+            }
+          }
+        ]
+      },
+      // 6. Help (H)
+      {
+        id: "help",
+        label: "\u30D8\u30EB\u30D7",
+        accessKey: "H",
+        items: [
+          {
+            id: "help:shortcuts",
+            label: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7",
+            shortcut: "F1 / ?",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setShortcutsModalOpen(true);
+            }
+          },
+          { id: "help:sep1", label: "", separator: true },
+          {
+            id: "help:about",
+            label: "Diffrex \u306B\u3064\u3044\u3066 (About)",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setAboutModalOpen(true);
+            }
+          }
+        ]
+      }
+    ];
+    this._model.setCategories(categories);
+  }
+  /**
+   * 履歴エントリを開く。
+   */
+  openHistoryEntry(entry) {
+    if (entry.mode === "directory") {
+      this._dirController.startDirectorySession(
+        entry.leftPath,
+        entry.rightPath
+      );
+    } else {
+      this._dirController.startFileSession(
+        entry.leftPath,
+        entry.rightPath
+      );
+    }
+  }
+  /**
+   * コマンドパレット用: メニュー構造から全実行可能コマンドを抽出する。
+   */
+  getFlatCommandList() {
+    const list = [];
+    const traverse = (categoryLabel, items) => {
+      for (const item of items) {
+        if (item.separator) continue;
+        if (item.children && item.children.length > 0) {
+          traverse(`${categoryLabel} > ${item.label}`, item.children);
+        } else if (item.action) {
+          list.push({
+            id: item.id,
+            category: categoryLabel,
+            label: item.label,
+            shortcut: item.shortcut,
+            action: item.action,
+            disabled: item.disabled
+          });
+        }
+      }
+    };
+    for (const cat of this._model.categories) {
+      traverse(cat.label, cat.items);
+    }
+    return list;
+  }
+  /**
+   * コマンドパレットの絞り込み検索。
+   */
+  filterCommands(query) {
+    const all = this.getFlatCommandList();
+    if (!query.trim()) {
+      return all.filter((c3) => !c3.disabled);
+    }
+    const q2 = query.toLowerCase().trim();
+    return all.filter((c3) => {
+      if (c3.disabled) return false;
+      return c3.label.toLowerCase().includes(q2) || c3.category.toLowerCase().includes(q2) || c3.shortcut && c3.shortcut.toLowerCase().includes(q2);
+    });
+  }
+  /**
+   * コマンドパレットで現在選択されている項目を実行する。
+   */
+  executeSelectedCommand() {
+    const filtered = this.filterCommands(this._model.commandPaletteQuery);
+    const selected = filtered[this._model.commandPaletteSelectedIndex];
+    if (selected && selected.action) {
+      this._model.setCommandPaletteOpen(false);
+      selected.action();
+    }
+  }
+  /**
+   * グローバルキーイベントのハンドリング（Alt アクセスキー、パレット、ショートカット）。
+   */
+  handleGlobalKeyDown(e3) {
+    if (this._model.isCommandPaletteOpen) {
+      if (e3.key === "Escape") {
+        e3.preventDefault();
+        this._model.setCommandPaletteOpen(false);
+        return true;
+      }
+      if (e3.key === "ArrowDown") {
+        e3.preventDefault();
+        const count2 = this.filterCommands(this._model.commandPaletteQuery).length;
+        if (count2 > 0) {
+          this._model.setCommandPaletteSelectedIndex(
+            (this._model.commandPaletteSelectedIndex + 1) % count2
+          );
+        }
+        return true;
+      }
+      if (e3.key === "ArrowUp") {
+        e3.preventDefault();
+        const count2 = this.filterCommands(this._model.commandPaletteQuery).length;
+        if (count2 > 0) {
+          this._model.setCommandPaletteSelectedIndex(
+            (this._model.commandPaletteSelectedIndex - 1 + count2) % count2
+          );
+        }
+        return true;
+      }
+      if (e3.key === "Enter") {
+        e3.preventDefault();
+        this.executeSelectedCommand();
+        return true;
+      }
+      return false;
+    }
+    if (this._model.isShortcutsModalOpen || this._model.isAboutModalOpen || this._model.isOpenSessionModalOpen) {
+      if (e3.key === "Escape") {
+        e3.preventDefault();
+        this._model.setShortcutsModalOpen(false);
+        this._model.setAboutModalOpen(false);
+        this._model.setOpenSessionModalOpen(false);
+        return true;
+      }
+      return false;
+    }
+    if ((e3.ctrlKey || e3.metaKey) && e3.shiftKey && (e3.key === "P" || e3.key === "p")) {
+      e3.preventDefault();
+      this.rebuildMenu();
+      this._model.setCommandPaletteOpen(true);
+      return true;
+    }
+    if (e3.key === "F1" || e3.key === "?" && !e3.ctrlKey && !e3.altKey) {
+      const tag = e3.target?.tagName;
+      if (tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+        e3.preventDefault();
+        this._model.setShortcutsModalOpen(true);
+        return true;
+      }
+    }
+    if (e3.altKey && !e3.ctrlKey && !e3.shiftKey) {
+      const key = e3.key.toUpperCase();
+      const index = this._model.categories.findIndex(
+        (c3) => c3.accessKey === key
+      );
+      if (index !== -1) {
+        e3.preventDefault();
+        this.rebuildMenu();
+        this._model.toggleCategory(index);
+        return true;
+      }
+    }
+    if (this._model.activeCategoryIndex !== null) {
+      if (e3.key === "Escape") {
+        e3.preventDefault();
+        this._model.closeMenu();
+        return true;
+      }
+      if (e3.key === "ArrowLeft") {
+        e3.preventDefault();
+        this._model.prevCategory();
+        return true;
+      }
+      if (e3.key === "ArrowRight") {
+        e3.preventDefault();
+        this._model.nextCategory();
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
+// src/ui/controller/keymap.ts
+function setupGlobalKeybindings(controller) {
+  const handler = (e3) => {
+    controller.handleKeyDown(e3);
+  };
+  globalThis.addEventListener("keydown", handler);
+  return () => {
+    globalThis.removeEventListener("keydown", handler);
+  };
+}
+
+// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/node_modules/preact/jsx-runtime/dist/jsxRuntime.module.js
+var f3 = 0;
+function u3(e3, t4, n2, o3, i3, u4) {
+  t4 || (t4 = {});
+  var a3, c3, p3 = t4;
+  if ("ref" in p3) for (c3 in p3 = {}, t4) "ref" == c3 ? a3 = t4[c3] : p3[c3] = t4[c3];
+  var l3 = { type: e3, props: p3, key: n2, ref: a3, __k: null, __: null, __b: 0, __e: null, __c: null, constructor: void 0, __v: --f3, __i: -1, __u: 0, __source: i3, __self: u4 };
+  if ("function" == typeof e3 && (a3 = e3.defaultProps)) for (c3 in a3) void 0 === p3[c3] && (p3[c3] = a3[c3]);
+  return l.vnode && l.vnode(l3), l3;
+}
+
+// src/ui/components/MenuItem.tsx
+function MenuItem({ item, onItemClick }) {
+  const [isSubmenuOpen, setIsSubmenuOpen] = d2(false);
+  if (item.separator) {
+    return /* @__PURE__ */ u3("div", { class: "menu-separator", role: "separator" });
+  }
+  const hasChildren = Boolean(item.children && item.children.length > 0);
+  const handleClick = (e3) => {
+    e3.stopPropagation();
+    if (item.disabled) return;
+    if (hasChildren) {
+      setIsSubmenuOpen(!isSubmenuOpen);
+      return;
+    }
+    if (item.action) {
+      item.action();
+      if (onItemClick) {
+        onItemClick();
+      }
+    }
+  };
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: `menu-item ${item.disabled ? "disabled" : ""} ${hasChildren ? "has-children" : ""}`,
+      role: "menuitem",
+      "aria-disabled": item.disabled,
+      onClick: handleClick,
+      onMouseEnter: () => hasChildren && setIsSubmenuOpen(true),
+      onMouseLeave: () => hasChildren && setIsSubmenuOpen(false),
+      children: [
+        /* @__PURE__ */ u3("span", { class: "menu-item-check", children: item.checked ? "\u2713" : "" }),
+        /* @__PURE__ */ u3("span", { class: "menu-item-label", children: item.label }),
+        item.shortcut && /* @__PURE__ */ u3("span", { class: "menu-item-shortcut", children: item.shortcut }),
+        hasChildren && /* @__PURE__ */ u3("span", { class: "menu-item-arrow", children: "\u25B6" }),
+        hasChildren && isSubmenuOpen && /* @__PURE__ */ u3("div", { class: "menu-submenu", role: "menu", children: item.children.map((child) => /* @__PURE__ */ u3(
+          MenuItem,
+          {
+            item: child,
+            onItemClick
+          },
+          child.id
+        )) })
+      ]
+    }
+  );
+}
+
+// src/ui/hooks/use_model.ts
+function useModel(model) {
+  const [, setTick] = d2(0);
+  h2(() => {
+    const unsubscribe = model.subscribe(() => {
+      setTick((tick) => tick + 1);
+    });
+    return unsubscribe;
+  }, [model]);
+  return model;
+}
+
+// src/ui/components/MenuBar.tsx
+function MenuBar({ model, controller }) {
+  useModel(model);
+  const barRef = A2(null);
+  h2(() => {
+    const handleOutsideClick = (e3) => {
+      if (model.activeCategoryIndex !== null && barRef.current) {
+        if (!barRef.current.contains(e3.target)) {
+          model.closeMenu();
+        }
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [model, model.activeCategoryIndex]);
+  const activeIndex = model.activeCategoryIndex;
+  const handleCategoryClick = (index) => {
+    controller.rebuildMenu();
+    model.toggleCategory(index);
+  };
+  const handleCategoryMouseEnter = (index) => {
+    if (activeIndex !== null && activeIndex !== index) {
+      controller.rebuildMenu();
+      model.openCategory(index);
+    }
+  };
+  return /* @__PURE__ */ u3("header", { class: "app-menu-bar", ref: barRef, role: "menubar", children: [
+    /* @__PURE__ */ u3("div", { class: "menu-bar-brand", children: /* @__PURE__ */ u3("span", { class: "menu-bar-logo", children: "DIFFREX" }) }),
+    /* @__PURE__ */ u3("nav", { class: "menu-bar-items", children: model.categories.map((category, idx) => {
+      const isOpen = activeIndex === idx;
+      return /* @__PURE__ */ u3(
+        "div",
+        {
+          class: `menu-category-container ${isOpen ? "open" : ""}`,
+          children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `menu-category-button ${isOpen ? "active" : ""}`,
+                role: "menuitem",
+                "aria-haspopup": "true",
+                "aria-expanded": isOpen,
+                onClick: () => handleCategoryClick(idx),
+                onMouseEnter: () => handleCategoryMouseEnter(idx),
+                children: [
+                  /* @__PURE__ */ u3("span", { class: "menu-category-label", children: category.label }),
+                  category.accessKey && /* @__PURE__ */ u3("span", { class: "menu-category-accesskey", children: [
+                    "(",
+                    category.accessKey,
+                    ")"
+                  ] })
+                ]
+              }
+            ),
+            isOpen && /* @__PURE__ */ u3("div", { class: "menu-dropdown", role: "menu", children: category.items.map((item) => /* @__PURE__ */ u3(
+              MenuItem,
+              {
+                item,
+                onItemClick: () => model.closeMenu()
+              },
+              item.id
+            )) })
+          ]
+        },
+        category.id
+      );
+    }) })
+  ] });
+}
+
+// src/ui/components/Header.tsx
+function Header({ model, controller }) {
+  useModel(model);
+  const [isPromptExpanded, setIsPromptExpanded] = d2(false);
+  const session = model.session;
+  const connectionStatus = model.connectionStatus;
+  const mode = session?.mode?.toUpperCase() ?? "2-WAY";
+  const agent = session?.aiContext?.agent;
+  const modelName = session?.aiContext?.model;
+  const prompt = session?.aiContext?.prompt;
+  const isConnected = connectionStatus === "connected";
+  const statusLabel = connectionStatus === "connected" ? "Connected" : connectionStatus === "connecting" ? "Connecting..." : "Disconnected";
+  const totalHunks = session?.hunks?.length ?? model.chunks.length;
+  const unreviewed = model.unreviewedCount;
+  const statusCounts = model.statusCounts;
+  const isAllReviewed = model.isAllReviewed;
+  const noiseCount = model.noiseCount;
+  const riskCounts = model.riskCounts;
+  const isNoiseFolded = model.noiseFolded;
+  const isPromptLong = Boolean(prompt && prompt.length > 80);
+  return /* @__PURE__ */ u3("div", { class: "header-container", children: [
+    /* @__PURE__ */ u3("header", { class: "app-header", children: [
+      /* @__PURE__ */ u3("div", { class: "header-section header-left", children: [
+        /* @__PURE__ */ u3("div", { class: "brand", children: [
+          /* @__PURE__ */ u3("h1", { children: "Diffrex" }),
+          /* @__PURE__ */ u3("span", { class: "badge mode", children: mode })
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "ai-meta", children: [
+          agent && /* @__PURE__ */ u3("span", { class: "badge agent", children: [
+            "Agent: ",
+            agent
+          ] }),
+          modelName && /* @__PURE__ */ u3("span", { class: "badge model", children: [
+            "Model: ",
+            modelName
+          ] })
+        ] })
+      ] }),
+      /* @__PURE__ */ u3("div", { class: "header-section header-center", children: [
+        totalHunks > 0 && /* @__PURE__ */ u3("div", { class: "hunk-stats", children: [
+          /* @__PURE__ */ u3(
+            "span",
+            {
+              class: `stat-item unreviewed ${isAllReviewed ? "completed" : ""}`,
+              title: `Accepted: ${statusCounts.accepted}, Rejected: ${statusCounts.rejected}, Edited: ${statusCounts.edited}`,
+              children: isAllReviewed ? /* @__PURE__ */ u3("span", { children: [
+                "\u2713 All Reviewed (",
+                totalHunks,
+                "/",
+                totalHunks,
+                ")"
+              ] }) : /* @__PURE__ */ u3("span", { children: [
+                "Unreviewed: ",
+                /* @__PURE__ */ u3("strong", { children: [
+                  unreviewed,
+                  "/",
+                  totalHunks
+                ] })
+              ] })
+            }
+          ),
+          statusCounts.accepted > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge accepted", title: "Accepted hunks", children: [
+            "\u2713 ",
+            statusCounts.accepted
+          ] }),
+          statusCounts.rejected > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge rejected", title: "Rejected hunks", children: [
+            "\u2717 ",
+            statusCounts.rejected
+          ] }),
+          statusCounts.edited > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge edited", title: "Edited hunks", children: [
+            "\u270E ",
+            statusCounts.edited
+          ] }),
+          riskCounts.danger > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge danger", title: "High Risk Changes", children: [
+            "\u26A0\uFE0F ",
+            riskCounts.danger,
+            " danger"
+          ] }),
+          riskCounts.warning > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge warning", title: "Warnings", children: [
+            "\u26A1 ",
+            riskCounts.warning,
+            " warn"
+          ] })
+        ] }),
+        noiseCount > 0 && /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: `filter-toggle-btn ${isNoiseFolded ? "active" : ""}`,
+            onClick: () => controller.toggleNoiseFolded(),
+            title: "Toggle noise hunks visibility (Ctrl+N)",
+            children: [
+              /* @__PURE__ */ u3("span", { class: "toggle-icon", children: isNoiseFolded ? "\u25B6" : "\u25BC" }),
+              /* @__PURE__ */ u3("span", { children: isNoiseFolded ? `Noise folded (${noiseCount})` : `Noise visible (${noiseCount})` }),
+              /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" })
+            ]
+          }
+        )
+      ] }),
+      /* @__PURE__ */ u3("div", { class: "header-section header-right", children: /* @__PURE__ */ u3("div", { class: "status-indicator", children: [
+        /* @__PURE__ */ u3("span", { class: `status-dot ${isConnected ? "connected" : ""}` }),
+        /* @__PURE__ */ u3("span", { children: statusLabel })
+      ] }) })
+    ] }),
+    prompt && /* @__PURE__ */ u3(
+      "div",
+      {
+        class: `prompt-banner ${isPromptExpanded ? "expanded" : "collapsed"}`,
+        children: [
+          /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "prompt-header",
+              onClick: () => isPromptLong && setIsPromptExpanded(!isPromptExpanded),
+              children: [
+                /* @__PURE__ */ u3("span", { class: "prompt-label", children: "Prompt" }),
+                isPromptLong && /* @__PURE__ */ u3("span", { class: "prompt-expand-hint", children: isPromptExpanded ? "\u25B2 Collapse" : "\u25BC Expand full prompt" })
+              ]
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "div",
+            {
+              class: "prompt-content",
+              onClick: () => isPromptLong && setIsPromptExpanded(!isPromptExpanded),
+              children: prompt
+            }
+          )
+        ]
+      }
+    )
+  ] });
+}
+
+// src/ui/components/StatusBar.tsx
+function StatusBar({ model }) {
+  useModel(model);
+  const totalHunks = model.chunks.length;
+  const activeHunkIndex = model.activeChunkIndex;
+  const session = model.session;
+  const message = model.statusMessage;
+  const isReadOnly = model.isReadOnly;
+  const isDirty = model.isDirty;
+  const saveStatus = model.saveStatus.status;
+  const isAllReviewed = model.isAllReviewed;
+  const hunkInfo = totalHunks > 0 ? `Hunk ${activeHunkIndex >= 0 ? activeHunkIndex + 1 : 0} / ${totalHunks}` : "No Diffs";
+  return /* @__PURE__ */ u3("footer", { class: `app-footer ${isAllReviewed ? "all-reviewed" : ""}`, children: [
+    /* @__PURE__ */ u3("div", { class: "footer-left", children: [
+      /* @__PURE__ */ u3("span", { class: "footer-badge hunk-badge", children: hunkInfo }),
+      isAllReviewed && /* @__PURE__ */ u3("span", { class: "footer-badge review-complete-badge", children: "\u2728 ALL REVIEWED" }),
+      isReadOnly ? /* @__PURE__ */ u3("span", { class: "footer-badge readonly-badge", children: "READ-ONLY" }) : /* @__PURE__ */ u3(S, { children: [
+        saveStatus === "saving" && /* @__PURE__ */ u3("span", { class: "footer-badge saving-badge", children: "SAVING..." }),
+        saveStatus === "saved" && !isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge saved-badge", children: "SAVED" }),
+        isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge dirty-badge", children: "MODIFIED *" })
+      ] }),
+      message && /* @__PURE__ */ u3("span", { class: "footer-message", children: message })
+    ] }),
+    /* @__PURE__ */ u3("div", { class: "footer-center key-guide", children: [
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "A" }),
+        " \u627F\u8A8D"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "R" }),
+        " \u62D2\u5426"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "E" }),
+        " \u7DE8\u96C6"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Alt+\u2193" }),
+        "/",
+        /* @__PURE__ */ u3("kbd", { children: "J" }),
+        " \u6B21"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Alt+\u2191" }),
+        "/",
+        /* @__PURE__ */ u3("kbd", { children: "K" }),
+        " \u524D"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Ctrl+R" }),
+        " \u30DE\u30FC\u30B8(\u2192)"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" }),
+        " \u30CE\u30A4\u30BA"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Ctrl+S" }),
+        " \u4FDD\u5B58"
+      ] }),
+      /* @__PURE__ */ u3("span", { class: "key-item", children: [
+        /* @__PURE__ */ u3("kbd", { children: "Ctrl+Enter" }),
+        " \u5B8C\u4E86"
+      ] })
+    ] }),
+    /* @__PURE__ */ u3("div", { class: "footer-right", children: /* @__PURE__ */ u3("span", { children: session?.sessionId ? `ID: ${session.sessionId.slice(0, 8)}` : "" }) })
+  ] });
+}
+
 // ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/@codemirror/theme-one-dark@6.1.3/node_modules/@codemirror/theme-one-dark/dist/index.js
 var chalky = "#e5c07b";
 var coral = "#e06c75";
@@ -34384,6 +35329,619 @@ function WelcomeView({ controller }) {
   );
 }
 
+// src/ui/components/ShortcutsModal.tsx
+var SHORTCUT_SECTIONS = [
+  {
+    title: "\u5DEE\u5206\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3",
+    shortcuts: [
+      { keys: ["Alt + \u2193", "J"], description: "\u6B21\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5" },
+      { keys: ["Alt + \u2191", "K"], description: "\u524D\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5" }
+    ]
+  },
+  {
+    title: "\u30DE\u30FC\u30B8 & \u30EC\u30D3\u30E5\u30FC\u64CD\u4F5C",
+    shortcuts: [
+      { keys: ["Ctrl + R"], description: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u5074\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)" },
+      { keys: ["Ctrl + L"], description: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u5074\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)" },
+      { keys: ["A"], description: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D (Accepted)" },
+      { keys: ["R"], description: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426 (Rejected)" },
+      { keys: ["E", "Enter"], description: "\u30A8\u30C7\u30A3\u30BF\u76F4\u63A5\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B" },
+      { keys: ["Escape"], description: "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B" },
+      { keys: ["Alt + B"], description: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528" },
+      { keys: ["Alt + L"], description: "[3-Way] Left (Ours) \u3092\u63A1\u7528" },
+      { keys: ["Alt + R"], description: "[3-Way] Right (Theirs) \u3092\u63A1\u7528" }
+    ]
+  },
+  {
+    title: "\u8868\u793A & \u30B3\u30DE\u30F3\u30C9",
+    shortcuts: [
+      {
+        keys: ["Ctrl + Shift + P"],
+        description: "\u30AF\u30A4\u30C3\u30AF\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8\u3092\u958B\u304F"
+      },
+      {
+        keys: ["Ctrl + N"],
+        description: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u306E\u6298\u308A\u305F\u305F\u307F\u5207\u66FF"
+      },
+      {
+        keys: ["Alt + F/E/M/V/G/H"],
+        description: "\u30E1\u30CB\u30E5\u30FC\u30D0\u30FC\u306E\u5404\u30AB\u30C6\u30B4\u30EA\u3092\u958B\u304F"
+      },
+      { keys: ["F1", "?"], description: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7\u3092\u8868\u793A" }
+    ]
+  },
+  {
+    title: "\u30D5\u30A1\u30A4\u30EB & \u30BB\u30C3\u30B7\u30E7\u30F3",
+    shortcuts: [
+      { keys: ["Ctrl + S"], description: "\u7DE8\u96C6\u5185\u5BB9\u3092\u4FDD\u5B58" },
+      { keys: ["Ctrl + O"], description: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F" },
+      { keys: ["Ctrl + Shift + O"], description: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F" },
+      { keys: ["Ctrl + Shift + T"], description: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u81EA\u52D5\u5FA9\u5143" },
+      { keys: ["Ctrl + Q"], description: "Diffrex \u3092\u7D42\u4E86" }
+    ]
+  }
+];
+function ShortcutsModal({ model }) {
+  const handleClose = () => {
+    model.setShortcutsModalOpen(false);
+  };
+  return /* @__PURE__ */ u3("div", { class: "modal-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-card shortcuts-modal-card",
+      onClick: (e3) => e3.stopPropagation(),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "shortcuts-title",
+      children: [
+        /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+          /* @__PURE__ */ u3("h2", { id: "shortcuts-title", class: "modal-title", children: "\u2328\uFE0F \u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7" }),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "modal-close-button",
+              onClick: handleClose,
+              "aria-label": "\u9589\u3058\u308B",
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-body shortcuts-modal-body", children: SHORTCUT_SECTIONS.map((section) => /* @__PURE__ */ u3("div", { class: "shortcuts-section", children: [
+          /* @__PURE__ */ u3("h3", { class: "shortcuts-section-title", children: section.title }),
+          /* @__PURE__ */ u3("div", { class: "shortcuts-table", children: section.shortcuts.map((sc, idx) => /* @__PURE__ */ u3("div", { class: "shortcuts-row", children: [
+            /* @__PURE__ */ u3("div", { class: "shortcuts-keys", children: sc.keys.map((k3, kIdx) => /* @__PURE__ */ u3("span", { children: [
+              kIdx > 0 && /* @__PURE__ */ u3("span", { class: "shortcuts-or", children: "/" }),
+              /* @__PURE__ */ u3("kbd", { class: "shortcut-key", children: k3 })
+            ] }, kIdx)) }),
+            /* @__PURE__ */ u3("div", { class: "shortcuts-desc", children: sc.description })
+          ] }, idx)) })
+        ] }, section.title)) }),
+        /* @__PURE__ */ u3("div", { class: "modal-footer", children: /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: "button primary",
+            onClick: handleClose,
+            children: "\u9589\u3058\u308B (Esc)"
+          }
+        ) })
+      ]
+    }
+  ) });
+}
+
+// src/ui/components/AboutModal.tsx
+function AboutModal({ model }) {
+  const handleClose = () => {
+    model.setAboutModalOpen(false);
+  };
+  return /* @__PURE__ */ u3("div", { class: "modal-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-card about-modal-card",
+      onClick: (e3) => e3.stopPropagation(),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "about-title",
+      children: [
+        /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+          /* @__PURE__ */ u3("h2", { id: "about-title", class: "modal-title", children: "Diffrex \u306B\u3064\u3044\u3066" }),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "modal-close-button",
+              onClick: handleClose,
+              "aria-label": "\u9589\u3058\u308B",
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-body about-modal-body", children: [
+          /* @__PURE__ */ u3("div", { class: "about-logo-wrapper", children: /* @__PURE__ */ u3("div", { class: "about-logo-badge", children: "\u26A1 DIFFREX" }) }),
+          /* @__PURE__ */ u3("h3", { class: "about-app-name", children: "Diffrex (\u30C7\u30A3\u30D5\u30EC\u30AF\u30B9)" }),
+          /* @__PURE__ */ u3("p", { class: "about-tagline", children: "AI-Friendly Diff & Merge Tool for Deno Desktop" }),
+          /* @__PURE__ */ u3("div", { class: "about-info-grid", children: [
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30D0\u30FC\u30B8\u30E7\u30F3:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "v0.1.0 (MVP + B-14 + B-8)" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30E9\u30F3\u30BF\u30A4\u30E0:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Deno v2.9+ / Deno Desktop" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "UI \u30A8\u30F3\u30B8\u30F3:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Preact + CodeMirror 6 + Smalltalk-80 MVC" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30A2\u30FC\u30AD\u30C6\u30AF\u30C1\u30E3:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Pure TypeScript Observer Pattern (\u5916\u90E8\u30E9\u30A4\u30D6\u30E9\u30EA\u4E0D\u4F7F\u7528)" })
+          ] }),
+          /* @__PURE__ */ u3("p", { class: "about-description", children: "Diffrex \u306F\u3001AI \u751F\u6210\u30B3\u30FC\u30C9\u306E\u9AD8\u901F\u30EC\u30D3\u30E5\u30FC\u3068\u5B89\u5168\u306A\u30DE\u30FC\u30B8\u3092\u652F\u63F4\u3059\u308B\u30C7\u30B9\u30AF\u30C8\u30C3\u30D7\u5DEE\u5206\u30C4\u30FC\u30EB\u3067\u3059\u3002 \u30D7\u30ED\u30F3\u30D7\u30C8\u3084\u30E2\u30C7\u30EB\u30E1\u30BF\u30C7\u30FC\u30BF\u306E\u53EF\u8996\u5316\u3001\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\u306A\u3069\u306E\u30CE\u30A4\u30BA\u5DEE\u5206\u306E\u81EA\u52D5\u6298\u308A\u305F\u305F\u307F\u3001 \u79D8\u5BC6\u60C5\u5831\u3084\u30B7\u30B0\u30CD\u30C1\u30E3\u5909\u66F4\u306A\u3069\u306E\u30EA\u30B9\u30AF\u691C\u77E5\u30013-Way \u30DE\u30FC\u30B8\u3001\u753B\u50CF\u30FBCSV\u6BD4\u8F03\u3001Git Worktree \u9023\u643A\u3092\u5F37\u529B\u306B\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059\u3002" }),
+          /* @__PURE__ */ u3("div", { class: "about-links", children: /* @__PURE__ */ u3(
+            "a",
+            {
+              href: "https://github.com/zonuko/diffrex",
+              target: "_blank",
+              rel: "noopener noreferrer",
+              class: "about-link",
+              children: "GitHub \u30EA\u30DD\u30B8\u30C8\u30EA"
+            }
+          ) })
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-footer", children: /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: "button primary",
+            onClick: handleClose,
+            children: "\u9589\u3058\u308B (Esc)"
+          }
+        ) })
+      ]
+    }
+  ) });
+}
+
+// src/ui/components/CommandPalette.tsx
+function CommandPalette({ model, controller }) {
+  useModel(model);
+  const inputRef = A2(null);
+  const listRef = A2(null);
+  h2(() => {
+    if (model.isCommandPaletteOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [model.isCommandPaletteOpen]);
+  const filteredCommands = controller.filterCommands(model.commandPaletteQuery);
+  const selectedIndex = model.commandPaletteSelectedIndex;
+  h2(() => {
+    if (listRef.current) {
+      const activeEl = listRef.current.querySelector(
+        `.command-palette-item[data-index="${selectedIndex}"]`
+      );
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" });
+      }
+    }
+  }, [selectedIndex]);
+  const handleClose = () => {
+    model.setCommandPaletteOpen(false);
+  };
+  const handleItemClick = (index) => {
+    model.setCommandPaletteSelectedIndex(index);
+    controller.executeSelectedCommand();
+  };
+  return /* @__PURE__ */ u3("div", { class: "command-palette-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "command-palette-card",
+      onClick: (e3) => e3.stopPropagation(),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8",
+      children: [
+        /* @__PURE__ */ u3("div", { class: "command-palette-input-wrapper", children: [
+          /* @__PURE__ */ u3("span", { class: "command-palette-icon", children: "\u{1F50D}" }),
+          /* @__PURE__ */ u3(
+            "input",
+            {
+              ref: inputRef,
+              type: "text",
+              class: "command-palette-input",
+              placeholder: "\u5B9F\u884C\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u3092\u5165\u529B... (\u4F8B: \u30DE\u30FC\u30B8, \u4FDD\u5B58, \u6B21\u306E\u5DEE\u5206)",
+              value: model.commandPaletteQuery,
+              onInput: (e3) => model.setCommandPaletteQuery(
+                e3.target.value
+              ),
+              onKeyDown: (e3) => controller.handleGlobalKeyDown(e3)
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "command-palette-list", ref: listRef, role: "listbox", children: filteredCommands.length === 0 ? /* @__PURE__ */ u3("div", { class: "command-palette-empty", children: "\u4E00\u81F4\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093" }) : filteredCommands.map((cmd2, idx) => {
+          const isSelected = idx === selectedIndex;
+          return /* @__PURE__ */ u3(
+            "div",
+            {
+              "data-index": idx,
+              class: `command-palette-item ${isSelected ? "selected" : ""}`,
+              role: "option",
+              "aria-selected": isSelected,
+              onClick: () => handleItemClick(idx),
+              onMouseEnter: () => model.setCommandPaletteSelectedIndex(idx),
+              children: [
+                /* @__PURE__ */ u3("div", { class: "command-palette-item-main", children: [
+                  /* @__PURE__ */ u3("span", { class: "command-palette-item-category", children: cmd2.category }),
+                  /* @__PURE__ */ u3("span", { class: "command-palette-item-separator", children: "\u203A" }),
+                  /* @__PURE__ */ u3("span", { class: "command-palette-item-label", children: cmd2.label })
+                ] }),
+                cmd2.shortcut && /* @__PURE__ */ u3("kbd", { class: "command-palette-item-shortcut", children: cmd2.shortcut })
+              ]
+            },
+            cmd2.id
+          );
+        }) }),
+        /* @__PURE__ */ u3("div", { class: "command-palette-footer", children: /* @__PURE__ */ u3("span", { class: "command-palette-hint", children: "\u2191\u2193 \u3067\u79FB\u52D5 / Enter \u3067\u5B9F\u884C / Esc \u3067\u30AD\u30E3\u30F3\u30BB\u30EB" }) })
+      ]
+    }
+  ) });
+}
+
+// src/ui/components/OpenSessionModal.tsx
+function OpenSessionModal({
+  model,
+  controller
+}) {
+  const [tab2, setTab] = d2(
+    model.openSessionInitialTab
+  );
+  const [leftPath, setLeftPath] = d2("");
+  const [rightPath, setRightPath] = d2("");
+  const [basePath, setBasePath] = d2("");
+  const [gitRepoPath, setGitRepoPath] = d2("");
+  const [gitBranch, setGitBranch] = d2("");
+  const [readOnly2, setReadOnly] = d2(false);
+  const [errorMsg, setErrorMsg] = d2("");
+  const handleClose = () => {
+    model.setOpenSessionModalOpen(false);
+  };
+  const handleBrowse = (dialogType, field) => {
+    controller.openDialog(
+      dialogType,
+      field === "base" ? "base" : "target",
+      (selected) => {
+        if (field === "left") setLeftPath(selected);
+        else if (field === "right") setRightPath(selected);
+        else if (field === "base") setBasePath(selected);
+        else if (field === "git") setGitRepoPath(selected);
+      }
+    );
+  };
+  const handleStart = () => {
+    setErrorMsg("");
+    if (tab2 === "file") {
+      if (!leftPath.trim() || !rightPath.trim()) {
+        setErrorMsg(
+          "\u6BD4\u8F03\u5143 (Left) \u3068\u6BD4\u8F03\u5148 (Right) \u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+        );
+        return;
+      }
+      handleClose();
+      controller.startFileSession(
+        leftPath.trim(),
+        rightPath.trim(),
+        readOnly2
+      );
+    } else if (tab2 === "dir") {
+      if (!leftPath.trim() || !rightPath.trim()) {
+        setErrorMsg(
+          "Base \u30D5\u30A9\u30EB\u30C0\u3068 Target \u30D5\u30A9\u30EB\u30C0\u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+        );
+        return;
+      }
+      handleClose();
+      controller.startDirectorySession(
+        leftPath.trim(),
+        rightPath.trim(),
+        readOnly2
+      );
+    } else if (tab2 === "git") {
+      if (!gitRepoPath.trim()) {
+        setErrorMsg("Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+        return;
+      }
+      handleClose();
+      controller.startGitSession(gitRepoPath.trim(), {
+        branch: gitBranch.trim() || void 0,
+        readOnly: readOnly2
+      });
+    } else if (tab2 === "3way") {
+      if (!leftPath.trim() || !basePath.trim() || !rightPath.trim()) {
+        setErrorMsg(
+          "Local, Base, Remote \u306E 3 \u3064\u3059\u3079\u3066\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+        );
+        return;
+      }
+      handleClose();
+      controller.startDropSession([
+        leftPath.trim(),
+        basePath.trim(),
+        rightPath.trim()
+      ], readOnly2);
+    }
+  };
+  return /* @__PURE__ */ u3("div", { class: "modal-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-card open-session-modal-card",
+      onClick: (e3) => e3.stopPropagation(),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "open-session-title",
+      children: [
+        /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+          /* @__PURE__ */ u3("h2", { id: "open-session-title", class: "modal-title", children: "\u{1F4C2} \u6BD4\u8F03\u30FB\u30DE\u30FC\u30B8\u5BFE\u8C61\u3092\u958B\u304F" }),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "modal-close-button",
+              onClick: handleClose,
+              "aria-label": "\u9589\u3058\u308B",
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-body", children: [
+          /* @__PURE__ */ u3("div", { class: "welcome-tabs open-modal-tabs", children: [
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `welcome-tab ${tab2 === "file" ? "active" : ""}`,
+                onClick: () => {
+                  setTab("file");
+                  setErrorMsg("");
+                },
+                children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `welcome-tab ${tab2 === "dir" ? "active" : ""}`,
+                onClick: () => {
+                  setTab("dir");
+                  setErrorMsg("");
+                },
+                children: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `welcome-tab ${tab2 === "git" ? "active" : ""}`,
+                onClick: () => {
+                  setTab("git");
+                  setErrorMsg("");
+                },
+                children: "\u{1F33F} Git \u5DEE\u5206"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "button",
+              {
+                type: "button",
+                class: `welcome-tab ${tab2 === "3way" ? "active" : ""}`,
+                onClick: () => {
+                  setTab("3way");
+                  setErrorMsg("");
+                },
+                children: "\u{1F4A5} 3-Way \u30DE\u30FC\u30B8"
+              }
+            )
+          ] }),
+          errorMsg && /* @__PURE__ */ u3("div", { class: "welcome-error-msg", role: "alert", children: [
+            "\u26A0\uFE0F ",
+            errorMsg
+          ] }),
+          /* @__PURE__ */ u3("div", { class: "open-session-form", children: [
+            tab2 === "git" ? /* @__PURE__ */ u3(S, { children: [
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0:" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: "C:\\path\\to\\repo",
+                      value: gitRepoPath,
+                      onInput: (e3) => setGitRepoPath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse("dir", "git"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "\u6BD4\u8F03\u30D6\u30E9\u30F3\u30C1 / \u30B3\u30DF\u30C3\u30C8 (\u7701\u7565\u6642\u306F HEAD):" }),
+                /* @__PURE__ */ u3(
+                  "input",
+                  {
+                    type: "text",
+                    class: "welcome-input",
+                    placeholder: "main, HEAD~1, feature \u306A\u3069",
+                    value: gitBranch,
+                    onInput: (e3) => setGitBranch(e3.target.value)
+                  }
+                )
+              ] })
+            ] }) : tab2 === "3way" ? /* @__PURE__ */ u3(S, { children: [
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Local (\u5909\u66F4\u4E2D\u30D5\u30A1\u30A4\u30EB):" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: "local.ts",
+                      value: leftPath,
+                      onInput: (e3) => setLeftPath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse("file", "left"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Base (\u5171\u901A\u7956\u5148):" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: "base.ts",
+                      value: basePath,
+                      onInput: (e3) => setBasePath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse("file", "base"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Remote (\u30DE\u30FC\u30B8\u5BFE\u8C61):" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: "remote.ts",
+                      value: rightPath,
+                      onInput: (e3) => setRightPath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse("file", "right"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] })
+            ] }) : /* @__PURE__ */ u3(S, { children: [
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0 (\u6BD4\u8F03\u5143):" : "Left \u30D5\u30A1\u30A4\u30EB (\u6BD4\u8F03\u5143):" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: tab2 === "dir" ? "C:\\path\\to\\dir_a" : "C:\\path\\to\\file_a",
+                      value: leftPath,
+                      onInput: (e3) => setLeftPath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse(tab2 === "dir" ? "dir" : "file", "left"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] }),
+              /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0 (\u6BD4\u8F03\u5148):" : "Right \u30D5\u30A1\u30A4\u30EB (\u6BD4\u8F03\u5148):" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
+                  /* @__PURE__ */ u3(
+                    "input",
+                    {
+                      type: "text",
+                      class: "welcome-input",
+                      placeholder: tab2 === "dir" ? "C:\\path\\to\\dir_b" : "C:\\path\\to\\file_b",
+                      value: rightPath,
+                      onInput: (e3) => setRightPath(e3.target.value)
+                    }
+                  ),
+                  /* @__PURE__ */ u3(
+                    "button",
+                    {
+                      type: "button",
+                      class: "button secondary",
+                      onClick: () => handleBrowse(tab2 === "dir" ? "dir" : "file", "right"),
+                      children: "\u53C2\u7167..."
+                    }
+                  )
+                ] })
+              ] })
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "welcome-options", children: /* @__PURE__ */ u3("label", { class: "welcome-checkbox-label", children: [
+              /* @__PURE__ */ u3(
+                "input",
+                {
+                  type: "checkbox",
+                  checked: readOnly2,
+                  onChange: (e3) => setReadOnly(e3.target.checked)
+                }
+              ),
+              "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u30E2\u30FC\u30C9 (\u7DE8\u96C6\u30FB\u4FDD\u5B58\u3092\u7121\u52B9\u5316)"
+            ] }) })
+          ] })
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-footer", children: [
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "button secondary",
+              onClick: handleClose,
+              children: "\u30AD\u30E3\u30F3\u30BB\u30EB (Esc)"
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "button primary",
+              onClick: handleStart,
+              children: "\u6BD4\u8F03\u3092\u958B\u59CB"
+            }
+          )
+        ] })
+      ]
+    }
+  ) });
+}
+
 // src/ui/App.tsx
 function MainContent({
   session,
@@ -34415,7 +35973,9 @@ function App({
   dirModel: propDirModel,
   dirController: propDirController,
   threeWayModel: propThreeWayModel,
-  threeWayController: propThreeWayController
+  threeWayController: propThreeWayController,
+  menuModel: propMenuModel,
+  menuController: propMenuController
 }) {
   const diffModel = T2(
     () => propModel ?? new DiffSessionModel(),
@@ -34444,9 +36004,35 @@ function App({
     [propDirController, dirModel, diffModel, diffController]
   );
   dirController.setDiffController(diffController);
+  const menuModel = T2(
+    () => propMenuModel ?? new MenuModel(),
+    [propMenuModel]
+  );
+  const menuController = T2(
+    () => propMenuController ?? new MenuController(
+      menuModel,
+      diffModel,
+      diffController,
+      dirModel,
+      dirController,
+      threeWayModel,
+      threeWayController
+    ),
+    [
+      propMenuController,
+      menuModel,
+      diffModel,
+      diffController,
+      dirModel,
+      dirController,
+      threeWayModel,
+      threeWayController
+    ]
+  );
   useModel(diffModel);
   useModel(dirModel);
   useModel(threeWayModel);
+  useModel(menuModel);
   const [isGlobalDragging, setIsGlobalDragging] = d2(false);
   h2(() => {
     const cleanup = dirController.connectWebSocket();
@@ -34457,6 +36043,23 @@ function App({
       threeWayModel.setSession(diffModel.session);
     }
   }, [diffModel.session]);
+  h2(() => {
+    menuController.setThreeWay(threeWayModel, threeWayController);
+    menuController.rebuildMenu();
+  }, [
+    diffModel.session,
+    diffModel.isDirty,
+    diffModel.mode,
+    diffModel.noiseFolded,
+    dirModel.dirSession,
+    dirModel.selectedPath,
+    dirModel.history,
+    dirModel.lastSession,
+    threeWayModel.session,
+    menuController,
+    threeWayModel,
+    threeWayController
+  ]);
   h2(() => {
     const isDirty = diffModel.isDirty;
     dirController.sendMessage({
@@ -34472,11 +36075,27 @@ function App({
     }
   }, [diffModel.isDirty, dirController]);
   h2(() => {
+    const handleKeyDown = (e3) => {
+      const handled = menuController.handleGlobalKeyDown(e3);
+      if (handled) return;
+    };
+    globalThis.addEventListener("keydown", handleKeyDown, true);
+    let unbindKeymap;
     if (diffModel.session?.mode === "3way") {
-      return setupGlobalKeybindings(threeWayController);
+      unbindKeymap = setupGlobalKeybindings(threeWayController);
+    } else {
+      unbindKeymap = setupGlobalKeybindings(diffController);
     }
-    return setupGlobalKeybindings(diffController);
-  }, [diffController, threeWayController, diffModel.session?.mode]);
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown, true);
+      if (unbindKeymap) unbindKeymap();
+    };
+  }, [
+    diffController,
+    threeWayController,
+    menuController,
+    diffModel.session?.mode
+  ]);
   h2(() => {
     if (diffModel.session) {
       const s3 = diffModel.session;
@@ -34597,8 +36216,13 @@ function App({
       /* @__PURE__ */ u3(StatusBar, { model: diffModel })
     ] });
   }
-  return /* @__PURE__ */ u3(S, { children: [
-    contentNode,
+  return /* @__PURE__ */ u3("div", { class: "app-root-layout", children: [
+    /* @__PURE__ */ u3(MenuBar, { model: menuModel, controller: menuController }),
+    /* @__PURE__ */ u3("div", { class: "app-body-area", children: contentNode }),
+    menuModel.isShortcutsModalOpen && /* @__PURE__ */ u3(ShortcutsModal, { model: menuModel }),
+    menuModel.isAboutModalOpen && /* @__PURE__ */ u3(AboutModal, { model: menuModel }),
+    menuModel.isCommandPaletteOpen && /* @__PURE__ */ u3(CommandPalette, { model: menuModel, controller: menuController }),
+    menuModel.isOpenSessionModalOpen && /* @__PURE__ */ u3(OpenSessionModal, { model: menuModel, controller: dirController }),
     isGlobalDragging && /* @__PURE__ */ u3("div", { class: "global-drop-overlay", children: /* @__PURE__ */ u3("div", { class: "global-drop-badge", children: [
       /* @__PURE__ */ u3("span", { class: "global-drop-icon", children: "\u{1F4C2}" }),
       /* @__PURE__ */ u3("span", { class: "global-drop-text", children: "2\u3064\u306E\u30D5\u30A1\u30A4\u30EB/\u30D5\u30A9\u30EB\u30C0\u3092\u30C9\u30ED\u30C3\u30D7\u3057\u3066\u6BD4\u8F03\u3092\u958B\u59CB" })
