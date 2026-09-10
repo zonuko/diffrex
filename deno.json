@@ -39,13 +39,17 @@
     "setup:wasms": "deno run -A scripts/setup_wasms.ts",
     "clean:desktop": "deno run -A scripts/clean_desktop.ts",
     "test": "deno test -A",
-    "check": "deno fmt --check && deno lint && deno check main.ts src/core/types.ts src/core/file_io.ts src/core/history.ts src/core/git/worktree.ts src/core/git/status.ts src/core/git/temp_worktree.ts src/core/os/context_menu.ts src/core/diff.ts src/core/unified_diff.ts src/core/conflict_parser.ts src/core/three_way.ts src/core/ignore.ts src/core/dir_diff.ts src/core/media/image_detector.ts src/core/structured/json_canonicalizer.ts src/core/structured/yaml_canonicalizer.ts src/core/structured/csv_parser.ts src/core/analysis/index.ts src/core/analysis/ast/index.ts src/core/session.ts src/desktop/ipc.ts src/desktop/dialog.ts src/desktop/window.ts src/ui/model/diff_session_model.ts src/ui/model/dir_diff_model.ts src/ui/model/three_way_session_model.ts src/ui/model/image_diff_model.ts src/ui/model/csv_diff_model.ts src/ui/controller/diff_controller.ts src/ui/controller/dir_controller.ts src/ui/controller/three_way_controller.ts src/ui/controller/image_controller.ts src/ui/controller/csv_controller.ts src/ui/main.tsx && deno test -A",
+    "check": "deno fmt --check && deno lint && deno check main.ts src/core/types.ts src/core/file_io.ts src/core/window_state.ts src/core/history.ts src/core/git/worktree.ts src/core/git/status.ts src/core/git/temp_worktree.ts src/core/os/context_menu.ts src/core/diff.ts src/core/unified_diff.ts src/core/conflict_parser.ts src/core/three_way.ts src/core/ignore.ts src/core/dir_diff.ts src/core/media/image_detector.ts src/core/structured/json_canonicalizer.ts src/core/structured/yaml_canonicalizer.ts src/core/structured/csv_parser.ts src/core/analysis/index.ts src/core/analysis/ast/index.ts src/core/session.ts src/desktop/ipc.ts src/desktop/dialog.ts src/desktop/window.ts src/ui/model/diff_session_model.ts src/ui/model/dir_diff_model.ts src/ui/model/three_way_session_model.ts src/ui/model/image_diff_model.ts src/ui/model/csv_diff_model.ts src/ui/controller/diff_controller.ts src/ui/controller/dir_controller.ts src/ui/controller/three_way_controller.ts src/ui/controller/image_controller.ts src/ui/controller/csv_controller.ts src/ui/main.tsx && deno test -A",
+    "generate:icons": "deno run -A scripts/generate_icons.ts",
     "compile": "deno desktop -A -o dist/diffrex main.ts"
   },
   "desktop": {
     "app": {
       "name": "diffrex",
-      "identifier": "io.gitlab.Diffrex"
+      "identifier": "io.gitlab.Diffrex",
+      "icons": [
+        "assets/icon.ico"
+      ]
     }
   },
   "fmt": {
@@ -54,6 +58,7 @@
       "docs/",
       "tests/fixtures/",
       "dist/",
+      "assets/",
       "src/ui/bundle.js",
       "**/EBWebView/**",
       "EBWebView/**"
@@ -63,6 +68,7 @@
     "exclude": [
       "tests/fixtures/",
       "dist/",
+      "assets/",
       "src/ui/bundle.js",
       "**/EBWebView/**",
       "EBWebView/**"

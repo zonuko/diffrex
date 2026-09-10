@@ -1465,6 +1465,10 @@ var DirectoryController = class {
         this._model.setHistoryData(msg.history, msg.lastSession);
         break;
       }
+      case "window:title_update": {
+        document.title = msg.title;
+        break;
+      }
       case "save:result": {
         if (msg.relativePath) {
           if (msg.success) {
@@ -34453,6 +34457,20 @@ function App({
       threeWayModel.setSession(diffModel.session);
     }
   }, [diffModel.session]);
+  h2(() => {
+    const isDirty = diffModel.isDirty;
+    dirController.sendMessage({
+      type: "window:set_dirty",
+      isDirty
+    });
+    if (document.title) {
+      if (isDirty && !document.title.startsWith("* ")) {
+        document.title = "* " + document.title;
+      } else if (!isDirty && document.title.startsWith("* ")) {
+        document.title = document.title.slice(2);
+      }
+    }
+  }, [diffModel.isDirty, dirController]);
   h2(() => {
     if (diffModel.session?.mode === "3way") {
       return setupGlobalKeybindings(threeWayController);

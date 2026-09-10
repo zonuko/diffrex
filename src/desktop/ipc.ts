@@ -43,6 +43,10 @@ export type BackendToUiMessage =
     type: "git:worktrees_data";
     repoPath: string;
     worktrees: import("../core/types.ts").GitWorktreeInfo[];
+  }
+  | {
+    type: "window:title_update";
+    title: string;
   };
 
 /** UI → Backend メッセージ */
@@ -97,6 +101,7 @@ export type UiToBackendMessage =
   | { type: "history:remove"; id: string }
   | { type: "session:save_snapshot"; snapshot: SessionSnapshot }
   | { type: "session:restore_last" }
+  | { type: "window:set_dirty"; isDirty: boolean }
   | { type: "exit:request"; code?: number }
   | { type: "log"; level: "info" | "warn" | "error"; message: string };
 

@@ -120,6 +120,10 @@ export class DirectoryController {
         this._model.setHistoryData(msg.history, msg.lastSession);
         break;
       }
+      case "window:title_update": {
+        document.title = msg.title;
+        break;
+      }
       case "save:result": {
         if (msg.relativePath) {
           if (msg.success) {

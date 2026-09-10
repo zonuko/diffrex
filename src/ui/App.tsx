@@ -134,6 +134,22 @@ export function App(
     }
   }, [diffModel.session]);
 
+  // ウィンドウタイトル & Dirty 状態の同期 (B14-02)
+  useEffect(() => {
+    const isDirty = diffModel.isDirty;
+    dirController.sendMessage({
+      type: "window:set_dirty",
+      isDirty,
+    });
+    if (document.title) {
+      if (isDirty && !document.title.startsWith("* ")) {
+        document.title = "* " + document.title;
+      } else if (!isDirty && document.title.startsWith("* ")) {
+        document.title = document.title.slice(2);
+      }
+    }
+  }, [diffModel.isDirty, dirController]);
+
   // グローバルキーバインド
   useEffect(() => {
     if (diffModel.session?.mode === "3way") {

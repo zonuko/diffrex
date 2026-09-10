@@ -31,13 +31,25 @@ import {
   parseIncomingMessage,
 } from "./ipc.ts";
 
+import {
+  clampWindowSize,
+  loadWindowState,
+  MIN_WINDOW_HEIGHT,
+  MIN_WINDOW_WIDTH,
+  saveWindowState,
+} from "../core/window_state.ts";
+
 import indexHtml from "../ui/index.html" with { type: "text" };
 import stylesCss from "../ui/styles.css" with { type: "text" };
 import bundleJs from "../ui/bundle.js" with { type: "text" };
 
-/** Deno Desktop の BrowserWindow 簡易型定義 */
+/** Deno Desktop の BrowserWindow 型定義 */
 interface DesktopBrowserWindow {
   setTitle(title: string): void;
+  getSize(): [number, number];
+  setSize(width: number, height: number): void;
+  getPosition(): [number, number];
+  setPosition(x: number, y: number): void;
   addEventListener(event: string, listener: (e: unknown) => void): void;
   close(): void;
 }
@@ -57,29 +69,65 @@ export type AnySessionData =
   | { mode: "welcome" };
 
 /**
- * 比較ファイル名・ディレクトリ名からウィンドウタイトルを生成する。
+ * 比較ファイル名・ディレクトリ名からウィンドウタイトルを生成する（B14-02）。
  */
-export function formatWindowTitle(session: AnySessionData): string {
+export function formatWindowTitle(
+  session: AnySessionData,
+  isDirty?: boolean,
+): string {
+  let title = "Diffrex";
+
   if (session.mode === "welcome") {
-    return "Diffrex";
-  }
-  if (session.mode === "directory") {
+    title = "Diffrex";
+  } else if (session.mode === "directory") {
     const dirSession = session as DirectoryDiffSessionData;
     if (dirSession.isGitRepo) {
       const branch = dirSession.git?.branch
         ? ` (${dirSession.git.branch})`
         : "";
       const name = basename(dirSession.targetDir);
-      return `Diffrex - 🌿 ${name}${branch} (HEAD vs Working Tree)`;
+      title = `Diffrex - 🌿 ${name}${branch} (HEAD vs Working Tree)`;
+    } else {
+      const leftName = basename(dirSession.baseDir);
+      const rightName = basename(dirSession.targetDir);
+      title = `Diffrex - 📁 ${leftName} ⇄ 📁 ${rightName}`;
     }
-    const leftName = basename(dirSession.baseDir);
-    const rightName = basename(dirSession.targetDir);
-    return `Diffrex - 📁 ${leftName} ⇄ 📁 ${rightName}`;
+  } else if (session.mode === "3way") {
+    const diffSession = session as DiffSessionData;
+    const localName = basename(diffSession.files.left.path);
+    const baseName = diffSession.files.base
+      ? basename(diffSession.files.base.path)
+      : "base";
+    const remoteName = basename(diffSession.files.right.path);
+
+    if (
+      localName === remoteName &&
+      (!diffSession.files.base || baseName === localName)
+    ) {
+      title = `Diffrex - 💥 ${localName} (3-Way Merge)`;
+    } else {
+      title = `Diffrex - 💥 [3-Way] ${localName} ⇄ ${baseName} ⇄ ${remoteName}`;
+    }
+  } else {
+    const diffSession = session as DiffSessionData;
+    const leftName = basename(diffSession.files.left.path);
+    const rightName = basename(diffSession.files.right.path);
+
+    if (diffSession.imageSession) {
+      title = `Diffrex - 🖼️ ${leftName} ⇄ ${rightName}`;
+    } else if (
+      leftName.toLowerCase().endsWith(".csv") ||
+      rightName.toLowerCase().endsWith(".csv") ||
+      leftName.toLowerCase().endsWith(".tsv") ||
+      rightName.toLowerCase().endsWith(".tsv")
+    ) {
+      title = `Diffrex - 📊 ${leftName} ⇄ ${rightName}`;
+    } else {
+      title = `Diffrex - ${leftName} ⇄ ${rightName}`;
+    }
   }
-  const diffSession = session as DiffSessionData;
-  const leftName = basename(diffSession.files.left.path);
-  const rightName = basename(diffSession.files.right.path);
-  return `Diffrex - ${leftName} ⇄ ${rightName}`;
+
+  return isDirty ? `* ${title}` : title;
 }
 
 export interface DesktopServerOptions {
@@ -122,6 +170,7 @@ export function startDesktopServer(
   });
 
   let desktopWindow: DesktopBrowserWindow | null = null;
+  let isCurrentDirty = false;
 
   const sendToSocket = (ws: WebSocket, msg: BackendToUiMessage) => {
     if (ws.readyState === WebSocket.OPEN) {
@@ -133,6 +182,22 @@ export function startDesktopServer(
     for (const ws of activeSockets) {
       sendToSocket(ws, msg);
     }
+  };
+
+  const updateWindowTitle = (dirty = isCurrentDirty) => {
+    isCurrentDirty = dirty;
+    const title = formatWindowTitle(currentSession, dirty);
+    if (desktopWindow) {
+      try {
+        desktopWindow.setTitle(title);
+      } catch {
+        // ignore
+      }
+    }
+    broadcast({
+      type: "window:title_update",
+      title,
+    });
   };
 
   const cleanupCurrentGitTempWorktree = async () => {
@@ -193,6 +258,10 @@ export function startDesktopServer(
                 data: currentSession as DiffSessionData,
               });
             }
+            sendToSocket(socket, {
+              type: "window:title_update",
+              title: formatWindowTitle(currentSession, isCurrentDirty),
+            });
             options?.handlers?.onUiReady?.();
             break;
           }
@@ -400,6 +469,7 @@ export function startDesktopServer(
             try {
               const meta = metadataMap.get(targetFullPath);
               await writeFileTarget(targetFullPath, parsed.content, meta);
+              updateWindowTitle(false);
               broadcast({
                 type: "save:result",
                 success: true,
@@ -449,9 +519,7 @@ export function startDesktopServer(
                 { readOnly: parsed.readOnly },
               );
               currentSession = session;
-              if (desktopWindow) {
-                desktopWindow.setTitle(formatWindowTitle(session));
-              }
+              updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "directory",
                 leftPath: parsed.baseDir,
@@ -492,9 +560,7 @@ export function startDesktopServer(
                   isGitRepo: true,
                 };
                 currentSession = session;
-                if (desktopWindow) {
-                  desktopWindow.setTitle(formatWindowTitle(session));
-                }
+                updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
                   data: session,
@@ -522,9 +588,7 @@ export function startDesktopServer(
                   tempWorktreePath: tempWt.path,
                 };
                 currentSession = session;
-                if (desktopWindow) {
-                  desktopWindow.setTitle(formatWindowTitle(session));
-                }
+                updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
                   data: session,
@@ -539,9 +603,7 @@ export function startDesktopServer(
                 },
               );
               currentSession = session;
-              if (desktopWindow) {
-                desktopWindow.setTitle(formatWindowTitle(session));
-              }
+              updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "directory",
                 leftPath: parsed.repoPath,
@@ -614,9 +676,7 @@ export function startDesktopServer(
                 right: rightRes.target,
               });
               currentSession = session;
-              if (desktopWindow) {
-                desktopWindow.setTitle(formatWindowTitle(session));
-              }
+              updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "2way",
                 leftPath: parsed.leftPath,
@@ -708,9 +768,7 @@ export function startDesktopServer(
                   },
                 );
                 currentSession = session;
-                if (desktopWindow) {
-                  desktopWindow.setTitle(formatWindowTitle(session));
-                }
+                updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
                   data: session,
@@ -763,9 +821,7 @@ export function startDesktopServer(
                 }
 
                 currentSession = session;
-                if (desktopWindow) {
-                  desktopWindow.setTitle(formatWindowTitle(session));
-                }
+                updateWindowTitle(snapshot.unsavedRightContent != null);
                 broadcast({
                   type: "session:init",
                   data: session,
@@ -818,9 +874,7 @@ export function startDesktopServer(
                     readOnly: parsed.readOnly,
                   });
                   currentSession = session;
-                  if (desktopWindow) {
-                    desktopWindow.setTitle(formatWindowTitle(session));
-                  }
+                  updateWindowTitle(false);
                   await recordHistoryEntry({
                     mode: "directory",
                     leftPath: path1,
@@ -856,9 +910,7 @@ export function startDesktopServer(
                     right: rightRes.target,
                   });
                   currentSession = session;
-                  if (desktopWindow) {
-                    desktopWindow.setTitle(formatWindowTitle(session));
-                  }
+                  updateWindowTitle(false);
                   await recordHistoryEntry({
                     mode: "2way",
                     leftPath: path1,
@@ -911,9 +963,7 @@ export function startDesktopServer(
                 },
               });
               currentSession = session;
-              if (desktopWindow) {
-                desktopWindow.setTitle(formatWindowTitle(session));
-              }
+              updateWindowTitle(false);
               broadcast({
                 type: "session:init",
                 data: session,
@@ -955,6 +1005,7 @@ export function startDesktopServer(
                     metadataMap.get(session.files.right.path) ??
                     metadataMap.get(session.files.left.path);
                   await writeFileTarget(savePath, parsed.content, meta);
+                  updateWindowTitle(false);
                   broadcast({
                     type: "save:result",
                     success: true,
@@ -971,6 +1022,11 @@ export function startDesktopServer(
                 }
               }
             }
+            break;
+          }
+
+          case "window:set_dirty": {
+            updateWindowTitle(parsed.isDirty);
             break;
           }
 
@@ -1050,6 +1106,47 @@ export function startDesktopServer(
       });
     }
 
+    // アイコン配信 (/icon.svg, /icon.png, /favicon.ico)
+    if (url.pathname === "/icon.svg") {
+      const svg = loadAsset("../../assets/icon.svg", "");
+      return new Response(svg, {
+        headers: {
+          "content-type": "image/svg+xml; charset=utf-8",
+          "cache-control": "public, max-age=86400",
+        },
+      });
+    }
+
+    if (url.pathname === "/icon.png") {
+      try {
+        const iconUrl = new URL("../../assets/icon.png", import.meta.url);
+        const png = Deno.readFileSync(iconUrl);
+        return new Response(png, {
+          headers: {
+            "content-type": "image/png",
+            "cache-control": "public, max-age=86400",
+          },
+        });
+      } catch {
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
+    if (url.pathname === "/favicon.ico") {
+      try {
+        const icoUrl = new URL("../../assets/icon.ico", import.meta.url);
+        const ico = Deno.readFileSync(icoUrl);
+        return new Response(ico, {
+          headers: {
+            "content-type": "image/x-icon",
+            "cache-control": "public, max-age=86400",
+          },
+        });
+      } catch {
+        return new Response("Not Found", { status: 404 });
+      }
+    }
+
     return new Response("Not Found", { status: 404 });
   };
 
@@ -1073,17 +1170,60 @@ export function startDesktopServer(
 
   console.log(`Diffrex: UI server running at ${serverUrl}`);
 
-  // Deno Desktop ランタイム下でのウィンドウ初期化
+  // Deno Desktop ランタイム下でのウィンドウ初期化（B14-01, B14-02）
   if (isDesktopRuntime()) {
     const desktop = Deno as unknown as DenoWithDesktop;
     if (desktop.BrowserWindow) {
       try {
-        const title = formatWindowTitle(currentSession);
+        const title = formatWindowTitle(currentSession, isCurrentDirty);
         const win = new desktop.BrowserWindow();
         desktopWindow = win;
         win.setTitle(title);
+
+        // 初期サイズ & 位置の復元 (B14-01)
+        loadWindowState().then((state) => {
+          try {
+            win.setSize(state.width, state.height);
+            if (state.x != null && state.y != null) {
+              win.setPosition(state.x, state.y);
+            }
+          } catch {
+            // ignore
+          }
+        });
+
+        // 最小サイズクランプ (800x600) およびリサイズデバウンス保存 (B14-01)
+        let resizeDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+        win.addEventListener("resize", () => {
+          try {
+            const [w, h] = win.getSize();
+            if (w < MIN_WINDOW_WIDTH || h < MIN_WINDOW_HEIGHT) {
+              const clamped = clampWindowSize(w, h);
+              win.setSize(clamped.width, clamped.height);
+            }
+
+            if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+            resizeDebounceTimer = setTimeout(async () => {
+              try {
+                const [currW, currH] = win.getSize();
+                const [currX, currY] = win.getPosition();
+                await saveWindowState({
+                  width: currW,
+                  height: currH,
+                  x: currX,
+                  y: currY,
+                });
+              } catch {
+                // ignore
+              }
+            }, 300);
+          } catch {
+            // ignore
+          }
+        });
+
         win.addEventListener("close", () => {
-          resolveExit?.(1);
+          resolveExit?.(0);
         });
       } catch (err) {
         console.warn("Failed to initialize BrowserWindow:", err);

@@ -12,7 +12,7 @@
 - 各フェーズ完了時に `deno task check`（fmt/lint/test）が全て green であることを確認する。
 - `deno fmt` は日本語の Markdown を強制的に折り返すため、`docs/` は fmt 対象から除外する（`deno.json` の `fmt.exclude`）。
 
-## 現状（Phase 3 完了）
+## 現状（Phase 5 & B-14 完了）
 
 - CLI 引数パース、ファイル I/O、改行/BOM保持、バイナリ判定、セッション生成、WebSocket 通信を実装（Phase 1）。
 - Preact (TSX) + esbuild によるフロントエンド配信・ビルド基盤を整備（Phase 1.1 / 1.2）。
@@ -20,7 +20,10 @@
 - キーボードナビゲーション（`Alt+Down`/`J`, `Alt+Up`/`K`）、フォーカス中 hunk のハイライト、ブロックマージ（`Ctrl+R`, `Ctrl+L`）、編集モード切替（`E`/`Enter`, `Escape`）、Undo/Redo 連携を実装。
 - 原初GUI MVCパターン（Smalltalk-80 スタイル）に基づき、ピュアTypeScriptによるObserver基盤（`Observable<T>`）、`DiffSessionModel`（Active Domain Model）、`DiffController`、およびView層（`App`, `Header`, `DiffView`, `StatusBar`）への完全分離・リファクタリングを実施（Phase 2.1）。
 - 保存先解決（`outputPath` → `files.right.path`）、同一ディレクトリ一時ファイル + `Deno.rename` による原子的書き込み、改行/BOM/末尾改行の保持、`--read-only` 拒否ガード、`Ctrl+S` / `Ctrl+Enter` による保存・終了、未保存変更（Dirty）検知と確認ダイアログ、プロセス終了コード（0/1/2/3）および `git difftool` / `git mergetool` 連携ドキュメントを整備（Phase 3）。
-- `deno task check`（fmt / lint / check / test）が全 79 テストで green。
+- AI メタデータ表示・ノイズ差分折りたたみ・危険変更ハイライト・AI差分サマリー・レビュー判定UIを実装（Phase 4）。
+- ディレクトリ比較、3-Wayマージ、画像差分、構造化データ（CSV/TSV）差分、Git Worktree & 未コミット差分検出、CLI/CI 自動ビルド & リリース配布基盤を整備（Phase 5, B-1, B-2, B-4, B-5, B-6, B-7, B-9, B-10, B-12）。
+- デスクトップ基本 UI の調整（B-14: 初期1280x800/最小800x600サイズ制限と前回位置/サイズ復元永続化、ウィンドウタイトルと未保存マーク `*` の OS / HTML 完全同期、アプリケーションアイコン SVG/PNG/ICO 配備、Flexbox `min-height: 0` 欠落修正による CodeMirror / 3-Way / TreeView / CSV / Welcome 全画面での縦スクロールバー表示・ホイールスクロール保証、ダークテーマカスタムスクロールバー整備）。
+- `deno task check`（fmt / lint / check / test）が全 191 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
@@ -428,11 +431,11 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-14. デスクトップ基本 UI の調整（ウィンドウサイズ・タイトル・アイコン・縦スクロール）
 
-- [ ] **B14-01** デフォルトウィンドウサイズおよび最小サイズの設定（初期起動サイズ 1280x800 / 最小サイズ 800x600 の指定、画面リサイズ時のレスポンシブ追従、必要に応じた前回サイズ復元）。
-- [ ] **B14-02** ウィンドウタイトルの確実な反映（起動直後・セッション切り替え時の OS タイトルバーおよび HTML `<title>` の同期、比較元/先のファイル名・ブランチ名の明示）。
-- [ ] **B14-03** アプリケーションアイコンの作成と組み込み（SVG / PNG / ICO アイコンアセットの用意、`deno.json` の `desktop.app.icons` 設定、HTML `<link rel="icon">` の設定、タスクバーおよびタイトルバーへのアイコン反映）。
-- [ ] **B14-04** 各種ビューにおける縦スクロール動作の修正・改善（CodeMirror `MergeView` / `.cm-scroller` の親 flexbox コンテナにおける `min-height: 0` や overflow 制御の見直し、ディレクトリツリー・Welcome・3-Way・CSV 等の全ビューでの縦スクロールバー表示およびマウスホイール操作の保証）。
-- [ ] **B14-05** デスクトップ UI 動作検証（`deno task dev:desktop` / `deno task demo:desktop:*` での初期サイズ、タイトル・アイコン表示、長いファイルの縦スクロール挙動の確認、および `deno task check` のパス確認）。
+- [x] **B14-01** デフォルトウィンドウサイズおよび最小サイズの設定（初期起動サイズ 1280x800 / 最小サイズ 800x600 の指定、画面リサイズ時のレスポンシブ追従、必要に応じた前回サイズ復元）。
+- [x] **B14-02** ウィンドウタイトルの確実な反映（起動直後・セッション切り替え時の OS タイトルバーおよび HTML `<title>` の同期、比較元/先のファイル名・ブランチ名の明示、未保存変更 `* ` 表示）。
+- [x] **B14-03** アプリケーションアイコンの作成と組み込み（SVG / PNG / ICO アイコンアセットの用意、`deno.json` の `desktop.app.icons` 設定、HTML `<link rel="icon">` の設定、タスクバーおよびタイトルバーへのアイコン反映）。
+- [x] **B14-04** 各種ビューにおける縦スクロール動作の修正・改善（CodeMirror `MergeView` / `.cm-scroller` の親 flexbox コンテナにおける `min-height: 0` や overflow 制御の見直し、ディレクトリツリー・Welcome・3-Way・CSV 等の全ビューでの縦スクロールバー表示およびマウスホイール操作の保証、カスタムスクロールバーの整備）。
+- [x] **B14-05** デスクトップ UI 動作検証（`deno task dev:desktop` / `deno task demo:desktop:*` での初期サイズ、タイトル・アイコン表示、長いファイルの縦スクロール挙動の確認、および `deno task check` の全 191 テスト PASS 確認）。
 
 **AC:** デスクトップアプリ起動時に適切なウィンドウサイズ（1280x800 等）で開き、タイトルバーとタスクバーに Diffrex のタイトルとアイコンが表示される。DiffView やツリービュー等の画面で長いコンテンツがマウスホイールおよびスクロールバーでスムーズに縦スクロールできる。
 
