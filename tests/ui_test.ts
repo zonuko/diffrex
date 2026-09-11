@@ -1,17 +1,49 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { buildUi } from "../src/ui/build.ts";
+import { buildUi, normalizeBundleContent } from "../src/ui/build.ts";
 import { startDesktopServer } from "../src/desktop/window.ts";
 import { buildSession } from "../src/core/session.ts";
 import { parseCliArgs } from "../src/cli/args.ts";
 import * as esbuild from "esbuild";
 
-Deno.test("UI: buildUi でバンドルファイルが正常に生成される", async () => {
+Deno.test("UI: normalizeBundleContent で環境依存パスコメントと改行が正規化される", () => {
+  const input = [
+    "// ../../../AppData/Local/deno/deno_esbuild/registry.npmjs.org/preact@10.29.8/dist/preact.module.js\r",
+    "var a = 1;\r",
+    "// ../../.cache/deno/deno_esbuild/registry.npmjs.org/@codemirror/state@6.7.1/dist/index.js\r",
+    "var b = 2;\r",
+    "// src\\ui\\model\\observable.ts\r",
+    "var c = 3;\r",
+  ].join("\n");
+
+  const normalized = normalizeBundleContent(input);
+
+  assertEquals(normalized.includes("\r"), false);
+  assertStringIncludes(
+    normalized,
+    "// deno_esbuild/registry.npmjs.org/preact@10.29.8/dist/preact.module.js",
+  );
+  assertStringIncludes(
+    normalized,
+    "// deno_esbuild/registry.npmjs.org/@codemirror/state@6.7.1/dist/index.js",
+  );
+  assertStringIncludes(normalized, "// src/ui/model/observable.ts");
+});
+
+Deno.test("UI: buildUi でバンドルファイルが正常に生成され環境依存パスを含まない", async () => {
   try {
     const outfile = await buildUi();
     const stat = await Deno.stat(outfile);
     assertEquals(stat.isFile, true);
     const content = await Deno.readTextFile(outfile);
     assertStringIncludes(content, "Diffrex");
+
+    // 改行コードが LF に統一されていること
+    assertEquals(content.includes("\r"), false);
+
+    // AppData や .cache などのローカルキャッシュパスがバンドルコメントに漏出していないこと
+    assertEquals(content.includes("AppData/Local/deno"), false);
+    assertEquals(content.includes("AppData\\Local\\deno"), false);
+    assertEquals(content.includes(".cache/deno"), false);
   } finally {
     esbuild.stop();
   }

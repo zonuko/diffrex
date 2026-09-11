@@ -24,7 +24,7 @@
 - ディレクトリ比較、3-Wayマージ、画像差分、構造化データ（CSV/TSV）差分、Git Worktree & 未コミット差分検出、CLI/CI 自動ビルド & リリース配布基盤を整備（Phase 5, B-1, B-2, B-4, B-5, B-6, B-7, B-9, B-10, B-12）。
 - デスクトップ基本 UI の調整（B-14: 初期1280x800/最小800x600サイズ制限と前回位置/サイズ復元永続化、ウィンドウタイトルと未保存マーク `*` の OS / HTML 完全同期、アプリケーションアイコン SVG/PNG/ICO 配備、Flexbox `min-height: 0` 欠落修正による CodeMirror / 3-Way / TreeView / CSV / Welcome 全画面での縦スクロールバー表示・ホイールスクロール保証、ダークテーマカスタムスクロールバー整備）。
 - アプリケーション メニューバー & コマンド統合（B-8: Smalltalk-80 MVC に基づく MenuModel / MenuController、最上部 MenuBar（File, Edit, Merge, View, Git, Help）およびサブメニュー UI、開くダイアログモーダル、最近開いたセッション履歴連携、ShortcutsModal、AboutModal、`Ctrl+Shift+P` によるクイックコマンドパレット）。
-- `deno task check`（fmt / lint / check / test）が全 198 テストで green。
+- `deno task check`（fmt / lint / check / test）が全 199 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
