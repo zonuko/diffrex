@@ -55,9 +55,9 @@ flowchart TB
 
 ```mermaid
 flowchart LR
-    A["1. パス存在確認<br/>(Only Left: Deleted<br/>Only Right: Added)"] --> B["2. stat 比較<br/>(サイズ & mtime が<br/>完全一致なら同一)"]
-    B --> C["3. SHA-256 ハッシュ<br/>(ストリーミング計算で<br/>バイナリ/テキスト問わず判定)"]
-    C --> D["4. NULバイト検査<br/>(先頭 8KB に NUL が<br/>あれば [BIN] 判定)"]
+    A["1. パス存在確認<br/>(Only Left: Deleted<br/>Only Right: Added)"] --> B["2. NULバイト検査<br/>(先頭 8KB に NUL が<br/>あれば [BIN] 判定)"]
+    B --> C["3. サイズ比較<br/>(サイズ不一致なら<br/>即座に Modified)"]
+    C --> D["4. SHA-256 ハッシュ<br/>(サイズ一致時に<br/>内容比較で確定)"]
 ```
 
 1. **除外判定 (`ignore.ts`)**:

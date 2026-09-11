@@ -107,17 +107,12 @@ export async function compareFilePair(
     return { status: "binary", isBinary: true };
   }
 
-  // 1. サイズ判定
+  // 1. サイズ判定（サイズが異なれば確実に変更あり）
   if (baseEntry.size !== targetEntry.size) {
     return { status: "modified", isBinary: false };
   }
 
-  // 2. mtime 判定（同一なら同一ファイルとみなす）
-  if (baseEntry.mtime > 0 && baseEntry.mtime === targetEntry.mtime) {
-    return { status: "identical", isBinary: false };
-  }
-
-  // 3. ハッシュ判定
+  // 2. ハッシュ判定（サイズ同一時は内容の SHA-256 ハッシュを比較）
   const [baseHash, targetHash] = await Promise.all([
     computeFileHash(baseFullPath),
     computeFileHash(targetFullPath),

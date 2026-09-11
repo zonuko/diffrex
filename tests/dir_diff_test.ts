@@ -89,6 +89,19 @@ Deno.test("dir_diff - compareFilePair staged detection", async () => {
       { relativePath: "a.txt", isDir: false, size: statA.size, mtime: 0 },
     );
     assertEquals(resBin.status, "binary");
+
+    // 同一サイズ・同一 mtime であっても内容が異なる場合は modified と判定されること
+    const fileD = join(tempDir, "d.txt");
+    await Deno.writeTextFile(fileD, "hello world2\n");
+    const fileE = join(tempDir, "e.txt");
+    await Deno.writeTextFile(fileE, "hello world3\n");
+    const resSameSizeAndMtime = await compareFilePair(
+      fileD,
+      fileE,
+      { relativePath: "d.txt", isDir: false, size: 13, mtime: 1000 },
+      { relativePath: "e.txt", isDir: false, size: 13, mtime: 1000 },
+    );
+    assertEquals(resSameSizeAndMtime.status, "modified");
   } finally {
     await Deno.remove(tempDir, { recursive: true });
   }
