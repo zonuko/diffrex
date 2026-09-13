@@ -31,6 +31,9 @@ import { ShortcutsModal } from "./components/ShortcutsModal.tsx";
 import { AboutModal } from "./components/AboutModal.tsx";
 import { CommandPalette } from "./components/CommandPalette.tsx";
 import { OpenSessionModal } from "./components/OpenSessionModal.tsx";
+import { TabContainerModel } from "./model/tab_model.ts";
+import { TabController } from "./controller/tab_controller.ts";
+import { TabBar } from "./components/TabBar.tsx";
 import { useModel } from "./hooks/use_model.ts";
 import type { DiffSessionData } from "../core/types.ts";
 
@@ -43,6 +46,8 @@ export interface AppProps {
   threeWayController?: ThreeWayController;
   menuModel?: MenuModel;
   menuController?: MenuController;
+  tabModel?: TabContainerModel;
+  tabController?: TabController;
 }
 
 function MainContent({
@@ -89,6 +94,8 @@ export function App(
     threeWayController: propThreeWayController,
     menuModel: propMenuModel,
     menuController: propMenuController,
+    tabModel: propTabModel,
+    tabController: propTabController,
   }: AppProps,
 ) {
   const diffModel = useMemo(
@@ -113,6 +120,19 @@ export function App(
     [propThreeWayController, threeWayModel, diffController],
   );
 
+  const tabModel = useMemo(
+    () => propTabModel ?? new TabContainerModel(),
+    [propTabModel],
+  );
+  const tabController = useMemo(
+    () =>
+      propTabController ??
+        new TabController(tabModel, {
+          onSendMessage: (msg) => diffController.sendIpcMessage(msg),
+        }),
+    [propTabController, tabModel, diffController],
+  );
+
   const dirModel = useMemo(
     () => propDirModel ?? new DirectoryDiffModel(),
     [propDirModel],
@@ -120,11 +140,14 @@ export function App(
   const dirController = useMemo(
     () =>
       propDirController ??
-        new DirectoryController(dirModel, diffModel, diffController),
-    [propDirController, dirModel, diffModel, diffController],
+        new DirectoryController(
+          dirModel,
+          diffModel,
+          diffController,
+          tabController,
+        ),
+    [propDirController, dirModel, diffModel, diffController, tabController],
   );
-
-  dirController.setDiffController(diffController);
 
   const menuModel = useMemo(
     () => propMenuModel ?? new MenuModel(),
@@ -141,6 +164,7 @@ export function App(
           dirController,
           threeWayModel,
           threeWayController,
+          tabController,
         ),
     [
       propMenuController,
@@ -151,13 +175,20 @@ export function App(
       dirController,
       threeWayModel,
       threeWayController,
+      tabController,
     ],
   );
+
+  useEffect(() => {
+    dirController.setDiffController(diffController);
+    dirController.setTabController(tabController);
+  }, [dirController, diffController, tabController]);
 
   useModel(diffModel);
   useModel(dirModel);
   useModel(threeWayModel);
   useModel(menuModel);
+  useModel(tabModel);
 
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 
@@ -166,6 +197,31 @@ export function App(
     const cleanup = dirController.connectWebSocket();
     return cleanup;
   }, [dirController]);
+
+  // 初期タブ設定またはセッション到着時のタブ同期
+  useEffect(() => {
+    if (dirModel.dirSession) {
+      tabController.openDirectorySession(
+        dirModel.dirSession,
+        dirModel,
+        dirController,
+        true,
+      );
+      // Welcome タブが残っていれば閉じる
+      const welcome = tabModel.findTabById("welcome");
+      if (welcome && tabModel.tabs.length > 1) {
+        tabController.closeTabDirectly("welcome");
+      }
+    } else if (diffModel.session) {
+      const tab = tabController.openDiffSession(diffModel.session, true);
+      const welcome = tabModel.findTabById("welcome");
+      if (welcome && tabModel.tabs.length > 1 && tab.id !== "welcome") {
+        tabController.closeTabDirectly("welcome");
+      }
+    } else if (tabModel.tabs.length === 0) {
+      tabController.openWelcomeTab(dirController, true);
+    }
+  }, [diffModel.session, dirModel.dirSession]);
 
   // 3-Way セッションの同期リスナー
   useEffect(() => {
@@ -177,6 +233,7 @@ export function App(
   // セッション状態・モデル状態に応じたメニュー再構築
   useEffect(() => {
     menuController.setThreeWay(threeWayModel, threeWayController);
+    menuController.setTabController(tabController);
     menuController.rebuildMenu();
   }, [
     diffModel.session,
@@ -188,26 +245,33 @@ export function App(
     dirModel.history,
     dirModel.lastSession,
     threeWayModel.session,
+    tabModel.tabs,
+    tabModel.activeTabId,
     menuController,
     threeWayModel,
     threeWayController,
+    tabController,
   ]);
 
-  // ウィンドウタイトル & Dirty 状態の同期 (B14-02)
+  // ウィンドウタイトル & Dirty 状態の同期 (B14-02 & B11-06)
   useEffect(() => {
-    const isDirty = diffModel.isDirty;
+    const isDirty = tabModel.hasDirtyTabs || diffModel.isDirty;
     dirController.sendMessage({
       type: "window:set_dirty",
       isDirty,
     });
-    if (document.title) {
-      if (isDirty && !document.title.startsWith("* ")) {
-        document.title = "* " + document.title;
-      } else if (!isDirty && document.title.startsWith("* ")) {
-        document.title = document.title.slice(2);
-      }
-    }
-  }, [diffModel.isDirty, dirController]);
+    const activeTab = tabModel.activeTab;
+    const baseTitle = activeTab?.title
+      ? `${activeTab.title} - Diffrex`
+      : document.title.replace(/^\* /, "") || "Diffrex";
+
+    document.title = (isDirty ? "* " : "") + baseTitle;
+  }, [
+    diffModel.isDirty,
+    tabModel.hasDirtyTabs,
+    tabModel.activeTabId,
+    dirController,
+  ]);
 
   // グローバルキーバインド (Keymap & MenuController)
   useEffect(() => {
@@ -323,24 +387,12 @@ export function App(
     };
   }, [dirController]);
 
+  const activeTab = tabModel.activeTab;
+
   let contentNode = <WelcomeView controller={dirController} />;
 
-  // 1. 3-Way マージモードの場合
-  if (diffModel.session?.mode === "3way" && threeWayModel.session) {
-    contentNode = (
-      <div class="app-container">
-        <Header model={diffModel} controller={diffController} />
-        <main class="app-main-diff">
-          <ThreeWayDiffView
-            model={threeWayModel}
-            controller={threeWayController}
-          />
-        </main>
-        <StatusBar model={diffModel} />
-      </div>
-    );
-  } else if (dirModel.dirSession) {
-    // 2. ディレクトリモードの場合
+  if (activeTab?.sessionType === "directory" && dirModel.dirSession) {
+    // ディレクトリモードの場合
     contentNode = (
       <div class="app-container">
         <Header model={diffModel} controller={diffController} />
@@ -380,28 +432,73 @@ export function App(
         <StatusBar model={diffModel} />
       </div>
     );
-  } else if (diffModel.session) {
-    // 3. 単一ファイル 2-Way Diff / Image Diff / CSV Diff モードの場合
+  } else if (
+    activeTab?.sessionType === "3way" &&
+    (activeTab.threeWayModel?.session || threeWayModel.session)
+  ) {
+    // 3-Way マージモードの場合
+    const cur3WayModel = activeTab.threeWayModel ?? threeWayModel;
+    const cur3WayController = activeTab.threeWayController ??
+      threeWayController;
+    const curDiffModel = activeTab.diffModel ?? diffModel;
+    const curDiffController = activeTab.diffController ?? diffController;
+
     contentNode = (
       <div class="app-container">
-        <Header model={diffModel} controller={diffController} />
+        <Header model={curDiffModel} controller={curDiffController} />
+        <main class="app-main-diff">
+          <ThreeWayDiffView
+            model={cur3WayModel}
+            controller={cur3WayController}
+          />
+        </main>
+        <StatusBar model={curDiffModel} />
+      </div>
+    );
+  } else if (
+    activeTab &&
+    (activeTab.sessionType === "2way" ||
+      activeTab.sessionType === "image" ||
+      activeTab.sessionType === "csv") &&
+    (activeTab.diffModel?.session || diffModel.session)
+  ) {
+    // 単一ファイル 2-Way Diff / Image Diff / CSV Diff モードの場合
+    const curDiffModel = activeTab.diffModel ?? diffModel;
+    const curDiffController = activeTab.diffController ?? diffController;
+    const curSession = curDiffModel.session ?? diffModel.session!;
+
+    contentNode = (
+      <div class="app-container">
+        <Header model={curDiffModel} controller={curDiffController} />
 
         <main class="app-main-diff">
           <MainContent
-            session={diffModel.session}
-            model={diffModel}
-            controller={diffController}
+            session={curSession}
+            model={curDiffModel}
+            controller={curDiffController}
           />
         </main>
 
-        <StatusBar model={diffModel} />
+        <StatusBar model={curDiffModel} />
       </div>
     );
+  } else if (
+    activeTab?.sessionType === "welcome" ||
+    tabModel.tabs.length === 0
+  ) {
+    contentNode = <WelcomeView controller={dirController} />;
   }
 
   return (
     <div class="app-root-layout">
       <MenuBar model={menuModel} controller={menuController} />
+      <TabBar
+        model={tabModel}
+        controller={tabController}
+        onNewTabClick={() => {
+          menuModel.setOpenSessionModalOpen(true, "file");
+        }}
+      />
       <div class="app-body-area">
         {contentNode}
       </div>

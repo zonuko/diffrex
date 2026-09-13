@@ -19116,12 +19116,15 @@ var DirectoryController = class {
   _model;
   _diffModel;
   _diffController = null;
+  _tabController = null;
+  _pendingNewTabPaths = /* @__PURE__ */ new Set();
   _ws = null;
   _dialogCallbacks = /* @__PURE__ */ new Map();
-  constructor(model, diffModel, diffController) {
+  constructor(model, diffModel, diffController, tabController) {
     this._model = model;
     this._diffModel = diffModel;
     this._diffController = diffController ?? null;
+    this._tabController = tabController ?? null;
   }
   get model() {
     return this._model;
@@ -19131,6 +19134,9 @@ var DirectoryController = class {
   }
   setDiffController(diffController) {
     this._diffController = diffController;
+  }
+  setTabController(tabController) {
+    this._tabController = tabController;
   }
   connectWebSocket(url) {
     const wsUrl = url || `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/ws`;
@@ -19185,6 +19191,16 @@ var DirectoryController = class {
           msg.data,
           msg.error
         );
+        if (this._pendingNewTabPaths.has(msg.relativePath)) {
+          this._pendingNewTabPaths.delete(msg.relativePath);
+          if (msg.data && this._tabController) {
+            this._tabController.openDiffSession(
+              msg.data,
+              true,
+              msg.relativePath
+            );
+          }
+        }
         if (msg.data && this._model.selectedPath === msg.relativePath) {
           this._diffModel.setSession(msg.data);
         }
@@ -19280,7 +19296,20 @@ var DirectoryController = class {
       snapshot
     });
   }
-  selectFile(relativePath) {
+  selectFile(relativePath, openInNewTab = false) {
+    if (openInNewTab && this._tabController) {
+      const existingTab = this._tabController.model.findTabByPath(relativePath);
+      if (existingTab) {
+        this._tabController.switchTab(existingTab.id);
+        return;
+      }
+      this._pendingNewTabPaths.add(relativePath);
+      this.sendMessage({
+        type: "file:diff_request",
+        relativePath
+      });
+      return;
+    }
     if (this._model.selectedPath === relativePath && this._model.activeFileSession) {
       return;
     }
@@ -20091,7 +20120,8 @@ var MenuController = class {
   _dirController;
   _threeWayModel;
   _threeWayController;
-  constructor(model, diffModel, diffController, dirModel, dirController, threeWayModel, threeWayController) {
+  _tabController;
+  constructor(model, diffModel, diffController, dirModel, dirController, threeWayModel, threeWayController, tabController) {
     this._model = model;
     this._diffModel = diffModel;
     this._diffController = diffController;
@@ -20099,12 +20129,21 @@ var MenuController = class {
     this._dirController = dirController;
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
+    this._tabController = tabController;
     this.rebuildMenu();
   }
   get model() {
     return this._model;
   }
+  setTabController(tabController) {
+    if (this._tabController === tabController) return;
+    this._tabController = tabController;
+    this.rebuildMenu();
+  }
   setThreeWay(threeWayModel, threeWayController) {
+    if (this._threeWayModel === threeWayModel && this._threeWayController === threeWayController) {
+      return;
+    }
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
     this.rebuildMenu();
@@ -20219,6 +20258,16 @@ var MenuController = class {
               } else {
                 this._diffController.requestSave();
               }
+            }
+          },
+          {
+            id: "file:close_tab",
+            label: "\u30BF\u30D6\u3092\u9589\u3058\u308B",
+            shortcut: "Ctrl+W",
+            disabled: !this._tabController || this._tabController.model.tabs.length <= 1 && !this._tabController.model.activeTab?.closable,
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.closeCurrentTab();
             }
           },
           { id: "file:sep3", label: "", separator: true },
@@ -20443,6 +20492,27 @@ var MenuController = class {
               this._model.closeMenu();
               this._diffController.expandAllHunks();
             }
+          },
+          { id: "view:sep_tabs", label: "", separator: true },
+          {
+            id: "view:next_tab",
+            label: "\u6B21\u306E\u30BF\u30D6",
+            shortcut: "Ctrl+Tab",
+            disabled: !this._tabController || this._tabController.model.tabs.length <= 1,
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.nextTab();
+            }
+          },
+          {
+            id: "view:prev_tab",
+            label: "\u524D\u306E\u30BF\u30D6",
+            shortcut: "Ctrl+Shift+Tab",
+            disabled: !this._tabController || this._tabController.model.tabs.length <= 1,
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.prevTab();
+            }
           }
         ]
       },
@@ -20586,6 +20656,9 @@ var MenuController = class {
    * グローバルキーイベントのハンドリング（Alt アクセスキー、パレット、ショートカット）。
    */
   handleGlobalKeyDown(e3) {
+    if (!this._model.isCommandPaletteOpen && !this._model.isShortcutsModalOpen && !this._model.isAboutModalOpen && !this._model.isOpenSessionModalOpen && this._tabController?.handleKeyDown(e3)) {
+      return true;
+    }
     if (this._model.isCommandPaletteOpen) {
       if (e3.key === "Escape") {
         e3.preventDefault();
@@ -34078,13 +34151,43 @@ function TreeNodeItem({
         return null;
     }
   };
+  const [contextMenu, setContextMenu] = d2(null);
   const handleClick = () => {
     if (node.isDir) {
       controller.toggleDir(node.relativePath);
     } else {
-      controller.selectFile(node.relativePath);
+      controller.selectFile(node.relativePath, false);
     }
   };
+  const handleDoubleClick = () => {
+    if (!node.isDir) {
+      controller.selectFile(node.relativePath, true);
+    }
+  };
+  const handleAuxClick = (e3) => {
+    if (e3.button === 1 && !node.isDir) {
+      e3.preventDefault();
+      e3.stopPropagation();
+      controller.selectFile(node.relativePath, true);
+    }
+  };
+  const handleContextMenu = (e3) => {
+    if (!node.isDir) {
+      e3.preventDefault();
+      e3.stopPropagation();
+      setContextMenu({ x: e3.clientX, y: e3.clientY });
+    }
+  };
+  h2(() => {
+    if (!contextMenu) return;
+    const closeMenu = () => setContextMenu(null);
+    globalThis.addEventListener("click", closeMenu);
+    globalThis.addEventListener("contextmenu", closeMenu);
+    return () => {
+      globalThis.removeEventListener("click", closeMenu);
+      globalThis.removeEventListener("contextmenu", closeMenu);
+    };
+  }, [contextMenu]);
   return /* @__PURE__ */ u3("li", { class: "tree-item-wrapper", children: [
     /* @__PURE__ */ u3(
       "div",
@@ -34092,11 +34195,47 @@ function TreeNodeItem({
         class: `tree-item-row ${isSelected ? "selected" : ""} ${node.isDir ? "is-dir" : "is-file"}`,
         style: { paddingLeft: `${depth * 14 + 8}px` },
         onClick: handleClick,
+        onDblClick: handleDoubleClick,
+        onAuxClick: handleAuxClick,
+        onContextMenu: handleContextMenu,
         children: [
           /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : "\u{1F4C4}" }),
           /* @__PURE__ */ u3("span", { class: "tree-name", title: node.relativePath, children: node.name }),
           isDirty && /* @__PURE__ */ u3("span", { class: "tree-dirty-dot", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
           /* @__PURE__ */ u3("span", { class: "tree-badge-container", children: getStatusBadge(node) })
+        ]
+      }
+    ),
+    contextMenu && /* @__PURE__ */ u3(
+      "div",
+      {
+        class: "tree-context-menu",
+        style: { top: `${contextMenu.y}px`, left: `${contextMenu.x}px` },
+        children: [
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "context-menu-item",
+              onClick: () => {
+                setContextMenu(null);
+                controller.selectFile(node.relativePath, false);
+              },
+              children: "\u{1F4C4} \u3053\u306E\u30BF\u30D6\u3067\u958B\u304F"
+            }
+          ),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "context-menu-item",
+              onClick: () => {
+                setContextMenu(null);
+                controller.selectFile(node.relativePath, true);
+              },
+              children: "\u{1F5C2}\uFE0F \u65B0\u898F\u30BF\u30D6\u3067\u958B\u304F"
+            }
+          )
         ]
       }
     ),
@@ -35942,6 +36081,693 @@ function OpenSessionModal({
   ) });
 }
 
+// src/ui/model/tab_model.ts
+var TabContainerModel = class extends Observable {
+  _tabs = [];
+  _activeTabId = null;
+  _pendingCloseTabId = null;
+  constructor(initialTabs = []) {
+    super();
+    this._tabs = [...initialTabs];
+    if (this._tabs.length > 0) {
+      this._activeTabId = this._tabs[0].id;
+    }
+  }
+  // --- ゲッター ---
+  get tabs() {
+    return this._tabs;
+  }
+  get activeTabId() {
+    return this._activeTabId;
+  }
+  get activeTab() {
+    if (!this._activeTabId) return null;
+    return this._tabs.find((t4) => t4.id === this._activeTabId) ?? null;
+  }
+  get activeTabIndex() {
+    if (!this._activeTabId) return -1;
+    return this._tabs.findIndex((t4) => t4.id === this._activeTabId);
+  }
+  get hasDirtyTabs() {
+    return this._tabs.some((t4) => t4.isDirty);
+  }
+  get pendingCloseTabId() {
+    return this._pendingCloseTabId;
+  }
+  get pendingCloseTab() {
+    if (!this._pendingCloseTabId) return null;
+    return this._tabs.find((t4) => t4.id === this._pendingCloseTabId) ?? null;
+  }
+  // --- タブ操作ミューテーション ---
+  /**
+   * 新規タブを追加する。
+   * @param tab 追加するタブ
+   * @param makeActive 追加したタブをアクティブにするか（デフォルト: true）
+   */
+  addTab(tab2, makeActive = true) {
+    const existingIndex = this._tabs.findIndex((t4) => t4.id === tab2.id);
+    if (existingIndex !== -1) {
+      this._tabs[existingIndex] = tab2;
+      if (makeActive) {
+        this._activeTabId = tab2.id;
+      }
+      this.notify(this);
+      return;
+    }
+    this._tabs.push(tab2);
+    if (makeActive || this._activeTabId === null) {
+      this._activeTabId = tab2.id;
+    }
+    this.notify(this);
+  }
+  /**
+   * 指定した ID のタブを削除する。
+   * 削除されたタブがアクティブだった場合、隣接するタブを自動的にアクティブにする。
+   */
+  removeTab(id2) {
+    const index = this._tabs.findIndex((t4) => t4.id === id2);
+    if (index === -1) return null;
+    const [removed] = this._tabs.splice(index, 1);
+    if (this._activeTabId === id2) {
+      if (this._tabs.length === 0) {
+        this._activeTabId = null;
+      } else {
+        const nextIndex = Math.min(index, this._tabs.length - 1);
+        this._activeTabId = this._tabs[nextIndex].id;
+      }
+    }
+    if (this._pendingCloseTabId === id2) {
+      this._pendingCloseTabId = null;
+    }
+    this.notify(this);
+    return removed;
+  }
+  /**
+   * 指定した ID のタブをアクティブにする。
+   */
+  setActiveTab(id2) {
+    if (this._activeTabId === id2) return;
+    const exists = this._tabs.some((t4) => t4.id === id2);
+    if (exists) {
+      this._activeTabId = id2;
+      this.notify(this);
+    }
+  }
+  /**
+   * 次のタブへ切り替える（ラップアラウンド対応）。
+   */
+  nextTab() {
+    if (this._tabs.length <= 1) return;
+    const currentIndex = this.activeTabIndex;
+    const nextIndex = (currentIndex + 1) % this._tabs.length;
+    this._activeTabId = this._tabs[nextIndex].id;
+    this.notify(this);
+  }
+  /**
+   * 前のタブへ切り替える（ラップアラウンド対応）。
+   */
+  prevTab() {
+    if (this._tabs.length <= 1) return;
+    const currentIndex = this.activeTabIndex;
+    const prevIndex = (currentIndex - 1 + this._tabs.length) % this._tabs.length;
+    this._activeTabId = this._tabs[prevIndex].id;
+    this.notify(this);
+  }
+  /**
+   * インデックス指定でタブを切り替える（0-indexed）。
+   */
+  switchToIndex(index) {
+    if (index >= 0 && index < this._tabs.length) {
+      this._activeTabId = this._tabs[index].id;
+      this.notify(this);
+    }
+  }
+  /**
+   * タブの並び順を変更する（ドラッグ＆ドロップ用）。
+   */
+  moveTab(fromIndex, toIndex) {
+    if (fromIndex < 0 || fromIndex >= this._tabs.length || toIndex < 0 || toIndex >= this._tabs.length || fromIndex === toIndex) {
+      return;
+    }
+    const [moved] = this._tabs.splice(fromIndex, 1);
+    this._tabs.splice(toIndex, 0, moved);
+    this.notify(this);
+  }
+  /**
+   * 指定したタブの Dirty（未保存）状態を更新する。
+   */
+  updateTabDirty(id2, isDirty) {
+    const tab2 = this._tabs.find((t4) => t4.id === id2);
+    if (tab2 && tab2.isDirty !== isDirty) {
+      tab2.isDirty = isDirty;
+      this.notify(this);
+    }
+  }
+  /**
+   * 指定したタブのタイトルを更新する。
+   */
+  updateTabTitle(id2, title) {
+    const tab2 = this._tabs.find((t4) => t4.id === id2);
+    if (tab2 && tab2.title !== title) {
+      tab2.title = title;
+      this.notify(this);
+    }
+  }
+  /**
+   * 未保存チェック確認中のタブ ID を設定する。
+   */
+  setPendingCloseTabId(id2) {
+    if (this._pendingCloseTabId !== id2) {
+      this._pendingCloseTabId = id2;
+      this.notify(this);
+    }
+  }
+  /**
+   * ID でタブを検索する。
+   */
+  findTabById(id2) {
+    return this._tabs.find((t4) => t4.id === id2);
+  }
+  /**
+   * 相対パスでタブを検索する（ディレクトリ比較内のファイル重複オープン防止用）。
+   */
+  findTabByPath(relativePath) {
+    return this._tabs.find((t4) => t4.relativePath === relativePath);
+  }
+  /**
+   * 全てのタブをクリアする。
+   */
+  clear() {
+    this._tabs = [];
+    this._activeTabId = null;
+    this._pendingCloseTabId = null;
+    this.notify(this);
+  }
+};
+
+// src/ui/controller/tab_controller.ts
+var TabController = class {
+  _model;
+  _options;
+  _unsubscribers = /* @__PURE__ */ new Map();
+  constructor(model, options = {}) {
+    this._model = model;
+    this._options = options;
+  }
+  get model() {
+    return this._model;
+  }
+  /**
+   * 新しいタブを追加または既存タブをアクティブにする。
+   */
+  openTab(tab2, makeActive = true) {
+    this._model.addTab(tab2, makeActive);
+    this._bindTabDirtyListener(tab2);
+    return tab2;
+  }
+  /**
+   * DiffSessionData からファイル比較タブを開く。
+   */
+  openDiffSession(session, makeActive = true, relPath) {
+    const existing = relPath ? this._model.findTabByPath(relPath) : void 0;
+    if (existing) {
+      if (existing.diffModel) {
+        existing.diffModel.setSession(session);
+      }
+      if (makeActive) {
+        this._model.setActiveTab(existing.id);
+      }
+      return existing;
+    }
+    let sessionType = "2way";
+    if (session.mode === "3way") {
+      sessionType = "3way";
+    } else if (session.mode === "image") {
+      sessionType = "image";
+    } else if (session.mode === "csv") {
+      sessionType = "csv";
+    }
+    const title = this._resolveSessionTitle(session, relPath);
+    const diffModel = new DiffSessionModel(session);
+    const diffController = new DiffController(diffModel);
+    if (this._options.onSendMessage) {
+      diffController.sendIpcMessage = (msg) => this._options.onSendMessage(msg);
+    }
+    let threeWayModel;
+    let threeWayController;
+    if (sessionType === "3way") {
+      threeWayModel = new ThreeWaySessionModel(session);
+      threeWayController = new ThreeWayController(threeWayModel, {
+        sendMessage: (msg) => {
+          if (this._options.onSendMessage) {
+            this._options.onSendMessage(msg);
+          }
+        }
+      });
+    }
+    const id2 = relPath ?? `session-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const tab2 = {
+      id: id2,
+      title,
+      sessionType,
+      diffModel,
+      diffController,
+      threeWayModel,
+      threeWayController,
+      relativePath: relPath,
+      isDirty: false,
+      closable: true
+    };
+    return this.openTab(tab2, makeActive);
+  }
+  /**
+   * ディレクトリ比較セッションのタブを開く。
+   */
+  openDirectorySession(dirSession, dirModel, dirController, makeActive = true) {
+    const id2 = "dir-root";
+    const existing = this._model.findTabById(id2);
+    if (existing) {
+      if (makeActive) {
+        this._model.setActiveTab(id2);
+      }
+      return existing;
+    }
+    const title = dirSession.git?.isGitRepo ? `\u{1F33F} ${dirSession.git.branch ?? "Git"} (Working Tree)` : `${this._extractBaseName(dirSession.targetDir)} (Dir)`;
+    const tab2 = {
+      id: id2,
+      title,
+      sessionType: "directory",
+      dirModel,
+      dirController,
+      isDirty: false,
+      closable: true
+    };
+    return this.openTab(tab2, makeActive);
+  }
+  /**
+   * Welcome 画面タブを開く。
+   */
+  openWelcomeTab(dirController, makeActive = true) {
+    const id2 = "welcome";
+    const existing = this._model.findTabById(id2);
+    if (existing) {
+      if (makeActive) {
+        this._model.setActiveTab(id2);
+      }
+      return existing;
+    }
+    const tab2 = {
+      id: id2,
+      title: "Welcome",
+      sessionType: "welcome",
+      dirController,
+      isDirty: false,
+      closable: this._model.tabs.length > 0
+    };
+    return this.openTab(tab2, makeActive);
+  }
+  /**
+   * 指定した ID のタブへ切り替える。
+   */
+  switchTab(id2) {
+    this._model.setActiveTab(id2);
+  }
+  /**
+   * 次のタブへ切り替える。
+   */
+  nextTab() {
+    this._model.nextTab();
+  }
+  /**
+   * 前のタブへ切り替える。
+   */
+  prevTab() {
+    this._model.prevTab();
+  }
+  /**
+   * インデックス指定でタブへ切り替える。
+   */
+  switchToIndex(index) {
+    this._model.switchToIndex(index);
+  }
+  /**
+   * タブのクローズをリクエストする。
+   * 未保存変更がある場合は確認モーダルを表示し、なければ即座に閉じる。
+   */
+  requestCloseTab(id2) {
+    const tab2 = this._model.findTabById(id2);
+    if (!tab2) return;
+    if (!tab2.closable && this._model.tabs.length <= 1) return;
+    if (tab2.isDirty) {
+      this._model.setPendingCloseTabId(id2);
+    } else {
+      this.closeTabDirectly(id2);
+    }
+  }
+  /**
+   * 現在のアクティブタブのクローズをリクエストする。
+   */
+  closeCurrentTab() {
+    if (this._model.activeTabId) {
+      this.requestCloseTab(this._model.activeTabId);
+    }
+  }
+  /**
+   * 確認なしで直接タブを閉じる。
+   */
+  closeTabDirectly(id2) {
+    const unsub = this._unsubscribers.get(id2);
+    if (unsub) {
+      unsub();
+      this._unsubscribers.delete(id2);
+    }
+    const removed = this._model.removeTab(id2);
+    if (this._model.tabs.length === 0) {
+      this.openWelcomeTab();
+    }
+    return removed;
+  }
+  /**
+   * 未保存確認ダイアログの決定を処理する。
+   * @param saveFirst 保存してから閉じる場合は true、破棄して閉じる場合は false
+   */
+  confirmCloseTab(saveFirst) {
+    const tabId = this._model.pendingCloseTabId;
+    if (!tabId) return;
+    const tab2 = this._model.findTabById(tabId);
+    if (!tab2) {
+      this._model.setPendingCloseTabId(null);
+      return;
+    }
+    if (saveFirst) {
+      if (tab2.diffController) {
+        tab2.diffController.requestSave();
+      } else if (tab2.dirController && tab2.relativePath) {
+        tab2.dirController.saveCurrentFile();
+      }
+    }
+    this._model.setPendingCloseTabId(null);
+    this.closeTabDirectly(tabId);
+  }
+  /**
+   * 未保存確認ダイアログをキャンセルする。
+   */
+  cancelCloseTab() {
+    this._model.setPendingCloseTabId(null);
+  }
+  /**
+   * タブの並び順を変更する。
+   */
+  reorderTabs(fromIndex, toIndex) {
+    this._model.moveTab(fromIndex, toIndex);
+  }
+  /**
+   * キーボードショートカットを処理する。
+   * @returns イベントを処理した場合は true
+   */
+  handleKeyDown(e3) {
+    const isCtrl = e3.ctrlKey || e3.metaKey;
+    if (isCtrl && !e3.shiftKey && !e3.altKey && (e3.key === "w" || e3.key === "W")) {
+      e3.preventDefault();
+      this.closeCurrentTab();
+      return true;
+    }
+    if (isCtrl && !e3.shiftKey && !e3.altKey && e3.key === "Tab" || isCtrl && !e3.shiftKey && !e3.altKey && e3.key === "PageDown") {
+      e3.preventDefault();
+      this.nextTab();
+      return true;
+    }
+    if (isCtrl && e3.shiftKey && !e3.altKey && e3.key === "Tab" || isCtrl && !e3.shiftKey && !e3.altKey && e3.key === "PageUp") {
+      e3.preventDefault();
+      this.prevTab();
+      return true;
+    }
+    if (isCtrl && !e3.shiftKey && !e3.altKey && e3.key >= "1" && e3.key <= "9") {
+      const targetIndex = parseInt(e3.key, 10) - 1;
+      if (targetIndex < this._model.tabs.length) {
+        e3.preventDefault();
+        this.switchToIndex(targetIndex);
+        return true;
+      }
+    }
+    return false;
+  }
+  // --- 内部ヘルパー ---
+  _bindTabDirtyListener(tab2) {
+    if (this._unsubscribers.has(tab2.id)) {
+      this._unsubscribers.get(tab2.id)();
+      this._unsubscribers.delete(tab2.id);
+    }
+    if (tab2.diffModel) {
+      const unsub = tab2.diffModel.subscribe((model) => {
+        this._model.updateTabDirty(tab2.id, model.isDirty);
+      });
+      this._unsubscribers.set(tab2.id, unsub);
+    }
+  }
+  _resolveSessionTitle(session, relPath) {
+    if (relPath) {
+      return this._extractBaseName(relPath);
+    }
+    const rightName = this._extractBaseName(session.files.right.path);
+    const leftName = this._extractBaseName(session.files.left.path);
+    if (rightName === leftName) {
+      return rightName;
+    }
+    return `${leftName} \u2194 ${rightName}`;
+  }
+  _extractBaseName(filePath) {
+    const parts = filePath.split(/[/\\]/);
+    return parts[parts.length - 1] || filePath;
+  }
+};
+
+// src/ui/components/TabItem.tsx
+function TabItem({
+  tab: tab2,
+  index,
+  isActive,
+  controller
+}) {
+  const getIcon = (type) => {
+    switch (type) {
+      case "3way":
+        return "\u{1F500}";
+      case "directory":
+        return tab2.title.startsWith("\u{1F33F}") ? "\u{1F33F}" : "\u{1F4C1}";
+      case "image":
+        return "\u{1F5BC}\uFE0F";
+      case "csv":
+        return "\u{1F4CA}";
+      case "welcome":
+        return "\u{1F3E0}";
+      case "2way":
+      default:
+        return "\u{1F4C4}";
+    }
+  };
+  const handleClick = () => {
+    controller.switchTab(tab2.id);
+  };
+  const handleAuxClick = (e3) => {
+    if (e3.button === 1) {
+      e3.preventDefault();
+      e3.stopPropagation();
+      controller.requestCloseTab(tab2.id);
+    }
+  };
+  const handleCloseClick = (e3) => {
+    e3.stopPropagation();
+    controller.requestCloseTab(tab2.id);
+  };
+  const handleDragStart = (e3) => {
+    if (e3.dataTransfer) {
+      e3.dataTransfer.setData("text/plain", index.toString());
+      e3.dataTransfer.effectAllowed = "move";
+    }
+  };
+  const handleDragOver = (e3) => {
+    e3.preventDefault();
+    if (e3.dataTransfer) {
+      e3.dataTransfer.dropEffect = "move";
+    }
+  };
+  const handleDrop = (e3) => {
+    e3.preventDefault();
+    const fromIndexStr = e3.dataTransfer?.getData("text/plain");
+    if (fromIndexStr !== void 0 && fromIndexStr !== "") {
+      const fromIndex = parseInt(fromIndexStr, 10);
+      if (!isNaN(fromIndex) && fromIndex !== index) {
+        controller.reorderTabs(fromIndex, index);
+      }
+    }
+  };
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: `tab-item ${isActive ? "active" : ""} ${tab2.isDirty ? "dirty" : ""}`,
+      onClick: handleClick,
+      onAuxClick: handleAuxClick,
+      draggable: true,
+      onDragStart: handleDragStart,
+      onDragOver: handleDragOver,
+      onDrop: handleDrop,
+      title: tab2.relativePath ?? tab2.title,
+      children: [
+        /* @__PURE__ */ u3("span", { class: "tab-icon", children: getIcon(tab2.sessionType) }),
+        /* @__PURE__ */ u3("span", { class: "tab-title", children: tab2.title }),
+        tab2.isDirty && /* @__PURE__ */ u3("span", { class: "tab-dirty-indicator", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
+        tab2.closable && /* @__PURE__ */ u3(
+          "button",
+          {
+            type: "button",
+            class: "tab-close-btn",
+            onClick: handleCloseClick,
+            title: "\u9589\u3058\u308B (Ctrl+W)",
+            "aria-label": "\u9589\u3058\u308B",
+            children: "\xD7"
+          }
+        )
+      ]
+    }
+  );
+}
+
+// src/ui/components/TabCloseConfirmModal.tsx
+function TabCloseConfirmModal({
+  tab: tab2,
+  controller
+}) {
+  h2(() => {
+    const handleKeyDown = (e3) => {
+      if (e3.key === "Escape") {
+        e3.preventDefault();
+        controller.cancelCloseTab();
+      }
+    };
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [controller]);
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-backdrop",
+      onClick: () => controller.cancelCloseTab(),
+      children: /* @__PURE__ */ u3(
+        "div",
+        {
+          class: "modal-dialog tab-confirm-modal",
+          onClick: (e3) => e3.stopPropagation(),
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "tab-confirm-title",
+          children: [
+            /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+              /* @__PURE__ */ u3("h3", { id: "tab-confirm-title", class: "modal-title", children: "\u26A0\uFE0F \u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059" }),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "modal-close-btn",
+                  onClick: () => controller.cancelCloseTab(),
+                  title: "\u30AD\u30E3\u30F3\u30BB\u30EB (Escape)",
+                  children: "\xD7"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "modal-body", children: [
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-message", children: [
+                /* @__PURE__ */ u3("strong", { children: [
+                  '"',
+                  tab2.title,
+                  '"'
+                ] }),
+                " \u3078\u306E\u5909\u66F4\u304C\u4FDD\u5B58\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002"
+              ] }),
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-submessage", children: "\u9589\u3058\u308B\u524D\u306B\u5909\u66F4\u3092\u4FDD\u5B58\u3057\u307E\u3059\u304B\uFF1F" })
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "modal-footer tab-confirm-footer", children: [
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "btn btn-primary",
+                  onClick: () => controller.confirmCloseTab(true),
+                  children: "\u{1F4BE} \u4FDD\u5B58\u3057\u3066\u9589\u3058\u308B"
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "btn btn-danger",
+                  onClick: () => controller.confirmCloseTab(false),
+                  children: "\u{1F5D1}\uFE0F \u4FDD\u5B58\u305B\u305A\u306B\u9589\u3058\u308B"
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "btn btn-secondary",
+                  onClick: () => controller.cancelCloseTab(),
+                  children: "\u30AD\u30E3\u30F3\u30BB\u30EB"
+                }
+              )
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+
+// src/ui/components/TabBar.tsx
+function TabBar({
+  model,
+  controller,
+  onNewTabClick
+}) {
+  useModel(model);
+  const tabs = model.tabs;
+  const activeTabId = model.activeTabId;
+  const pendingCloseTab = model.pendingCloseTab;
+  return /* @__PURE__ */ u3(S, { children: [
+    /* @__PURE__ */ u3("nav", { class: "app-tab-bar", "aria-label": "\u30BB\u30C3\u30B7\u30E7\u30F3\u30BF\u30D6", children: [
+      /* @__PURE__ */ u3("div", { class: "tab-list-container", children: tabs.map((tab2, idx) => /* @__PURE__ */ u3(
+        TabItem,
+        {
+          tab: tab2,
+          index: idx,
+          isActive: tab2.id === activeTabId,
+          controller
+        },
+        tab2.id
+      )) }),
+      /* @__PURE__ */ u3("div", { class: "tab-bar-actions", children: onNewTabClick && /* @__PURE__ */ u3(
+        "button",
+        {
+          type: "button",
+          class: "tab-new-btn",
+          onClick: onNewTabClick,
+          title: "\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u958B\u304F (Ctrl+O)",
+          "aria-label": "\u65B0\u3057\u3044\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u958B\u304F",
+          children: "\uFF0B"
+        }
+      ) })
+    ] }),
+    pendingCloseTab && /* @__PURE__ */ u3(
+      TabCloseConfirmModal,
+      {
+        tab: pendingCloseTab,
+        controller
+      }
+    )
+  ] });
+}
+
 // src/ui/App.tsx
 function MainContent({
   session,
@@ -35975,7 +36801,9 @@ function App({
   threeWayModel: propThreeWayModel,
   threeWayController: propThreeWayController,
   menuModel: propMenuModel,
-  menuController: propMenuController
+  menuController: propMenuController,
+  tabModel: propTabModel,
+  tabController: propTabController
 }) {
   const diffModel = T2(
     () => propModel ?? new DiffSessionModel(),
@@ -35995,15 +36823,29 @@ function App({
     }),
     [propThreeWayController, threeWayModel, diffController]
   );
+  const tabModel = T2(
+    () => propTabModel ?? new TabContainerModel(),
+    [propTabModel]
+  );
+  const tabController = T2(
+    () => propTabController ?? new TabController(tabModel, {
+      onSendMessage: (msg) => diffController.sendIpcMessage(msg)
+    }),
+    [propTabController, tabModel, diffController]
+  );
   const dirModel = T2(
     () => propDirModel ?? new DirectoryDiffModel(),
     [propDirModel]
   );
   const dirController = T2(
-    () => propDirController ?? new DirectoryController(dirModel, diffModel, diffController),
-    [propDirController, dirModel, diffModel, diffController]
+    () => propDirController ?? new DirectoryController(
+      dirModel,
+      diffModel,
+      diffController,
+      tabController
+    ),
+    [propDirController, dirModel, diffModel, diffController, tabController]
   );
-  dirController.setDiffController(diffController);
   const menuModel = T2(
     () => propMenuModel ?? new MenuModel(),
     [propMenuModel]
@@ -36016,7 +36858,8 @@ function App({
       dirModel,
       dirController,
       threeWayModel,
-      threeWayController
+      threeWayController,
+      tabController
     ),
     [
       propMenuController,
@@ -36026,18 +36869,46 @@ function App({
       dirModel,
       dirController,
       threeWayModel,
-      threeWayController
+      threeWayController,
+      tabController
     ]
   );
+  h2(() => {
+    dirController.setDiffController(diffController);
+    dirController.setTabController(tabController);
+  }, [dirController, diffController, tabController]);
   useModel(diffModel);
   useModel(dirModel);
   useModel(threeWayModel);
   useModel(menuModel);
+  useModel(tabModel);
   const [isGlobalDragging, setIsGlobalDragging] = d2(false);
   h2(() => {
     const cleanup = dirController.connectWebSocket();
     return cleanup;
   }, [dirController]);
+  h2(() => {
+    if (dirModel.dirSession) {
+      tabController.openDirectorySession(
+        dirModel.dirSession,
+        dirModel,
+        dirController,
+        true
+      );
+      const welcome = tabModel.findTabById("welcome");
+      if (welcome && tabModel.tabs.length > 1) {
+        tabController.closeTabDirectly("welcome");
+      }
+    } else if (diffModel.session) {
+      const tab2 = tabController.openDiffSession(diffModel.session, true);
+      const welcome = tabModel.findTabById("welcome");
+      if (welcome && tabModel.tabs.length > 1 && tab2.id !== "welcome") {
+        tabController.closeTabDirectly("welcome");
+      }
+    } else if (tabModel.tabs.length === 0) {
+      tabController.openWelcomeTab(dirController, true);
+    }
+  }, [diffModel.session, dirModel.dirSession]);
   h2(() => {
     if (diffModel.session && diffModel.session.mode === "3way") {
       threeWayModel.setSession(diffModel.session);
@@ -36045,6 +36916,7 @@ function App({
   }, [diffModel.session]);
   h2(() => {
     menuController.setThreeWay(threeWayModel, threeWayController);
+    menuController.setTabController(tabController);
     menuController.rebuildMenu();
   }, [
     diffModel.session,
@@ -36056,24 +36928,28 @@ function App({
     dirModel.history,
     dirModel.lastSession,
     threeWayModel.session,
+    tabModel.tabs,
+    tabModel.activeTabId,
     menuController,
     threeWayModel,
-    threeWayController
+    threeWayController,
+    tabController
   ]);
   h2(() => {
-    const isDirty = diffModel.isDirty;
+    const isDirty = tabModel.hasDirtyTabs || diffModel.isDirty;
     dirController.sendMessage({
       type: "window:set_dirty",
       isDirty
     });
-    if (document.title) {
-      if (isDirty && !document.title.startsWith("* ")) {
-        document.title = "* " + document.title;
-      } else if (!isDirty && document.title.startsWith("* ")) {
-        document.title = document.title.slice(2);
-      }
-    }
-  }, [diffModel.isDirty, dirController]);
+    const activeTab2 = tabModel.activeTab;
+    const baseTitle = activeTab2?.title ? `${activeTab2.title} - Diffrex` : document.title.replace(/^\* /, "") || "Diffrex";
+    document.title = (isDirty ? "* " : "") + baseTitle;
+  }, [
+    diffModel.isDirty,
+    tabModel.hasDirtyTabs,
+    tabModel.activeTabId,
+    dirController
+  ]);
   h2(() => {
     const handleKeyDown = (e3) => {
       const handled = menuController.handleGlobalKeyDown(e3);
@@ -36170,20 +37046,9 @@ function App({
       globalThis.removeEventListener("drop", handleDrop);
     };
   }, [dirController]);
+  const activeTab = tabModel.activeTab;
   let contentNode = /* @__PURE__ */ u3(WelcomeView, { controller: dirController });
-  if (diffModel.session?.mode === "3way" && threeWayModel.session) {
-    contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
-      /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
-      /* @__PURE__ */ u3("main", { class: "app-main-diff", children: /* @__PURE__ */ u3(
-        ThreeWayDiffView,
-        {
-          model: threeWayModel,
-          controller: threeWayController
-        }
-      ) }),
-      /* @__PURE__ */ u3(StatusBar, { model: diffModel })
-    ] });
-  } else if (dirModel.dirSession) {
+  if (activeTab?.sessionType === "directory" && dirModel.dirSession) {
     contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
       /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
       /* @__PURE__ */ u3("div", { class: "app-split-container", children: [
@@ -36202,22 +37067,53 @@ function App({
       ] }),
       /* @__PURE__ */ u3(StatusBar, { model: diffModel })
     ] });
-  } else if (diffModel.session) {
+  } else if (activeTab?.sessionType === "3way" && (activeTab.threeWayModel?.session || threeWayModel.session)) {
+    const cur3WayModel = activeTab.threeWayModel ?? threeWayModel;
+    const cur3WayController = activeTab.threeWayController ?? threeWayController;
+    const curDiffModel = activeTab.diffModel ?? diffModel;
+    const curDiffController = activeTab.diffController ?? diffController;
     contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
-      /* @__PURE__ */ u3(Header, { model: diffModel, controller: diffController }),
+      /* @__PURE__ */ u3(Header, { model: curDiffModel, controller: curDiffController }),
+      /* @__PURE__ */ u3("main", { class: "app-main-diff", children: /* @__PURE__ */ u3(
+        ThreeWayDiffView,
+        {
+          model: cur3WayModel,
+          controller: cur3WayController
+        }
+      ) }),
+      /* @__PURE__ */ u3(StatusBar, { model: curDiffModel })
+    ] });
+  } else if (activeTab && (activeTab.sessionType === "2way" || activeTab.sessionType === "image" || activeTab.sessionType === "csv") && (activeTab.diffModel?.session || diffModel.session)) {
+    const curDiffModel = activeTab.diffModel ?? diffModel;
+    const curDiffController = activeTab.diffController ?? diffController;
+    const curSession = curDiffModel.session ?? diffModel.session;
+    contentNode = /* @__PURE__ */ u3("div", { class: "app-container", children: [
+      /* @__PURE__ */ u3(Header, { model: curDiffModel, controller: curDiffController }),
       /* @__PURE__ */ u3("main", { class: "app-main-diff", children: /* @__PURE__ */ u3(
         MainContent,
         {
-          session: diffModel.session,
-          model: diffModel,
-          controller: diffController
+          session: curSession,
+          model: curDiffModel,
+          controller: curDiffController
         }
       ) }),
-      /* @__PURE__ */ u3(StatusBar, { model: diffModel })
+      /* @__PURE__ */ u3(StatusBar, { model: curDiffModel })
     ] });
+  } else if (activeTab?.sessionType === "welcome" || tabModel.tabs.length === 0) {
+    contentNode = /* @__PURE__ */ u3(WelcomeView, { controller: dirController });
   }
   return /* @__PURE__ */ u3("div", { class: "app-root-layout", children: [
     /* @__PURE__ */ u3(MenuBar, { model: menuModel, controller: menuController }),
+    /* @__PURE__ */ u3(
+      TabBar,
+      {
+        model: tabModel,
+        controller: tabController,
+        onNewTabClick: () => {
+          menuModel.setOpenSessionModalOpen(true, "file");
+        }
+      }
+    ),
     /* @__PURE__ */ u3("div", { class: "app-body-area", children: contentNode }),
     menuModel.isShortcutsModalOpen && /* @__PURE__ */ u3(ShortcutsModal, { model: menuModel }),
     menuModel.isAboutModalOpen && /* @__PURE__ */ u3(AboutModal, { model: menuModel }),

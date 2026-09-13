@@ -16,6 +16,7 @@ import type { DirectoryDiffModel } from "../model/dir_diff_model.ts";
 import type { DirectoryController } from "./dir_controller.ts";
 import type { ThreeWaySessionModel } from "../model/three_way_session_model.ts";
 import type { ThreeWayController } from "./three_way_controller.ts";
+import type { TabController } from "./tab_controller.ts";
 
 export interface FlatCommandItem {
   id: string;
@@ -34,6 +35,7 @@ export class MenuController {
   private _dirController: DirectoryController;
   private _threeWayModel?: ThreeWaySessionModel;
   private _threeWayController?: ThreeWayController;
+  private _tabController?: TabController;
 
   constructor(
     model: MenuModel,
@@ -43,6 +45,7 @@ export class MenuController {
     dirController: DirectoryController,
     threeWayModel?: ThreeWaySessionModel,
     threeWayController?: ThreeWayController,
+    tabController?: TabController,
   ) {
     this._model = model;
     this._diffModel = diffModel;
@@ -51,6 +54,7 @@ export class MenuController {
     this._dirController = dirController;
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
+    this._tabController = tabController;
 
     this.rebuildMenu();
   }
@@ -59,10 +63,22 @@ export class MenuController {
     return this._model;
   }
 
+  setTabController(tabController: TabController): void {
+    if (this._tabController === tabController) return;
+    this._tabController = tabController;
+    this.rebuildMenu();
+  }
+
   setThreeWay(
     threeWayModel: ThreeWaySessionModel,
     threeWayController: ThreeWayController,
   ): void {
+    if (
+      this._threeWayModel === threeWayModel &&
+      this._threeWayController === threeWayController
+    ) {
+      return;
+    }
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
     this.rebuildMenu();
@@ -191,6 +207,18 @@ export class MenuController {
               } else {
                 this._diffController.requestSave();
               }
+            },
+          },
+          {
+            id: "file:close_tab",
+            label: "タブを閉じる",
+            shortcut: "Ctrl+W",
+            disabled: !this._tabController ||
+              (this._tabController.model.tabs.length <= 1 &&
+                !this._tabController.model.activeTab?.closable),
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.closeCurrentTab();
             },
           },
           { id: "file:sep3", label: "", separator: true },
@@ -425,6 +453,29 @@ export class MenuController {
               this._diffController.expandAllHunks();
             },
           },
+          { id: "view:sep_tabs", label: "", separator: true },
+          {
+            id: "view:next_tab",
+            label: "次のタブ",
+            shortcut: "Ctrl+Tab",
+            disabled: !this._tabController ||
+              this._tabController.model.tabs.length <= 1,
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.nextTab();
+            },
+          },
+          {
+            id: "view:prev_tab",
+            label: "前のタブ",
+            shortcut: "Ctrl+Shift+Tab",
+            disabled: !this._tabController ||
+              this._tabController.model.tabs.length <= 1,
+            action: () => {
+              this._model.closeMenu();
+              this._tabController?.prevTab();
+            },
+          },
         ],
       },
 
@@ -582,6 +633,17 @@ export class MenuController {
    * グローバルキーイベントのハンドリング（Alt アクセスキー、パレット、ショートカット）。
    */
   handleGlobalKeyDown(e: KeyboardEvent): boolean {
+    // 0. タブ操作ショートカット（Ctrl+W, Ctrl+Tab, Ctrl+1..9）
+    if (
+      !this._model.isCommandPaletteOpen &&
+      !this._model.isShortcutsModalOpen &&
+      !this._model.isAboutModalOpen &&
+      !this._model.isOpenSessionModalOpen &&
+      this._tabController?.handleKeyDown(e)
+    ) {
+      return true;
+    }
+
     // 1. コマンドパレット表示中のキー操作
     if (this._model.isCommandPaletteOpen) {
       if (e.key === "Escape") {

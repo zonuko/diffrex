@@ -4,6 +4,7 @@
  * ディレクトリ比較時の左ペインツリービュー（開閉・差分バッジ・フィルタ・選択）。
  */
 
+import { useEffect, useState } from "preact/hooks";
 import type { DirectoryTreeNode, FileDiffStatus } from "../../core/types.ts";
 import type { DirectoryController } from "../controller/dir_controller.ts";
 import type { DirectoryDiffModel } from "../model/dir_diff_model.ts";
@@ -187,13 +188,51 @@ function TreeNodeItem({
     }
   };
 
+  const [contextMenu, setContextMenu] = useState<
+    { x: number; y: number } | null
+  >(null);
+
   const handleClick = () => {
     if (node.isDir) {
       controller.toggleDir(node.relativePath);
     } else {
-      controller.selectFile(node.relativePath);
+      controller.selectFile(node.relativePath, false);
     }
   };
+
+  const handleDoubleClick = () => {
+    if (!node.isDir) {
+      controller.selectFile(node.relativePath, true);
+    }
+  };
+
+  const handleAuxClick = (e: MouseEvent) => {
+    // 中クリックで新規タブで開く
+    if (e.button === 1 && !node.isDir) {
+      e.preventDefault();
+      e.stopPropagation();
+      controller.selectFile(node.relativePath, true);
+    }
+  };
+
+  const handleContextMenu = (e: MouseEvent) => {
+    if (!node.isDir) {
+      e.preventDefault();
+      e.stopPropagation();
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const closeMenu = () => setContextMenu(null);
+    globalThis.addEventListener("click", closeMenu);
+    globalThis.addEventListener("contextmenu", closeMenu);
+    return () => {
+      globalThis.removeEventListener("click", closeMenu);
+      globalThis.removeEventListener("contextmenu", closeMenu);
+    };
+  }, [contextMenu]);
 
   return (
     <li class="tree-item-wrapper">
@@ -203,6 +242,9 @@ function TreeNodeItem({
         }`}
         style={{ paddingLeft: `${depth * 14 + 8}px` }}
         onClick={handleClick}
+        onDblClick={handleDoubleClick}
+        onAuxClick={handleAuxClick}
+        onContextMenu={handleContextMenu}
       >
         <span class="tree-icon">
           {node.isDir ? (isExpanded ? "📂" : "📁") : "📄"}
@@ -215,6 +257,34 @@ function TreeNodeItem({
           {getStatusBadge(node)}
         </span>
       </div>
+
+      {contextMenu && (
+        <div
+          class="tree-context-menu"
+          style={{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }}
+        >
+          <button
+            type="button"
+            class="context-menu-item"
+            onClick={() => {
+              setContextMenu(null);
+              controller.selectFile(node.relativePath, false);
+            }}
+          >
+            📄 このタブで開く
+          </button>
+          <button
+            type="button"
+            class="context-menu-item"
+            onClick={() => {
+              setContextMenu(null);
+              controller.selectFile(node.relativePath, true);
+            }}
+          >
+            🗂️ 新規タブで開く
+          </button>
+        </div>
+      )}
 
       {node.isDir && isExpanded && node.children && (
         <ul class="tree-subtree">

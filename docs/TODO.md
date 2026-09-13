@@ -12,7 +12,7 @@
 - 各フェーズ完了時に `deno task check`（fmt/lint/test）が全て green であることを確認する。
 - `deno fmt` は日本語の Markdown を強制的に折り返すため、`docs/` は fmt 対象から除外する（`deno.json` の `fmt.exclude`）。
 
-## 現状（Phase 5, B-14, B-8 完了）
+## 現状（Phase 5, B-14, B-8, B-11 完了）
 
 - CLI 引数パース、ファイル I/O、改行/BOM保持、バイナリ判定、セッション生成、WebSocket 通信を実装（Phase 1）。
 - Preact (TSX) + esbuild によるフロントエンド配信・ビルド基盤を整備（Phase 1.1 / 1.2）。
@@ -24,7 +24,8 @@
 - ディレクトリ比較、3-Wayマージ、画像差分、構造化データ（CSV/TSV）差分、Git Worktree & 未コミット差分検出、CLI/CI 自動ビルド & リリース配布基盤を整備（Phase 5, B-1, B-2, B-4, B-5, B-6, B-7, B-9, B-10, B-12）。
 - デスクトップ基本 UI の調整（B-14: 初期1280x800/最小800x600サイズ制限と前回位置/サイズ復元永続化、ウィンドウタイトルと未保存マーク `*` の OS / HTML 完全同期、アプリケーションアイコン SVG/PNG/ICO 配備、Flexbox `min-height: 0` 欠落修正による CodeMirror / 3-Way / TreeView / CSV / Welcome 全画面での縦スクロールバー表示・ホイールスクロール保証、ダークテーマカスタムスクロールバー整備）。
 - アプリケーション メニューバー & コマンド統合（B-8: Smalltalk-80 MVC に基づく MenuModel / MenuController、最上部 MenuBar（File, Edit, Merge, View, Git, Help）およびサブメニュー UI、開くダイアログモーダル、最近開いたセッション履歴連携、ShortcutsModal、AboutModal、`Ctrl+Shift+P` によるクイックコマンドパレット）。
-- `deno task check`（fmt / lint / check / test）が全 199 テストで green。
+- マルチタブ UI & 複数セッション並行管理（B-11: TabContainerModel / TabController によるセッション並行保持・アクティブ切り替え、TabBar / TabItem UI、Dirty ● バッジ、中クリック/×ボタンによるクローズ、未保存確認ダイアログ（保存・破棄・キャンセル）、キーバインド（Ctrl+W, Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1〜9）、ディレクトリツリーからのダブルクリック/中クリック/右クリックメニューによる新規タブ展開）。
+- `deno task check`（fmt / lint / check / test）が全 211 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
@@ -453,15 +454,28 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-11. マルチタブ UI & 複数セッション並行管理
 
-- [ ] **B11-01** `src/ui/model/tab_model.ts` に `TabItem`（id, title, dirty, sessionType, model）および `TabContainerModel`（タブ一覧、アクティブタブ、Observer 通知）を実装。
-- [ ] **B11-02** `src/ui/controller/tab_controller.ts` にタブのオープン、切り替え、クローズ、未保存チェック、並び替えハンドラを実装。
-- [ ] **B11-03** `src/ui/components/TabBar.tsx` & `TabItem.tsx` にタブバー UI（アクティブ表示、Dirty `●` バッジ、閉じる `×` ボタン、新規 `+` ボタン）を実装。
-- [ ] **B11-04** タブ操作用キーバインド（`Ctrl+W`: タブを閉じる、`Ctrl+Tab` / `Ctrl+PageDown`: 次のタブ、`Ctrl+Shift+Tab` / `Ctrl+PageUp`: 前のタブ、`Ctrl+1`〜`9`: 番号指定切り替え）を `keymap.ts` に統合。
-- [ ] **B11-05** ディレクトリ比較ツリー（`DirectoryTreeView`）からのファイル選択時に「同一タブ再利用」または「新規タブで開く（ダブルクリック / 中クリック / 右クリックメニュー）」挙動を実装。
-- [ ] **B11-06** 未保存の変更があるタブを閉じる際、およびアプリ終了時のタブ別未保存確認ダイアログ（保存・破棄・キャンセル）を統合。
-- [ ] **B11-07** テスト: `tests/tab_model_test.ts` / `tests/tab_controller_test.ts`（タブライフサイクル、アクティブ切り替え、Dirty 管理、クローズ制御のテスト）。
+- [x] **B11-01** `src/ui/model/tab_model.ts` に `TabItem`（id, title, dirty, sessionType, model）および `TabContainerModel`（タブ一覧、アクティブタブ、Observer 通知）を実装。
+- [x] **B11-02** `src/ui/controller/tab_controller.ts` にタブのオープン、切り替え、クローズ、未保存チェック、並び替えハンドラを実装。
+- [x] **B11-03** `src/ui/components/TabBar.tsx` & `TabItem.tsx` にタブバー UI（アクティブ表示、Dirty `●` バッジ、閉じる `×` ボタン、新規 `+` ボタン）を実装。
+- [x] **B11-04** タブ操作用キーバインド（`Ctrl+W`: タブを閉じる、`Ctrl+Tab` / `Ctrl+PageDown`: 次のタブ、`Ctrl+Shift+Tab` / `Ctrl+PageUp`: 前のタブ、`Ctrl+1`〜`9`: 番号指定切り替え）を `keymap.ts` に統合。
+- [x] **B11-05** ディレクトリ比較ツリー（`DirectoryTreeView`）からのファイル選択時に「同一タブ再利用」または「新規タブで開く（ダブルクリック / 中クリック / 右クリックメニュー）」挙動を実装。
+- [x] **B11-06** 未保存の変更があるタブを閉じる際、およびアプリ終了時のタブ別未保存確認ダイアログ（保存・破棄・キャンセル）を統合。
+- [x] **B11-07** テスト: `tests/tab_model_test.ts` / `tests/tab_controller_test.ts`（タブライフサイクル、アクティブ切り替え、Dirty 管理、クローズ制御のテスト）。
 
 **AC:** ウィンドウ上部にタブバーが表示され、複数のファイル比較・セッションをタブで切り替えて作業できる。未保存状態の管理（Dirty バッジとクローズ時の確認）、キーボードショートカット（`Ctrl+W`, `Ctrl+Tab` 等）によるタブ操作が動作する。
+
+#### B-16. 外部ファイル変更検知 & 自動反映（File Watcher & 外部更新ハンドリング）
+
+- [ ] **B16-01** `src/core/watcher.ts` に `Deno.watchFs` を用いたファイル・ディレクトリ変更監視マネージャー（セッション対象ファイルの監視登録・解除、変更イベントのデバウンス処理、Diffrex 自身による保存時の自己更新イベント除外フラグ）を実装。
+- [ ] **B16-02** バックエンド ⇄ UI 間のファイル更新通知（IPC / SSE イベント: `file:changed`、変更対象ファイルパス、最新更新時刻等）を実装。
+- [ ] **B16-03** UI 側の未保存（Dirty）状態に応じたハンドリングロジック:
+  - 未編集（Clean）時: 自動で新コンテンツを再読み込みし、diff を再計算して表示を更新。
+  - 編集中（Dirty）時: 競合通知ダイアログ（「ファイルが外部で変更されました。破棄して再読み込みしますか？ / 現在の編集を保持しますか？」）を表示し、安全に選択できるフローを提供。
+- [ ] **B16-04** メニューバー（File メニュー）およびコマンドパレットに手動「最新の状態に再読み込み（Reload / Refresh）」コマンド（キーバインド: `F5` または `Ctrl+Shift+R`）を追加。
+- [ ] **B16-05** Git モード / ディレクトリ比較モードにおける外部更新連動（外部での `git commit` / `git checkout` やファイル追加・削除時のツリー自動リフレッシュ）。
+- [ ] **B16-06** テスト: `tests/file_watcher_test.ts`（ファイル外部更新イベントの検知、自己保存時の無視、未保存時のコンフリクト制御、手動リロード動作のテスト）。
+
+**AC:** 比較中のファイルが外部エディタや Git 操作等で変更された場合、即座に検知され、未編集時は自動反映、編集中時は確認ダイアログが表示されて安全にリロードまたは編集保持が選択できる。手動リロードコマンド（F5 等）でも最新状態に同期できる。
 
 ---
 

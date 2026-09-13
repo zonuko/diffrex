@@ -16,6 +16,9 @@ export class DirectoryController {
   private _model: DirectoryDiffModel;
   private _diffModel: DiffSessionModel;
   private _diffController: DiffController | null = null;
+  private _tabController: import("./tab_controller.ts").TabController | null =
+    null;
+  private _pendingNewTabPaths: Set<string> = new Set();
   private _ws: WebSocket | null = null;
   private _dialogCallbacks = new Map<string, (path: string) => void>();
 
@@ -23,10 +26,12 @@ export class DirectoryController {
     model: DirectoryDiffModel,
     diffModel: DiffSessionModel,
     diffController?: DiffController,
+    tabController?: import("./tab_controller.ts").TabController,
   ) {
     this._model = model;
     this._diffModel = diffModel;
     this._diffController = diffController ?? null;
+    this._tabController = tabController ?? null;
   }
 
   get model(): DirectoryDiffModel {
@@ -39,6 +44,12 @@ export class DirectoryController {
 
   setDiffController(diffController: DiffController): void {
     this._diffController = diffController;
+  }
+
+  setTabController(
+    tabController: import("./tab_controller.ts").TabController,
+  ): void {
+    this._tabController = tabController;
   }
 
   connectWebSocket(url?: string): () => void {
@@ -102,6 +113,16 @@ export class DirectoryController {
           msg.data,
           msg.error,
         );
+        if (this._pendingNewTabPaths.has(msg.relativePath)) {
+          this._pendingNewTabPaths.delete(msg.relativePath);
+          if (msg.data && this._tabController) {
+            this._tabController.openDiffSession(
+              msg.data,
+              true,
+              msg.relativePath,
+            );
+          }
+        }
         if (msg.data && this._model.selectedPath === msg.relativePath) {
           this._diffModel.setSession(msg.data);
         }
@@ -212,7 +233,21 @@ export class DirectoryController {
     });
   }
 
-  selectFile(relativePath: string): void {
+  selectFile(relativePath: string, openInNewTab = false): void {
+    if (openInNewTab && this._tabController) {
+      const existingTab = this._tabController.model.findTabByPath(relativePath);
+      if (existingTab) {
+        this._tabController.switchTab(existingTab.id);
+        return;
+      }
+      this._pendingNewTabPaths.add(relativePath);
+      this.sendMessage({
+        type: "file:diff_request",
+        relativePath,
+      });
+      return;
+    }
+
     if (
       this._model.selectedPath === relativePath &&
       this._model.activeFileSession
