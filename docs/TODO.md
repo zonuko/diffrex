@@ -64,6 +64,10 @@ Diffrex/
 │       │   └── StatusBar.tsx# ステータスバー
 │       ├── utils/
 │       │   └── language.ts  # 言語モード判定
+│       ├── i18n/            # 国際化基盤（型安全辞書 & I18nModel）
+│       │   ├── types.ts
+│       │   ├── i18n_model.ts
+│       │   └── locales/     # ja.ts / en.ts
 │       ├── styles.css
 │       ├── build.ts         # esbuild バンドルスクリプト
 │       └── bundle.js        # 事前バンドルアセット
@@ -488,6 +492,18 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 - [ ] **B16-06** テスト: `tests/file_watcher_test.ts`（ファイル外部更新イベントの検知、自己保存時の無視、未保存時のコンフリクト制御、手動リロード動作のテスト）。
 
 **AC:** 比較中のファイルが外部エディタや Git 操作等で変更された場合、即座に検知され、未編集時は自動反映、編集中時は確認ダイアログが表示されて安全にリロードまたは編集保持が選択できる。手動リロードコマンド（F5 等）でも最新状態に同期できる。
+
+#### B-18. メニュー・UI 国際化（i18n: 日英多言語対応 & 型安全辞書基盤）
+
+- [ ] **B18-01** `src/ui/i18n/types.ts` & `src/ui/i18n/locales/ja.ts`, `en.ts` にピュア TypeScript 型安全辞書スキーマ（外部ライブラリ不使用、`as const` + `typeof` による英語キー欠落の静的検査）および言語型（`Locale = "ja" | "en"`）を定義。
+- [ ] **B18-02** `src/ui/i18n/i18n_model.ts` に Smalltalk-80 MVC に基づく `I18nModel`（現在の言語状態、`localStorage` 永続化とシステムロケール自動判定、`t(key, params)` 補間関数、`Observable` による変更通知）を実装。
+- [ ] **B18-03** メニューバー（`src/ui/components/MenuBar.tsx`, `src/ui/controller/menu_controller.ts`）の多言語化対応。各メニュー項目・アクセスキーの日英対応および「表示 (View)」配下への「言語 (Language: 日本語 / English)」切り替えサブメニューの追加。
+- [ ] **B18-04** クイックコマンドパレット（`CommandPalette.tsx`）の多言語化。英語モード・日本語モードでのコマンド名表示、および日英どちらの入力でもコマンドがヒットする検索エイリアス対応。
+- [ ] **B18-05** 各種モーダル・ダイアログ（`OpenSessionModal`, `AboutModal`, `ShortcutsModal`, `TabCloseConfirmModal`）の文言の i18n 化。
+- [ ] **B18-06** メイン画面ビュー（`Header.tsx` のレビュー判定ボタン・AIメタデータ、`StatusBar.tsx` の差分統計、`WelcomeView.tsx`、`StructuredToolbar.tsx`、`DirectoryTreeView.tsx` コンテキストメニュー）の文言の i18n 化。
+- [ ] **B18-07** テスト: `tests/i18n_test.ts`（辞書キーの網羅性・欠落検査テスト、`I18nModel` の言語切り替えと `t()` 補間テスト、永続化復元テスト）。
+
+**AC:** メニューバーの「表示」→「言語」から「日本語」と「English」を即座に切り替えられ、メニュー項目・コマンドパレット・ダイアログ・ステータスバー等の表記がリアルタイムに日英で切り替わる。選択した言語は `localStorage` に保持され、次回起動時も自動的に復元される（初期値はシステム言語連動）。英語辞書のキー欠落がコンパイル時に検知され、型安全性が保証される。
 
 ---
 
