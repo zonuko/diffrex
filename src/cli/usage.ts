@@ -35,6 +35,7 @@ OPTIONS:
                        Generate Unified Diff with <n> lines of context (default: 3)
   -r, --restore        Restore and resume the last active diff session
   --clear-history      Clear all saved diff comparison history
+  -S, --scan-git       Scan subdirectories for Git repositories (.git) and multi-repo diff
   --install-context-menu
                        Install OS context menu integration (Explorer/Finder)
   --uninstall-context-menu

@@ -108,6 +108,19 @@ export interface GitWorktreeInfo {
   isCurrent?: boolean;
 }
 
+/** Git サブリポジトリ情報（B-13） */
+export interface GitSubRepoSummary {
+  name: string;
+  /** ルート親ディレクトリからの相対パス（例: ""（ルート直下）, "packages/app"） */
+  relativePath: string;
+  /** リポジトリの絶対パス */
+  absolutePath: string;
+  branch?: string;
+  headCommit?: string;
+  isSubmodule?: boolean;
+  summary: DirectoryDiffSummary;
+}
+
 /** 単一 Git リポジトリ / ワーキングツリーメタ情報 */
 export interface GitRepoInfo {
   isGitRepo: boolean;
@@ -115,6 +128,10 @@ export interface GitRepoInfo {
   headCommit?: string;
   worktrees?: GitWorktreeInfo[];
   tempWorktreePath?: string;
+  /** サブディレクトリ内 Git リポジトリ群（B-13） */
+  subRepos?: GitSubRepoSummary[];
+  /** 現在選択されているサブリポジトリの relativePath（"all" または undefined なら全リポジトリ） */
+  selectedSubRepo?: string;
 }
 
 /** ディレクトリツリーの各ノード。 */
@@ -125,6 +142,8 @@ export interface DirectoryTreeNode {
   isDir: boolean;
   status: FileDiffStatus;
   gitStatus?: GitFileStatus;
+  /** 所属サブリポジトリの relativePath（B-13） */
+  subRepoPath?: string;
   sizeLeft?: number;
   sizeRight?: number;
   children?: DirectoryTreeNode[];

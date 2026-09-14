@@ -356,15 +356,34 @@ export function startDesktopServer(
                 let rightTarget: FileTarget;
 
                 if (dirSession.isGitRepo && !dirSession.git?.tempWorktreePath) {
-                  // 一時 Worktree が存在しない例外的なフォールバック時のみ git show を使用
-                  const { getGitBaseContent } = await import(
-                    "../core/git/status.ts"
-                  );
-                  const baseContent = await getGitBaseContent(
-                    dirSession.baseDir,
-                    parsed.relativePath,
-                    "HEAD",
-                  );
+                  // 一時 Worktree が存在しない場合（マルチリポジトリ時含む）: git show を使用
+                  const { getGitBaseContent, findSubRepoForPath } =
+                    await import(
+                      "../core/git/status.ts"
+                    );
+                  let baseContent: string | null = null;
+                  if (
+                    dirSession.git?.subRepos &&
+                    dirSession.git.subRepos.length > 0
+                  ) {
+                    const match = findSubRepoForPath(
+                      dirSession.git.subRepos,
+                      parsed.relativePath,
+                    );
+                    if (match) {
+                      baseContent = await getGitBaseContent(
+                        match.subRepo.absolutePath,
+                        match.fileRelativeInSubRepo,
+                        "HEAD",
+                      );
+                    }
+                  } else {
+                    baseContent = await getGitBaseContent(
+                      dirSession.baseDir,
+                      parsed.relativePath,
+                      "HEAD",
+                    );
+                  }
                   leftTarget = {
                     path: `HEAD:${parsed.relativePath}`,
                     content: baseContent ?? "",

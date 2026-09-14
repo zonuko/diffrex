@@ -81,9 +81,9 @@ export async function validateCliArgs(
 
   const { positional, left, right, base } = parsed;
 
-  // 位置引数なし → Welcome モード（--branch または --worktree 指定時かつカレントディレクトリが Git リポジトリなら Git モード）
+  // 位置引数なし → Welcome モード（--branch, --worktree, または --scan-git 指定時かつ Git リポジトリ/サブリポジトリが存在するなら Git モード）
   if (positional.length === 0) {
-    if (parsed.branch || parsed.worktree) {
+    if (parsed.branch || parsed.worktree || parsed.scanGit) {
       const { isGitRepository } = await import("../core/git/worktree.ts");
       if (await isGitRepository(".")) {
         parsed.mode = "directory";
@@ -91,6 +91,19 @@ export async function validateCliArgs(
         parsed.left = ".";
         parsed.right = ".";
         return { ok: true };
+      }
+      if (parsed.scanGit) {
+        const { findSubGitRepositories } = await import(
+          "../core/git/sub_repos.ts"
+        );
+        const subRepos = await findSubGitRepositories(".");
+        if (subRepos.length > 0) {
+          parsed.mode = "directory";
+          parsed.isGitRepo = true;
+          parsed.left = ".";
+          parsed.right = ".";
+          return { ok: true };
+        }
       }
     }
     parsed.mode = "welcome";
@@ -117,6 +130,19 @@ export async function validateCliArgs(
       } else {
         const { isGitRepository } = await import("../core/git/worktree.ts");
         if (await isGitRepository(singlePath)) {
+          parsed.mode = "directory";
+          parsed.isGitRepo = true;
+          parsed.left = singlePath;
+          parsed.right = singlePath;
+          return { ok: true };
+        }
+
+        // サブディレクトリ内 Git リポジトリ探索（B-13）
+        const { findSubGitRepositories } = await import(
+          "../core/git/sub_repos.ts"
+        );
+        const subRepos = await findSubGitRepositories(singlePath);
+        if (subRepos.length > 0) {
           parsed.mode = "directory";
           parsed.isGitRepo = true;
           parsed.left = singlePath;

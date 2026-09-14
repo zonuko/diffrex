@@ -28,10 +28,42 @@ export function DirectoryTreeView({
     <aside class="dir-tree-pane">
       {model.isGitRepo && (
         <div class="dir-git-header">
-          <span class="git-branch-badge" title="Git ワーキングツリー差分モード">
-            🌿 {session.git?.branch ?? "HEAD"}
-          </span>
-          <span class="git-mode-label">HEAD vs Working Tree</span>
+          <div class="git-header-row">
+            <span
+              class="git-branch-badge"
+              title="Git ワーキングツリー差分モード"
+            >
+              🌿 {session.git?.branch ?? "HEAD"}
+            </span>
+            <span class="git-mode-label">HEAD vs Working Tree</span>
+          </div>
+
+          {model.hasSubRepos && (
+            <div class="git-subrepo-selector-row">
+              <select
+                class="subrepo-selector"
+                value={model.selectedSubRepo}
+                title="表示する Git リポジトリの絞り込み"
+                onChange={(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  model.setSelectedSubRepo(val);
+                }}
+              >
+                <option value="all">
+                  📦 すべてのリポジトリ ({model.subRepos.length})
+                </option>
+                {model.subRepos.map((sr) => (
+                  <option key={sr.relativePath} value={sr.relativePath}>
+                    {sr.isSubmodule ? "🔗 " : "📁 "}
+                    {sr.name || "(root)"}
+                    {sr.branch ? ` [${sr.branch}]` : ""}
+                    {` (${sr.summary.total})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {session.git?.worktrees && session.git.worktrees.length > 1 && (
             <select
               class="worktree-selector"
@@ -155,9 +187,31 @@ function TreeNodeItem({
     }
   }
 
+  // サブリポジトリフィルタ判定（B-13）
+  const selectedSubRepo = model.selectedSubRepo;
+  if (selectedSubRepo !== "all") {
+    if (!node.isDir) {
+      if (node.subRepoPath !== selectedSubRepo) {
+        return null;
+      }
+    } else {
+      const hasMatchingSubRepo = (n: DirectoryTreeNode): boolean => {
+        if (!n.isDir) return n.subRepoPath === selectedSubRepo;
+        return (n.children ?? []).some(hasMatchingSubRepo);
+      };
+      if (!hasMatchingSubRepo(node)) {
+        return null;
+      }
+    }
+  }
+
   const isExpanded = model.expandedDirs.has(node.relativePath);
   const isSelected = model.selectedPath === node.relativePath;
   const isDirty = model.dirtyFiles.has(node.relativePath);
+
+  const subRepoInfo = node.isDir
+    ? model.subRepos.find((sr) => sr.relativePath === node.relativePath)
+    : undefined;
 
   const getStatusBadge = (n: DirectoryTreeNode) => {
     if (n.gitStatus) {
@@ -247,11 +301,29 @@ function TreeNodeItem({
         onContextMenu={handleContextMenu}
       >
         <span class="tree-icon">
-          {node.isDir ? (isExpanded ? "📂" : "📁") : "📄"}
+          {node.isDir
+            ? (subRepoInfo?.isSubmodule
+              ? "🔗"
+              : subRepoInfo
+              ? "📦"
+              : (isExpanded ? "📂" : "📁"))
+            : "📄"}
         </span>
         <span class="tree-name" title={node.relativePath}>
           {node.name}
         </span>
+        {subRepoInfo && (
+          <span
+            class={`tree-subrepo-tag ${
+              subRepoInfo.isSubmodule ? "submodule" : "repo"
+            }`}
+            title={subRepoInfo.isSubmodule
+              ? "Git サブモジュール"
+              : "Git リポジトリ"}
+          >
+            {subRepoInfo.isSubmodule ? "submodule" : "repo"}
+          </span>
+        )}
         {isDirty && <span class="tree-dirty-dot" title="未保存の変更">●</span>}
         <span class="tree-badge-container">
           {getStatusBadge(node)}

@@ -20,6 +20,7 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
   private _expandedDirs: Set<string> = new Set();
   private _filterStatus: FileDiffStatus | "all" = "all";
   private _filterText: string = "";
+  private _selectedSubRepo: string | "all" = "all";
   private _activeFileSession: DiffSessionData | null = null;
   private _isLoadingFile: boolean = false;
   private _fileError: string | null = null;
@@ -94,7 +95,27 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     return this._dirSession?.git;
   }
 
+  get selectedSubRepo(): string | "all" {
+    return this._selectedSubRepo;
+  }
+
+  get subRepos(): readonly import("../../core/types.ts").GitSubRepoSummary[] {
+    return this._dirSession?.git?.subRepos ?? [];
+  }
+
+  get hasSubRepos(): boolean {
+    return this.subRepos.length > 1 ||
+      (this.subRepos.length === 1 && this.subRepos[0].relativePath !== "");
+  }
+
   // --- ドメインミューテーション ---
+
+  setSelectedSubRepo(subRepoPath: string | "all"): void {
+    if (this._selectedSubRepo !== subRepoPath) {
+      this._selectedSubRepo = subRepoPath;
+      this.notify(this);
+    }
+  }
 
   setHistoryData(
     history: HistoryEntry[],
@@ -115,6 +136,7 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     this._selectedPath = null;
     this._activeFileSession = null;
     this._dirtyFiles.clear();
+    this._selectedSubRepo = "all";
 
     if (!session) {
       this._expandedDirs.clear();

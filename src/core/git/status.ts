@@ -10,10 +10,12 @@ import type {
   DirectoryDiffSummary,
   FileDiffStatus,
   GitFileStatus,
+  GitSubRepoSummary,
 } from "../types.ts";
 import { getCurrentBranch, listGitWorktrees } from "./worktree.ts";
 import { createTempWorktree } from "./temp_worktree.ts";
 import { runGitCommand } from "./exec.ts";
+import type { SubGitRepoInfo } from "./sub_repos.ts";
 
 export interface GitStatusEntry {
   relativePath: string;
@@ -285,6 +287,196 @@ export async function buildGitDirectoryDiffSession(
       branch: options.branch ?? currentBranch ?? undefined,
       worktrees,
       tempWorktreePath,
+    },
+    aiContext: (options.prompt || options.agent || options.model)
+      ? {
+        prompt: options.prompt,
+        agent: options.agent,
+        model: options.model,
+      }
+      : undefined,
+  };
+}
+
+/**
+ * 相対パスから最も適合するサブリポジトリを検索する。
+ */
+export function findSubRepoForPath(
+  subRepos: SubGitRepoInfo[],
+  relPath: string,
+): { subRepo: SubGitRepoInfo; fileRelativeInSubRepo: string } | null {
+  const normPath = normalize(relPath).replace(/\\/g, "/");
+
+  // 長い相対パスを持つサブリポジトリから優先してマッチ判定
+  const sorted = [...subRepos].sort(
+    (a, b) => b.relativePath.length - a.relativePath.length,
+  );
+
+  for (const sr of sorted) {
+    if (!sr.relativePath) {
+      // ルート直下リポジトリ
+      continue;
+    }
+    if (
+      normPath === sr.relativePath ||
+      normPath.startsWith(sr.relativePath + "/")
+    ) {
+      const fileRel = normPath === sr.relativePath
+        ? ""
+        : normPath.substring(sr.relativePath.length + 1);
+      return { subRepo: sr, fileRelativeInSubRepo: fileRel };
+    }
+  }
+
+  // ルート直下リポジトリがあればそれを返す
+  const rootRepo = subRepos.find((sr) => sr.relativePath === "");
+  if (rootRepo) {
+    return { subRepo: rootRepo, fileRelativeInSubRepo: normPath };
+  }
+
+  return null;
+}
+
+/**
+ * 複数 Git サブリポジトリの未コミット差分を集約して DirectoryDiffSessionData を構築する（B13-02）。
+ */
+export async function buildMultiGitDirectoryDiffSession(
+  baseDir: string,
+  subRepos: SubGitRepoInfo[],
+  options: {
+    readOnly?: boolean;
+    prompt?: string;
+    agent?: string;
+    model?: string;
+  } = {},
+): Promise<DirectoryDiffSessionData> {
+  const normBase = normalize(baseDir);
+
+  const overallSummary: DirectoryDiffSummary = {
+    total: 0,
+    modified: 0,
+    added: 0,
+    deleted: 0,
+    identical: 0,
+    binary: 0,
+    image: 0,
+  };
+
+  const resultMap = new Map<string, {
+    isDir: boolean;
+    status: FileDiffStatus;
+    gitStatus?: GitFileStatus;
+    subRepoPath?: string;
+    sizeLeft?: number;
+    sizeRight?: number;
+  }>();
+
+  const subRepoSummaries: GitSubRepoSummary[] = [];
+
+  for (const repo of subRepos) {
+    const repoSummary: DirectoryDiffSummary = {
+      total: 0,
+      modified: 0,
+      added: 0,
+      deleted: 0,
+      identical: 0,
+      binary: 0,
+      image: 0,
+    };
+
+    const changedFiles = await detectGitChangedFiles(repo.absolutePath);
+
+    for (const entry of changedFiles) {
+      repoSummary.total++;
+      overallSummary.total++;
+
+      let isBin = false;
+      let sizeRight: number | undefined;
+
+      const fullTargetPath = join(repo.absolutePath, entry.relativePath);
+      const overallRelPath = repo.relativePath
+        ? `${repo.relativePath}/${entry.relativePath}`
+        : entry.relativePath;
+
+      if (entry.status !== "deleted") {
+        try {
+          const stat = await Deno.stat(fullTargetPath);
+          sizeRight = stat.size;
+          const buf = new Uint8Array(Math.min(8000, stat.size));
+          const file = await Deno.open(fullTargetPath, { read: true });
+          try {
+            const n = await file.read(buf);
+            if (n && isBinary(buf.subarray(0, n))) {
+              isBin = true;
+            }
+          } finally {
+            file.close();
+          }
+        } catch {
+          // stat/read error
+        }
+      }
+
+      const finalStatus: FileDiffStatus = isBin ? "binary" : entry.status;
+      repoSummary[finalStatus]++;
+      overallSummary[finalStatus]++;
+
+      resultMap.set(overallRelPath, {
+        isDir: false,
+        status: finalStatus,
+        gitStatus: entry.gitStatus,
+        subRepoPath: repo.relativePath,
+        sizeRight,
+      });
+    }
+
+    subRepoSummaries.push({
+      name: repo.name,
+      relativePath: repo.relativePath,
+      absolutePath: repo.absolutePath,
+      branch: repo.branch,
+      headCommit: repo.headCommit,
+      isSubmodule: repo.isSubmodule,
+      summary: repoSummary,
+    });
+  }
+
+  const tree = buildDirectoryTree(resultMap);
+
+  // leaf ノードに gitStatus と subRepoPath を設定
+  const applyMetadata = (node: import("../types.ts").DirectoryTreeNode) => {
+    if (!node.isDir) {
+      const entry = resultMap.get(node.relativePath);
+      if (entry) {
+        node.gitStatus = entry.gitStatus;
+        node.subRepoPath = entry.subRepoPath;
+      }
+    } else if (node.children) {
+      for (const child of node.children) {
+        applyMetadata(child);
+      }
+    }
+  };
+  applyMetadata(tree);
+
+  // ルートリポジトリがあればそのブランチ、なければ最初のサブリポジトリのブランチ
+  const rootRepo = subRepos.find((r) => r.relativePath === "");
+  const defaultBranch = rootRepo?.branch ?? subRepos[0]?.branch;
+
+  return {
+    sessionId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    mode: "directory",
+    baseDir: normBase,
+    targetDir: normBase,
+    readOnly: options.readOnly ?? false,
+    tree,
+    summary: overallSummary,
+    isGitRepo: true,
+    git: {
+      isGitRepo: true,
+      branch: defaultBranch,
+      subRepos: subRepoSummaries,
     },
     aiContext: (options.prompt || options.agent || options.model)
       ? {

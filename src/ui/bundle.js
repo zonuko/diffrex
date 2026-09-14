@@ -18941,6 +18941,7 @@ var DirectoryDiffModel = class extends Observable {
   _expandedDirs = /* @__PURE__ */ new Set();
   _filterStatus = "all";
   _filterText = "";
+  _selectedSubRepo = "all";
   _activeFileSession = null;
   _isLoadingFile = false;
   _fileError = null;
@@ -18998,7 +18999,22 @@ var DirectoryDiffModel = class extends Observable {
   get gitInfo() {
     return this._dirSession?.git;
   }
+  get selectedSubRepo() {
+    return this._selectedSubRepo;
+  }
+  get subRepos() {
+    return this._dirSession?.git?.subRepos ?? [];
+  }
+  get hasSubRepos() {
+    return this.subRepos.length > 1 || this.subRepos.length === 1 && this.subRepos[0].relativePath !== "";
+  }
   // --- ドメインミューテーション ---
+  setSelectedSubRepo(subRepoPath) {
+    if (this._selectedSubRepo !== subRepoPath) {
+      this._selectedSubRepo = subRepoPath;
+      this.notify(this);
+    }
+  }
   setHistoryData(history2, lastSession) {
     this._history = history2;
     this._lastSession = lastSession;
@@ -19013,6 +19029,7 @@ var DirectoryDiffModel = class extends Observable {
     this._selectedPath = null;
     this._activeFileSession = null;
     this._dirtyFiles.clear();
+    this._selectedSubRepo = "all";
     if (!session) {
       this._expandedDirs.clear();
       this.notify(this);
@@ -34004,11 +34021,45 @@ function DirectoryTreeView({
   const filterStatus = model.filterStatus;
   return /* @__PURE__ */ u3("aside", { class: "dir-tree-pane", children: [
     model.isGitRepo && /* @__PURE__ */ u3("div", { class: "dir-git-header", children: [
-      /* @__PURE__ */ u3("span", { class: "git-branch-badge", title: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u5DEE\u5206\u30E2\u30FC\u30C9", children: [
-        "\u{1F33F} ",
-        session.git?.branch ?? "HEAD"
+      /* @__PURE__ */ u3("div", { class: "git-header-row", children: [
+        /* @__PURE__ */ u3(
+          "span",
+          {
+            class: "git-branch-badge",
+            title: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u5DEE\u5206\u30E2\u30FC\u30C9",
+            children: [
+              "\u{1F33F} ",
+              session.git?.branch ?? "HEAD"
+            ]
+          }
+        ),
+        /* @__PURE__ */ u3("span", { class: "git-mode-label", children: "HEAD vs Working Tree" })
       ] }),
-      /* @__PURE__ */ u3("span", { class: "git-mode-label", children: "HEAD vs Working Tree" }),
+      model.hasSubRepos && /* @__PURE__ */ u3("div", { class: "git-subrepo-selector-row", children: /* @__PURE__ */ u3(
+        "select",
+        {
+          class: "subrepo-selector",
+          value: model.selectedSubRepo,
+          title: "\u8868\u793A\u3059\u308B Git \u30EA\u30DD\u30B8\u30C8\u30EA\u306E\u7D5E\u308A\u8FBC\u307F",
+          onChange: (e3) => {
+            const val = e3.target.value;
+            model.setSelectedSubRepo(val);
+          },
+          children: [
+            /* @__PURE__ */ u3("option", { value: "all", children: [
+              "\u{1F4E6} \u3059\u3079\u3066\u306E\u30EA\u30DD\u30B8\u30C8\u30EA (",
+              model.subRepos.length,
+              ")"
+            ] }),
+            model.subRepos.map((sr) => /* @__PURE__ */ u3("option", { value: sr.relativePath, children: [
+              sr.isSubmodule ? "\u{1F517} " : "\u{1F4C1} ",
+              sr.name || "(root)",
+              sr.branch ? ` [${sr.branch}]` : "",
+              ` (${sr.summary.total})`
+            ] }, sr.relativePath))
+          ]
+        }
+      ) }),
       session.git?.worktrees && session.git.worktrees.length > 1 && /* @__PURE__ */ u3(
         "select",
         {
@@ -34120,9 +34171,26 @@ function TreeNodeItem({
       }
     }
   }
+  const selectedSubRepo = model.selectedSubRepo;
+  if (selectedSubRepo !== "all") {
+    if (!node.isDir) {
+      if (node.subRepoPath !== selectedSubRepo) {
+        return null;
+      }
+    } else {
+      const hasMatchingSubRepo = (n2) => {
+        if (!n2.isDir) return n2.subRepoPath === selectedSubRepo;
+        return (n2.children ?? []).some(hasMatchingSubRepo);
+      };
+      if (!hasMatchingSubRepo(node)) {
+        return null;
+      }
+    }
+  }
   const isExpanded = model.expandedDirs.has(node.relativePath);
   const isSelected = model.selectedPath === node.relativePath;
   const isDirty = model.dirtyFiles.has(node.relativePath);
+  const subRepoInfo = node.isDir ? model.subRepos.find((sr) => sr.relativePath === node.relativePath) : void 0;
   const getStatusBadge = (n2) => {
     if (n2.gitStatus) {
       switch (n2.gitStatus) {
@@ -34199,8 +34267,16 @@ function TreeNodeItem({
         onAuxClick: handleAuxClick,
         onContextMenu: handleContextMenu,
         children: [
-          /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : "\u{1F4C4}" }),
+          /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? subRepoInfo?.isSubmodule ? "\u{1F517}" : subRepoInfo ? "\u{1F4E6}" : isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : "\u{1F4C4}" }),
           /* @__PURE__ */ u3("span", { class: "tree-name", title: node.relativePath, children: node.name }),
+          subRepoInfo && /* @__PURE__ */ u3(
+            "span",
+            {
+              class: `tree-subrepo-tag ${subRepoInfo.isSubmodule ? "submodule" : "repo"}`,
+              title: subRepoInfo.isSubmodule ? "Git \u30B5\u30D6\u30E2\u30B8\u30E5\u30FC\u30EB" : "Git \u30EA\u30DD\u30B8\u30C8\u30EA",
+              children: subRepoInfo.isSubmodule ? "submodule" : "repo"
+            }
+          ),
           isDirty && /* @__PURE__ */ u3("span", { class: "tree-dirty-dot", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
           /* @__PURE__ */ u3("span", { class: "tree-badge-container", children: getStatusBadge(node) })
         ]

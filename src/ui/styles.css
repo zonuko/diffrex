@@ -2948,3 +2948,70 @@ footer.app-footer.all-reviewed {
   background-color: #0284c7;
   color: #ffffff;
 }
+
+/* ==========================================================================
+   Multi-Repository & Submodule Styles (B-13)
+   ========================================================================== */
+
+.dir-git-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background-color: rgba(15, 23, 42, 0.7);
+  border-bottom: 1px solid var(--border-color, #334155);
+}
+
+.git-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.git-subrepo-selector-row {
+  display: flex;
+  width: 100%;
+}
+
+.subrepo-selector {
+  width: 100%;
+  background-color: #0f172a;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.subrepo-selector:focus,
+.subrepo-selector:hover {
+  border-color: #38bdf8;
+}
+
+.tree-subrepo-tag {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 6px;
+  letter-spacing: 0.05em;
+  display: inline-block;
+  line-height: 1.2;
+}
+
+.tree-subrepo-tag.repo {
+  background-color: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.tree-subrepo-tag.submodule {
+  background-color: rgba(234, 179, 8, 0.15);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}

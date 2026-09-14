@@ -35,6 +35,7 @@ export interface ParsedCliArgs {
   generateContextMenuScript?: boolean;
   restore?: boolean;
   clearHistory?: boolean;
+  scanGit?: boolean;
 }
 
 export interface ParseResultSuccess {
@@ -85,6 +86,7 @@ export function parseCliArgs(args: string[]): ParseResult {
       "generate-context-menu-script",
       "restore",
       "clear-history",
+      "scan-git",
     ],
     alias: {
       w: "wait",
@@ -98,6 +100,7 @@ export function parseCliArgs(args: string[]): ParseResult {
       W: "worktree",
       b: "branch",
       B: "branch",
+      S: "scan-git",
     },
     unknown: (arg: string) => {
       if (arg.startsWith("-") && arg !== "-") {
@@ -203,6 +206,7 @@ export function parseCliArgs(args: string[]): ParseResult {
       generateContextMenuScript,
       restore,
       clearHistory,
+      scanGit: Boolean(parsed["scan-git"]),
     },
   };
 }

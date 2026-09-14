@@ -156,29 +156,73 @@ export async function runMain(
             const { detectGitChangedFiles, getGitBaseContent } = await import(
               "./src/core/git/status.ts"
             );
-            const changes = await detectGitChangedFiles(parsed.left!);
+            const { findSubGitRepositories } = await import(
+              "./src/core/git/sub_repos.ts"
+            );
+            const subRepos = await findSubGitRepositories(parsed.left!);
             const diffs: string[] = [];
-            for (const c of changes) {
-              const baseContent =
-                await getGitBaseContent(parsed.left!, c.relativePath, "HEAD") ??
-                  "";
-              let targetContent = "";
-              if (c.status !== "deleted") {
-                try {
-                  targetContent = await Deno.readTextFile(
-                    join(parsed.left!, c.relativePath),
-                  );
-                } catch {
-                  // ignore
+
+            if (
+              subRepos.length > 1 ||
+              (subRepos.length === 1 && subRepos[0].relativePath !== "")
+            ) {
+              for (const sr of subRepos) {
+                const changes = await detectGitChangedFiles(sr.absolutePath);
+                for (const c of changes) {
+                  const baseContent = await getGitBaseContent(
+                    sr.absolutePath,
+                    c.relativePath,
+                    "HEAD",
+                  ) ??
+                    "";
+                  let targetContent = "";
+                  const fullTarget = join(sr.absolutePath, c.relativePath);
+                  const displayRel = sr.relativePath
+                    ? `${sr.relativePath}/${c.relativePath}`
+                    : c.relativePath;
+                  if (c.status !== "deleted") {
+                    try {
+                      targetContent = await Deno.readTextFile(fullTarget);
+                    } catch {
+                      // ignore
+                    }
+                  }
+                  const d = formatUnifiedDiff(baseContent, targetContent, {
+                    leftLabel: `a/${displayRel}`,
+                    rightLabel: `b/${displayRel}`,
+                    contextLines: parsed.unified,
+                    gitHeader: true,
+                  });
+                  if (d) diffs.push(d);
                 }
               }
-              const d = formatUnifiedDiff(baseContent, targetContent, {
-                leftLabel: `a/${c.relativePath}`,
-                rightLabel: `b/${c.relativePath}`,
-                contextLines: parsed.unified,
-                gitHeader: true,
-              });
-              if (d) diffs.push(d);
+            } else {
+              const changes = await detectGitChangedFiles(parsed.left!);
+              for (const c of changes) {
+                const baseContent = await getGitBaseContent(
+                  parsed.left!,
+                  c.relativePath,
+                  "HEAD",
+                ) ??
+                  "";
+                let targetContent = "";
+                if (c.status !== "deleted") {
+                  try {
+                    targetContent = await Deno.readTextFile(
+                      join(parsed.left!, c.relativePath),
+                    );
+                  } catch {
+                    // ignore
+                  }
+                }
+                const d = formatUnifiedDiff(baseContent, targetContent, {
+                  leftLabel: `a/${c.relativePath}`,
+                  rightLabel: `b/${c.relativePath}`,
+                  contextLines: parsed.unified,
+                  gitHeader: true,
+                });
+                if (d) diffs.push(d);
+              }
             }
             diffOutput = diffs.join("\n");
           } else {
@@ -317,16 +361,41 @@ export async function runMain(
               },
             );
           } else {
-            const { buildGitDirectoryDiffSession } = await import(
-              "./src/core/git/status.ts"
+            const { findSubGitRepositories } = await import(
+              "./src/core/git/sub_repos.ts"
             );
-            dirSession = await buildGitDirectoryDiffSession(parsed.left!, {
-              readOnly: parsed.readOnly,
-              prompt: parsed.prompt,
-              agent: parsed.agent,
-              model: parsed.model,
-              branch: parsed.branch,
-            });
+            const subRepos = await findSubGitRepositories(parsed.left!);
+            const { isGitRepository } = await import(
+              "./src/core/git/worktree.ts"
+            );
+            const isRootGit = await isGitRepository(parsed.left!);
+
+            if (subRepos.length > 1 || (!isRootGit && subRepos.length > 0)) {
+              const { buildMultiGitDirectoryDiffSession } = await import(
+                "./src/core/git/status.ts"
+              );
+              dirSession = await buildMultiGitDirectoryDiffSession(
+                parsed.left!,
+                subRepos,
+                {
+                  readOnly: parsed.readOnly,
+                  prompt: parsed.prompt,
+                  agent: parsed.agent,
+                  model: parsed.model,
+                },
+              );
+            } else {
+              const { buildGitDirectoryDiffSession } = await import(
+                "./src/core/git/status.ts"
+              );
+              dirSession = await buildGitDirectoryDiffSession(parsed.left!, {
+                readOnly: parsed.readOnly,
+                prompt: parsed.prompt,
+                agent: parsed.agent,
+                model: parsed.model,
+                branch: parsed.branch,
+              });
+            }
           }
         } else {
           dirSession = await compareDirectories(
