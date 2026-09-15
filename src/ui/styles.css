@@ -2215,6 +2215,14 @@ footer.app-footer.all-reviewed {
   border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.menu-bar-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .menu-bar-logo {
   font-weight: 800;
   font-size: 11px;
@@ -3014,4 +3022,31 @@ footer.app-footer.all-reviewed {
   background-color: rgba(234, 179, 8, 0.15);
   color: #facc15;
   border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+/* ==========================================================================
+   File Type Icons (VS Code Style)
+   ========================================================================== */
+
+.file-icon-svg {
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.tree-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.tab-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  flex-shrink: 0;
 }

@@ -114,15 +114,66 @@ $pngPath = Join-Path $assetsDir "icon.png"
 $bmp256.Save($pngPath, [System.Drawing.Imaging.ImageFormat]::Png)
 Write-Host "Created: $pngPath"
 
-Write-Host "Rendering icon.ico..."
+Write-Host "Rendering multi-resolution icon.ico (16, 24, 32, 48, 64, 128, 256)..."
 $icoPath = Join-Path $assetsDir "icon.ico"
-$hIcon = $bmp256.GetHicon()
-$icon = [System.Drawing.Icon]::FromHandle($hIcon)
+$sizes = @(16, 24, 32, 48, 64, 128, 256)
+$pngBytesList = @()
+
+foreach ($s in $sizes) {
+    $bmp = New-Object System.Drawing.Bitmap($s, $s)
+    $g = [System.Drawing.Graphics]::FromImage($bmp)
+    Draw-DiffrexIcon $g $s
+    
+    $ms = New-Object System.IO.MemoryStream
+    $bmp.Save($ms, [System.Drawing.Imaging.ImageFormat]::Png)
+    $pngBytesList += ,$ms.ToArray()
+    $ms.Close()
+    
+    $g.Dispose()
+    $bmp.Dispose()
+}
+
 $fs = New-Object System.IO.FileStream($icoPath, [System.IO.FileMode]::Create)
-$icon.Save($fs)
+$bw = New-Object System.IO.BinaryWriter($fs)
+
+# ICONDIR header (6 bytes)
+$bw.Write([uint16]0)          # Reserved
+$bw.Write([uint16]1)          # Type 1 = Icon
+$bw.Write([uint16]$sizes.Count) # Count of images
+
+# Calculate starting offset for image data: 6 (header) + 16 * count (entries)
+$dataOffset = 6 + (16 * $sizes.Count)
+
+for ($i = 0; $i -lt $sizes.Count; $i++) {
+    $s = $sizes[$i]
+    $data = $pngBytesList[$i]
+    $bWidth = if ($s -ge 256) { [byte]0 } else { [byte]$s }
+    $bHeight = if ($s -ge 256) { [byte]0 } else { [byte]$s }
+
+    # ICONDIRENTRY (16 bytes)
+    $bw.Write($bWidth)             # Width
+    $bw.Write($bHeight)            # Height
+    $bw.Write([byte]0)             # Color count (0 = >=8bpp)
+    $bw.Write([byte]0)             # Reserved
+    $bw.Write([uint16]1)           # Color planes
+    $bw.Write([uint16]32)          # Bits per pixel
+    $bw.Write([uint32]$data.Length) # Image size in bytes
+    $bw.Write([uint32]$dataOffset)  # Offset to image data
+
+    $dataOffset += $data.Length
+}
+
+# Write each image payload (PNG stream)
+for ($i = 0; $i -lt $sizes.Count; $i++) {
+    $bw.Write($pngBytesList[$i])
+}
+
+$bw.Close()
 $fs.Close()
-Write-Host "Created: $icoPath"
+Write-Host "Created multi-resolution: $icoPath"
 
 $bmp256.Dispose()
 $g256.Dispose()
 Write-Host "Application icons successfully generated!"
+
+

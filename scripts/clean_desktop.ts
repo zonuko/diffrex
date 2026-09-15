@@ -19,19 +19,27 @@ if (Deno.build.os === "windows") {
     // ignore
   }
 
-  // キャッシュディレクトリ内の Diffrex.dll 削除を試行
+  // キャッシュディレクトリ内の DLL / キャッシュディレクトリ削除を試行
   const localAppData = Deno.env.get("LOCALAPPDATA");
   if (localAppData) {
     const desktopDir = `${localAppData}\\deno\\desktop`;
     try {
       for await (const entry of Deno.readDir(desktopDir)) {
         if (entry.isDirectory) {
-          const dllPath = `${desktopDir}\\${entry.name}\\Diffrex.dll`;
+          const targetSubDir = `${desktopDir}\\${entry.name}`;
           try {
-            await Deno.remove(dllPath);
-            console.log(`Cleaned cached DLL: ${dllPath}`);
+            await Deno.remove(targetSubDir, { recursive: true });
+            console.log(`Cleaned cached desktop dir: ${targetSubDir}`);
           } catch {
-            // ignore if not present or in use
+            // ディレクトリ削除できない場合、DLL 個別削除を試行
+            for (const dllName of ["diffrex.dll", "Diffrex.dll"]) {
+              try {
+                await Deno.remove(`${targetSubDir}\\${dllName}`);
+                console.log(`Cleaned cached DLL: ${targetSubDir}\\${dllName}`);
+              } catch {
+                // ignore
+              }
+            }
           }
         }
       }

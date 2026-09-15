@@ -20877,7 +20877,19 @@ function MenuBar({ model, controller }) {
     }
   };
   return /* @__PURE__ */ u3("header", { class: "app-menu-bar", ref: barRef, role: "menubar", children: [
-    /* @__PURE__ */ u3("div", { class: "menu-bar-brand", children: /* @__PURE__ */ u3("span", { class: "menu-bar-logo", children: "DIFFREX" }) }),
+    /* @__PURE__ */ u3("div", { class: "menu-bar-brand", children: [
+      /* @__PURE__ */ u3(
+        "img",
+        {
+          src: "/icon.svg",
+          class: "menu-bar-icon",
+          alt: "",
+          width: "14",
+          height: "14"
+        }
+      ),
+      /* @__PURE__ */ u3("span", { class: "menu-bar-logo", children: "DIFFREX" })
+    ] }),
     /* @__PURE__ */ u3("nav", { class: "menu-bar-items", children: model.categories.map((category, idx) => {
       const isOpen = activeIndex === idx;
       return /* @__PURE__ */ u3(
@@ -34010,6 +34022,979 @@ function DiffView({ model, controller }) {
   ] });
 }
 
+// src/ui/components/FileIcon.tsx
+function getFileType(filename) {
+  if (!filename) return "file";
+  const lower = filename.toLowerCase();
+  const base2 = lower.split("/").pop()?.split("\\").pop() ?? lower;
+  if (base2 === ".gitignore" || base2 === ".gitattributes" || base2 === ".gitmodules") {
+    return "git";
+  }
+  if (base2 === "dockerfile" || base2.startsWith("dockerfile.") || base2 === "docker-compose.yml" || base2 === "docker-compose.yaml" || base2 === ".dockerignore") {
+    return "docker";
+  }
+  if (base2 === "deno.lock" || base2 === "package-lock.json" || base2 === "pnpm-lock.yaml" || base2 === "yarn.lock" || base2 === "cargo.lock" || base2 === "gemfile.lock" || base2 === "composer.lock") {
+    return "lock";
+  }
+  if (base2 === "deno.json" || base2 === "deno.jsonc" || base2 === "package.json" || base2 === "tsconfig.json" || base2.endsWith(".config.js") || base2.endsWith(".config.ts") || base2.endsWith(".config.mjs") || base2.startsWith(".env")) {
+    return "config";
+  }
+  if (base2.endsWith(".tsx")) return "typescript-react";
+  if (base2.endsWith(".ts") || base2.endsWith(".mts") || base2.endsWith(".cts")) {
+    return "typescript";
+  }
+  if (base2.endsWith(".jsx")) return "javascript-react";
+  if (base2.endsWith(".js") || base2.endsWith(".mjs") || base2.endsWith(".cjs")) {
+    return "javascript";
+  }
+  if (base2.endsWith(".py") || base2.endsWith(".pyw")) return "python";
+  if (base2.endsWith(".html") || base2.endsWith(".htm")) return "html";
+  if (base2.endsWith(".css")) return "css";
+  if (base2.endsWith(".scss") || base2.endsWith(".sass") || base2.endsWith(".less")) {
+    return "scss";
+  }
+  if (base2.endsWith(".json") || base2.endsWith(".jsonc") || base2.endsWith(".json5")) {
+    return "json";
+  }
+  if (base2.endsWith(".yaml") || base2.endsWith(".yml")) return "yaml";
+  if (base2.endsWith(".toml")) return "config";
+  if (base2.endsWith(".md") || base2.endsWith(".markdown") || base2.endsWith(".mdown")) {
+    return "markdown";
+  }
+  if (base2.endsWith(".rs")) return "rust";
+  if (base2.endsWith(".go")) return "go";
+  if (base2.endsWith(".c") || base2.endsWith(".h")) return "c";
+  if (base2.endsWith(".cpp") || base2.endsWith(".hpp") || base2.endsWith(".cc") || base2.endsWith(".cxx")) {
+    return "cpp";
+  }
+  if (base2.endsWith(".cs")) return "csharp";
+  if (base2.endsWith(".java") || base2.endsWith(".jar") || base2.endsWith(".class")) {
+    return "java";
+  }
+  if (base2.endsWith(".php")) return "php";
+  if (base2.endsWith(".rb") || base2.endsWith(".erb")) return "ruby";
+  if (base2.endsWith(".sh") || base2.endsWith(".bash") || base2.endsWith(".zsh")) {
+    return "shell";
+  }
+  if (base2.endsWith(".ps1") || base2.endsWith(".bat") || base2.endsWith(".cmd")) {
+    return "powershell";
+  }
+  if (base2.endsWith(".sql")) return "sql";
+  if (base2.endsWith(".png") || base2.endsWith(".jpg") || base2.endsWith(".jpeg") || base2.endsWith(".gif") || base2.endsWith(".svg") || base2.endsWith(".webp") || base2.endsWith(".ico") || base2.endsWith(".bmp")) {
+    return "image";
+  }
+  if (base2.endsWith(".csv") || base2.endsWith(".tsv")) return "table";
+  if (base2.endsWith(".zip") || base2.endsWith(".tar") || base2.endsWith(".gz") || base2.endsWith(".tgz") || base2.endsWith(".7z") || base2.endsWith(".rar")) {
+    return "archive";
+  }
+  if (base2.endsWith(".woff") || base2.endsWith(".woff2") || base2.endsWith(".ttf") || base2.endsWith(".otf")) {
+    return "font";
+  }
+  return "file";
+}
+function FileIcon({
+  filename,
+  size = 14,
+  class: customClass = ""
+}) {
+  const type = getFileType(filename);
+  const className = `file-icon-svg file-icon-${type} ${customClass}`.trim();
+  switch (type) {
+    case "typescript":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `TypeScript (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#3178C6" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                textAnchor: "middle",
+                children: "TS"
+              }
+            )
+          ]
+        }
+      );
+    case "typescript-react":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `React TypeScript (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#20232A" }),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#61DAFB",
+                strokeWidth: "1"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#61DAFB",
+                strokeWidth: "1",
+                transform: "rotate(60 8 8)"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#61DAFB",
+                strokeWidth: "1",
+                transform: "rotate(120 8 8)"
+              }
+            ),
+            /* @__PURE__ */ u3("circle", { cx: "8", cy: "8", r: "1.2", fill: "#61DAFB" })
+          ]
+        }
+      );
+    case "javascript":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `JavaScript (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#F7DF1E" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#000000",
+                fontSize: "8.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, -apple-system, sans-serif",
+                textAnchor: "middle",
+                children: "JS"
+              }
+            )
+          ]
+        }
+      );
+    case "javascript-react":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `React JavaScript (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#20232A" }),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#F7DF1E",
+                strokeWidth: "1"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#F7DF1E",
+                strokeWidth: "1",
+                transform: "rotate(60 8 8)"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "ellipse",
+              {
+                cx: "8",
+                cy: "8",
+                rx: "6.5",
+                ry: "2.6",
+                stroke: "#F7DF1E",
+                strokeWidth: "1",
+                transform: "rotate(120 8 8)"
+              }
+            ),
+            /* @__PURE__ */ u3("circle", { cx: "8", cy: "8", r: "1.2", fill: "#F7DF1E" })
+          ]
+        }
+      );
+    case "python":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Python (${filename})`,
+          children: [
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M7.9 1.5C5 1.5 5.2 2.7 5.2 2.7l.01 1.3h2.8v.4H4.1s-1.8-.2-1.8 2.6c0 2.8 1.6 2.7 1.6 2.7h1v-1.4s-.05-1.6 1.6-1.6h2.7s1.5.02 1.5-1.5V3.3s.2-1.8-2.8-1.8zm-1.5.9a.5.5 0 1 1 0 1 .5.5 0 0 1 0-1z",
+                fill: "#387EB8"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M8.1 14.5c2.9 0 2.7-1.2 2.7-1.2l-.01-1.3H8v-.4h3.9s1.8.2 1.8-2.6c0-2.8-1.6-2.7-1.6-2.7h-1v1.4s.05 1.6-1.6 1.6H6.8s-1.5-.02-1.5 1.5v1.6s-.2 1.8 2.8 1.8zm1.5-.9a.5.5 0 1 1 0-1 .5.5 0 0 1 0 1z",
+                fill: "#FFE873"
+              }
+            )
+          ]
+        }
+      );
+    case "html":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `HTML (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#E34F26" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8",
+                fontWeight: "bold",
+                fontFamily: "monospace",
+                textAnchor: "middle",
+                children: "</>"
+              }
+            )
+          ]
+        }
+      );
+    case "css":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `CSS (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#1572B6" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "12",
+                fill: "#FFFFFF",
+                fontSize: "10",
+                fontWeight: "bold",
+                fontFamily: "monospace",
+                textAnchor: "middle",
+                children: "#"
+              }
+            )
+          ]
+        }
+      );
+    case "scss":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `SCSS/Sass (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#CF649A" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "12",
+                fill: "#FFFFFF",
+                fontSize: "8.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "S"
+              }
+            )
+          ]
+        }
+      );
+    case "json":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `JSON (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#2E3440" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#CBCB41",
+                fontSize: "9",
+                fontWeight: "bold",
+                fontFamily: "monospace",
+                textAnchor: "middle",
+                children: "{ }"
+              }
+            )
+          ]
+        }
+      );
+    case "yaml":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `YAML (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#CB171E" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "YML"
+              }
+            )
+          ]
+        }
+      );
+    case "markdown":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Markdown (${filename})`,
+          children: [
+            /* @__PURE__ */ u3(
+              "rect",
+              {
+                width: "16",
+                height: "16",
+                rx: "3",
+                fill: "#083344",
+                stroke: "#06B6D4",
+                strokeWidth: "1"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3 11V5l2.2 2.5L7.4 5v6M10.2 8.5l1.6 1.8 1.6-1.8m-1.6-3.5v5.3",
+                stroke: "#22D3EE",
+                strokeWidth: "1.2",
+                strokeLinecap: "round",
+                strokeLinejoin: "round"
+              }
+            )
+          ]
+        }
+      );
+    case "rust":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Rust (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#3B2E2A" }),
+            /* @__PURE__ */ u3(
+              "circle",
+              {
+                cx: "8",
+                cy: "8",
+                r: "4.5",
+                stroke: "#DEA584",
+                strokeWidth: "1.5",
+                strokeDasharray: "2 1.5"
+              }
+            ),
+            /* @__PURE__ */ u3("circle", { cx: "8", cy: "8", r: "2", fill: "#DEA584" })
+          ]
+        }
+      );
+    case "go":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Go (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#00ACD7" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "GO"
+              }
+            )
+          ]
+        }
+      );
+    case "c":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `C (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#00599C" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "12",
+                fill: "#FFFFFF",
+                fontSize: "9.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "C"
+              }
+            )
+          ]
+        }
+      );
+    case "cpp":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `C++ (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#00599C" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "7.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "C++"
+              }
+            )
+          ]
+        }
+      );
+    case "csharp":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `C# (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#68217A" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "C#"
+              }
+            )
+          ]
+        }
+      );
+    case "java":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Java (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#5382A1" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M5 10c0 1.5 2.5 2 4 1.5 1.2-.4 1.5-1.5 1.5-1.5H5zM5 7c1-.5 2 0 3-.5s1.5-1.5 1.5-1.5c-.5 1-1.5 1-2.5 1.5S5 8 5 7z",
+                fill: "#E76F00"
+              }
+            )
+          ]
+        }
+      );
+    case "php":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `PHP (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#777BB4" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "7.5",
+                fontWeight: "bold",
+                fontFamily: "system-ui, sans-serif",
+                textAnchor: "middle",
+                children: "PHP"
+              }
+            )
+          ]
+        }
+      );
+    case "ruby":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Ruby (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#CC342D" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M4 6l4-3 4 3-2 6H6L4 6z",
+                fill: "#FFFFFF",
+                opacity: "0.9"
+              }
+            )
+          ]
+        }
+      );
+    case "shell":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Shell script (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#1E293B" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M4 5l3 3-3 3M8 11h4",
+                stroke: "#4ADE80",
+                strokeWidth: "1.5",
+                strokeLinecap: "round",
+                strokeLinejoin: "round"
+              }
+            )
+          ]
+        }
+      );
+    case "powershell":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `PowerShell / Batch (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#012456" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M4 5.5l3 2.5-3 2.5M8 11.5h4",
+                stroke: "#38BDF8",
+                strokeWidth: "1.5",
+                strokeLinecap: "round",
+                strokeLinejoin: "round"
+              }
+            )
+          ]
+        }
+      );
+    case "sql":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `SQL Database (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#E38C00" }),
+            /* @__PURE__ */ u3("ellipse", { cx: "8", cy: "5", rx: "4.5", ry: "1.8", fill: "#FFF8E1" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3.5 5v5c0 1 2 1.8 4.5 1.8s4.5-.8 4.5-1.8V5",
+                stroke: "#FFF8E1",
+                strokeWidth: "1.2",
+                fill: "none"
+              }
+            )
+          ]
+        }
+      );
+    case "git":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Git file (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#F05032" }),
+            /* @__PURE__ */ u3("circle", { cx: "5.5", cy: "5.5", r: "1.5", fill: "#FFFFFF" }),
+            /* @__PURE__ */ u3("circle", { cx: "5.5", cy: "11.5", r: "1.5", fill: "#FFFFFF" }),
+            /* @__PURE__ */ u3("circle", { cx: "10.5", cy: "7.5", r: "1.5", fill: "#FFFFFF" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M5.5 7v3M5.5 7l3.5 1.5",
+                stroke: "#FFFFFF",
+                strokeWidth: "1.2",
+                strokeLinecap: "round"
+              }
+            )
+          ]
+        }
+      );
+    case "docker":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Docker (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#2496ED" }),
+            /* @__PURE__ */ u3("rect", { x: "3", y: "6", width: "2", height: "1.8", fill: "#FFFFFF", rx: "0.3" }),
+            /* @__PURE__ */ u3("rect", { x: "5.5", y: "6", width: "2", height: "1.8", fill: "#FFFFFF", rx: "0.3" }),
+            /* @__PURE__ */ u3("rect", { x: "8", y: "6", width: "2", height: "1.8", fill: "#FFFFFF", rx: "0.3" }),
+            /* @__PURE__ */ u3(
+              "rect",
+              {
+                x: "5.5",
+                y: "3.8",
+                width: "2",
+                height: "1.8",
+                fill: "#FFFFFF",
+                rx: "0.3"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M2.5 9c.5 3 3.5 3.5 6 3.5 3 0 5-1.5 5.5-3.5H2.5z",
+                fill: "#FFFFFF"
+              }
+            )
+          ]
+        }
+      );
+    case "config":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Config file (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#475569" }),
+            /* @__PURE__ */ u3("circle", { cx: "8", cy: "8", r: "2", fill: "#E2E8F0" }),
+            /* @__PURE__ */ u3(
+              "circle",
+              {
+                cx: "8",
+                cy: "8",
+                r: "4.2",
+                stroke: "#E2E8F0",
+                strokeWidth: "1.2",
+                strokeDasharray: "1.5 1.2"
+              }
+            )
+          ]
+        }
+      );
+    case "lock":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Lock file (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#B45309" }),
+            /* @__PURE__ */ u3("rect", { x: "4.5", y: "7", width: "7", height: "6", rx: "1.5", fill: "#FDE047" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M6 7V5a2 2 0 1 1 4 0v2",
+                stroke: "#FDE047",
+                strokeWidth: "1.4",
+                strokeLinecap: "round"
+              }
+            )
+          ]
+        }
+      );
+    case "image":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Image (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#047857" }),
+            /* @__PURE__ */ u3("circle", { cx: "5", cy: "5.5", r: "1.5", fill: "#A7F3D0" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3 12l3-3.5 2 2 3-4 2.5 5.5H3z",
+                fill: "#D1FAE5"
+              }
+            )
+          ]
+        }
+      );
+    case "table":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Table / CSV (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#15803D" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3 4h10v8H3V4zm0 2.5h10M3 9h10M7 4v8M10.5 4v8",
+                stroke: "#DCFCE7",
+                strokeWidth: "1"
+              }
+            )
+          ]
+        }
+      );
+    case "archive":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Archive (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#6D28D9" }),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3 4h10v2H3V4zm1 2v6h8V6H4zm3 0v4h2V6H7z",
+                fill: "#DDD6FE"
+              }
+            )
+          ]
+        }
+      );
+    case "font":
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `Font (${filename})`,
+          children: [
+            /* @__PURE__ */ u3("rect", { width: "16", height: "16", rx: "3", fill: "#C2410C" }),
+            /* @__PURE__ */ u3(
+              "text",
+              {
+                x: "8",
+                y: "11.5",
+                fill: "#FFFFFF",
+                fontSize: "8",
+                fontWeight: "bold",
+                fontFamily: "serif",
+                textAnchor: "middle",
+                children: "Aa"
+              }
+            )
+          ]
+        }
+      );
+    case "file":
+    default:
+      return /* @__PURE__ */ u3(
+        "svg",
+        {
+          class: className,
+          width: size,
+          height: size,
+          viewBox: "0 0 16 16",
+          fill: "none",
+          title: `File (${filename})`,
+          children: [
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M3.5 2.5C3.5 2 4 1.5 4.5 1.5h5l3.5 3.5v8.5c0 .5-.5 1-1 1h-7.5c-.5 0-1-.5-1-1v-11z",
+                fill: "#334155",
+                stroke: "#64748B",
+                strokeWidth: "1"
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "path",
+              {
+                d: "M9.5 1.5v3.5h3.5",
+                fill: "#475569",
+                stroke: "#64748B",
+                strokeWidth: "1"
+              }
+            )
+          ]
+        }
+      );
+  }
+}
+
 // src/ui/components/DirectoryTreeView.tsx
 function DirectoryTreeView({
   model,
@@ -34267,7 +35252,7 @@ function TreeNodeItem({
         onAuxClick: handleAuxClick,
         onContextMenu: handleContextMenu,
         children: [
-          /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? subRepoInfo?.isSubmodule ? "\u{1F517}" : subRepoInfo ? "\u{1F4E6}" : isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : "\u{1F4C4}" }),
+          /* @__PURE__ */ u3("span", { class: "tree-icon", children: node.isDir ? subRepoInfo?.isSubmodule ? "\u{1F517}" : subRepoInfo ? "\u{1F4E6}" : isExpanded ? "\u{1F4C2}" : "\u{1F4C1}" : /* @__PURE__ */ u3(FileIcon, { filename: node.name, size: 15 }) }),
           /* @__PURE__ */ u3("span", { class: "tree-name", title: node.relativePath, children: node.name }),
           subRepoInfo && /* @__PURE__ */ u3(
             "span",
@@ -36625,21 +37610,21 @@ function TabItem({
   isActive,
   controller
 }) {
-  const getIcon = (type) => {
-    switch (type) {
+  const renderIcon = () => {
+    switch (tab2.sessionType) {
       case "3way":
         return "\u{1F500}";
       case "directory":
         return tab2.title.startsWith("\u{1F33F}") ? "\u{1F33F}" : "\u{1F4C1}";
       case "image":
-        return "\u{1F5BC}\uFE0F";
+        return /* @__PURE__ */ u3(FileIcon, { filename: tab2.relativePath ?? tab2.title, size: 14 });
       case "csv":
-        return "\u{1F4CA}";
+        return /* @__PURE__ */ u3(FileIcon, { filename: tab2.relativePath ?? tab2.title, size: 14 });
       case "welcome":
         return "\u{1F3E0}";
       case "2way":
       default:
-        return "\u{1F4C4}";
+        return /* @__PURE__ */ u3(FileIcon, { filename: tab2.relativePath ?? tab2.title, size: 14 });
     }
   };
   const handleClick = () => {
@@ -36690,7 +37675,7 @@ function TabItem({
       onDrop: handleDrop,
       title: tab2.relativePath ?? tab2.title,
       children: [
-        /* @__PURE__ */ u3("span", { class: "tab-icon", children: getIcon(tab2.sessionType) }),
+        /* @__PURE__ */ u3("span", { class: "tab-icon", children: renderIcon() }),
         /* @__PURE__ */ u3("span", { class: "tab-title", children: tab2.title }),
         tab2.isDirty && /* @__PURE__ */ u3("span", { class: "tab-dirty-indicator", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
         tab2.closable && /* @__PURE__ */ u3(

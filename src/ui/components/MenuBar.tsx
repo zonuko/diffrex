@@ -54,6 +54,13 @@ export function MenuBar({ model, controller }: MenuBarProps) {
   return (
     <header class="app-menu-bar" ref={barRef} role="menubar">
       <div class="menu-bar-brand">
+        <img
+          src="/icon.svg"
+          class="menu-bar-icon"
+          alt=""
+          width="14"
+          height="14"
+        />
         <span class="menu-bar-logo">DIFFREX</span>
       </div>
 

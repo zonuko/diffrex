@@ -8,6 +8,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { DirectoryTreeNode, FileDiffStatus } from "../../core/types.ts";
 import type { DirectoryController } from "../controller/dir_controller.ts";
 import type { DirectoryDiffModel } from "../model/dir_diff_model.ts";
+import { FileIcon } from "./FileIcon.tsx";
 
 export interface DirectoryTreeViewProps {
   model: DirectoryDiffModel;
@@ -307,7 +308,7 @@ function TreeNodeItem({
               : subRepoInfo
               ? "📦"
               : (isExpanded ? "📂" : "📁"))
-            : "📄"}
+            : <FileIcon filename={node.name} size={15} />}
         </span>
         <span class="tree-name" title={node.relativePath}>
           {node.name}

@@ -7,6 +7,7 @@
 
 import type { TabItem as TabItemData } from "../model/tab_model.ts";
 import type { TabController } from "../controller/tab_controller.ts";
+import { FileIcon } from "./FileIcon.tsx";
 
 export interface TabItemProps {
   tab: TabItemData;
@@ -21,21 +22,21 @@ export function TabItem({
   isActive,
   controller,
 }: TabItemProps) {
-  const getIcon = (type: TabItemData["sessionType"]) => {
-    switch (type) {
+  const renderIcon = () => {
+    switch (tab.sessionType) {
       case "3way":
         return "🔀";
       case "directory":
         return tab.title.startsWith("🌿") ? "🌿" : "📁";
       case "image":
-        return "🖼️";
+        return <FileIcon filename={tab.relativePath ?? tab.title} size={14} />;
       case "csv":
-        return "📊";
+        return <FileIcon filename={tab.relativePath ?? tab.title} size={14} />;
       case "welcome":
         return "🏠";
       case "2way":
       default:
-        return "📄";
+        return <FileIcon filename={tab.relativePath ?? tab.title} size={14} />;
     }
   };
 
@@ -95,7 +96,7 @@ export function TabItem({
       onDrop={handleDrop}
       title={tab.relativePath ?? tab.title}
     >
-      <span class="tab-icon">{getIcon(tab.sessionType)}</span>
+      <span class="tab-icon">{renderIcon()}</span>
       <span class="tab-title">{tab.title}</span>
       {tab.isDirty && (
         <span class="tab-dirty-indicator" title="未保存の変更">●</span>
