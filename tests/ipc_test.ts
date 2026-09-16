@@ -49,6 +49,24 @@ Deno.test("DesktopServer: UI HTML および API エンドポイントを配信�
     const sessionJson = await sessionRes.json();
     assertEquals(sessionJson.sessionId, "test-session-123");
     assertEquals(sessionJson.files.left.content, "hello left");
+
+    // 3. GET /icon.svg, /icon.png, /favicon.ico
+    const svgRes = await fetch(`${serverInstance.url}/icon.svg`);
+    assertEquals(svgRes.status, 200);
+    assertEquals(
+      svgRes.headers.get("content-type"),
+      "image/svg+xml; charset=utf-8",
+    );
+    const svgText = await svgRes.text();
+    assertStringIncludes(svgText, "<svg");
+
+    const pngRes = await fetch(`${serverInstance.url}/icon.png`);
+    assertEquals(pngRes.status, 200);
+    assertEquals(pngRes.headers.get("content-type"), "image/png");
+
+    const icoRes = await fetch(`${serverInstance.url}/favicon.ico`);
+    assertEquals(icoRes.status, 200);
+    assertEquals(icoRes.headers.get("content-type"), "image/x-icon");
   } finally {
     await serverInstance.close();
   }

@@ -187,7 +187,16 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
           }`}
         >
           <div class="welcome-header">
-            <div class="welcome-logo">Diffrex</div>
+            <div class="welcome-logo">
+              <img
+                src="/icon.svg"
+                class="welcome-app-icon"
+                alt="Diffrex"
+                width="48"
+                height="48"
+              />
+              <span>Diffrex</span>
+            </div>
             <p class="welcome-subtitle">AI-Friendly Diff & Merge Tool</p>
           </div>
 

@@ -20957,6 +20957,16 @@ function Header({ model, controller }) {
     /* @__PURE__ */ u3("header", { class: "app-header", children: [
       /* @__PURE__ */ u3("div", { class: "header-section header-left", children: [
         /* @__PURE__ */ u3("div", { class: "brand", children: [
+          /* @__PURE__ */ u3(
+            "img",
+            {
+              src: "/icon.svg",
+              class: "app-brand-icon",
+              alt: "Diffrex",
+              width: "20",
+              height: "20"
+            }
+          ),
           /* @__PURE__ */ u3("h1", { children: "Diffrex" }),
           /* @__PURE__ */ u3("span", { class: "badge mode", children: mode })
         ] }),
@@ -36228,7 +36238,19 @@ function WelcomeView({ controller }) {
             class: `welcome-card ${dragOverZone === "card" ? "drag-highlight" : ""}`,
             children: [
               /* @__PURE__ */ u3("div", { class: "welcome-header", children: [
-                /* @__PURE__ */ u3("div", { class: "welcome-logo", children: "Diffrex" }),
+                /* @__PURE__ */ u3("div", { class: "welcome-logo", children: [
+                  /* @__PURE__ */ u3(
+                    "img",
+                    {
+                      src: "/icon.svg",
+                      class: "welcome-app-icon",
+                      alt: "Diffrex",
+                      width: "48",
+                      height: "48"
+                    }
+                  ),
+                  /* @__PURE__ */ u3("span", { children: "Diffrex" })
+                ] }),
                 /* @__PURE__ */ u3("p", { class: "welcome-subtitle", children: "AI-Friendly Diff & Merge Tool" })
               ] }),
               lastSession && /* @__PURE__ */ u3("div", { class: "welcome-restore-banner", children: [
@@ -36659,7 +36681,19 @@ function AboutModal({ model }) {
           )
         ] }),
         /* @__PURE__ */ u3("div", { class: "modal-body about-modal-body", children: [
-          /* @__PURE__ */ u3("div", { class: "about-logo-wrapper", children: /* @__PURE__ */ u3("div", { class: "about-logo-badge", children: "\u26A1 DIFFREX" }) }),
+          /* @__PURE__ */ u3("div", { class: "about-logo-wrapper", children: [
+            /* @__PURE__ */ u3(
+              "img",
+              {
+                src: "/icon.svg",
+                class: "about-app-icon",
+                alt: "Diffrex",
+                width: "64",
+                height: "64"
+              }
+            ),
+            /* @__PURE__ */ u3("div", { class: "about-logo-badge", children: "\u26A1 DIFFREX" })
+          ] }),
           /* @__PURE__ */ u3("h3", { class: "about-app-name", children: "Diffrex (\u30C7\u30A3\u30D5\u30EC\u30AF\u30B9)" }),
           /* @__PURE__ */ u3("p", { class: "about-tagline", children: "AI-Friendly Diff & Merge Tool for Deno Desktop" }),
           /* @__PURE__ */ u3("div", { class: "about-info-grid", children: [

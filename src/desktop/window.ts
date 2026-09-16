@@ -42,6 +42,7 @@ import {
 import indexHtml from "../ui/index.html" with { type: "text" };
 import stylesCss from "../ui/styles.css" with { type: "text" };
 import bundleJs from "../ui/bundle.js" with { type: "text" };
+import iconSvg from "../../assets/icon.svg" with { type: "text" };
 
 /** Deno Desktop の BrowserWindow 型定義 */
 interface DesktopBrowserWindow {
@@ -1127,7 +1128,7 @@ export function startDesktopServer(
 
     // アイコン配信 (/icon.svg, /icon.png, /favicon.ico)
     if (url.pathname === "/icon.svg") {
-      const svg = loadAsset("../../assets/icon.svg", "");
+      const svg = loadAsset("../../assets/icon.svg", iconSvg);
       return new Response(svg, {
         headers: {
           "content-type": "image/svg+xml; charset=utf-8",
@@ -1138,9 +1139,14 @@ export function startDesktopServer(
 
     if (url.pathname === "/icon.png") {
       try {
-        const iconUrl = new URL("../../assets/icon.png", import.meta.url);
-        const png = Deno.readFileSync(iconUrl);
-        return new Response(png, {
+        let png: Uint8Array;
+        try {
+          const iconUrl = new URL("../../assets/icon.png", import.meta.url);
+          png = Deno.readFileSync(iconUrl);
+        } catch {
+          png = Deno.readFileSync("./assets/icon.png");
+        }
+        return new Response(png.buffer as ArrayBuffer, {
           headers: {
             "content-type": "image/png",
             "cache-control": "public, max-age=86400",
@@ -1153,9 +1159,14 @@ export function startDesktopServer(
 
     if (url.pathname === "/favicon.ico") {
       try {
-        const icoUrl = new URL("../../assets/icon.ico", import.meta.url);
-        const ico = Deno.readFileSync(icoUrl);
-        return new Response(ico, {
+        let ico: Uint8Array;
+        try {
+          const icoUrl = new URL("../../assets/icon.ico", import.meta.url);
+          ico = Deno.readFileSync(icoUrl);
+        } catch {
+          ico = Deno.readFileSync("./assets/icon.ico");
+        }
+        return new Response(ico.buffer as ArrayBuffer, {
           headers: {
             "content-type": "image/x-icon",
             "cache-control": "public, max-age=86400",

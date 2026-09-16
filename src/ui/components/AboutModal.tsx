@@ -40,6 +40,13 @@ export function AboutModal({ model }: AboutModalProps) {
 
         <div class="modal-body about-modal-body">
           <div class="about-logo-wrapper">
+            <img
+              src="/icon.svg"
+              class="about-app-icon"
+              alt="Diffrex"
+              width="64"
+              height="64"
+            />
             <div class="about-logo-badge">⚡ DIFFREX</div>
           </div>
 

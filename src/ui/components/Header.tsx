@@ -49,6 +49,13 @@ export function Header({ model, controller }: HeaderProps) {
       <header class="app-header">
         <div class="header-section header-left">
           <div class="brand">
+            <img
+              src="/icon.svg"
+              class="app-brand-icon"
+              alt="Diffrex"
+              width="20"
+              height="20"
+            />
             <h1>Diffrex</h1>
             <span class="badge mode">{mode}</span>
           </div>
