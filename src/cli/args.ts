@@ -34,6 +34,8 @@ export interface ParsedCliArgs {
   uninstallContextMenu?: boolean;
   generateContextMenuScript?: boolean;
   restore?: boolean;
+  noRestore?: boolean;
+  welcome?: boolean;
   clearHistory?: boolean;
   scanGit?: boolean;
 }
@@ -85,6 +87,8 @@ export function parseCliArgs(args: string[]): ParseResult {
       "uninstall-context-menu",
       "generate-context-menu-script",
       "restore",
+      "no-restore",
+      "welcome",
       "clear-history",
       "scan-git",
     ],
@@ -173,6 +177,8 @@ export function parseCliArgs(args: string[]): ParseResult {
     parsed["generate-context-menu-script"],
   );
   const restore = Boolean(parsed.restore);
+  const noRestore = Boolean(parsed["no-restore"]);
+  const welcome = Boolean(parsed.welcome);
   const clearHistory = Boolean(parsed["clear-history"]);
   const worktree = parsed.worktree ? String(parsed.worktree) : undefined;
   const branch = parsed.branch ? String(parsed.branch) : undefined;
@@ -205,6 +211,8 @@ export function parseCliArgs(args: string[]): ParseResult {
       uninstallContextMenu,
       generateContextMenuScript,
       restore,
+      noRestore,
+      welcome,
       clearHistory,
       scanGit: Boolean(parsed["scan-git"]),
     },

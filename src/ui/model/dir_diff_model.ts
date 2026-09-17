@@ -11,6 +11,7 @@ import type {
   FileDiffStatus,
   HistoryEntry,
   SessionSnapshot,
+  WorkspaceState,
 } from "../../core/types.ts";
 import { Observable } from "./observable.ts";
 
@@ -27,6 +28,7 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
   private _dirtyFiles: Set<string> = new Set();
   private _history: HistoryEntry[] = [];
   private _lastSession: SessionSnapshot | null = null;
+  private _workspaceState: WorkspaceState | null = null;
 
   constructor(initialSession: DirectoryDiffSessionData | null = null) {
     super();
@@ -83,6 +85,15 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
 
   get lastSession(): SessionSnapshot | null {
     return this._lastSession;
+  }
+
+  get workspaceState(): WorkspaceState | null {
+    return this._workspaceState;
+  }
+
+  setWorkspaceState(state: WorkspaceState | null): void {
+    this._workspaceState = state;
+    this.notify(this);
   }
 
   get isGitRepo(): boolean {

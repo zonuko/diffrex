@@ -13,6 +13,8 @@ import type {
 import type {
   DiffSessionData,
   DirectoryDiffSessionData,
+  TabStateSnapshot,
+  WorkspaceState,
 } from "../../core/types.ts";
 import { DiffSessionModel } from "../model/diff_session_model.ts";
 import { DiffController } from "./diff_controller.ts";
@@ -380,5 +382,147 @@ export class TabController {
   private _extractBaseName(filePath: string): string {
     const parts = filePath.split(/[/\\]/);
     return parts[parts.length - 1] || filePath;
+  }
+
+  /**
+   * 現在の全タブ状態を WorkspaceState としてスナップショット化する（B17-01, B17-03）。
+   */
+  snapshotWorkspace(restoreOnStartup = true): WorkspaceState {
+    const tabs: TabStateSnapshot[] = [];
+    for (const tab of this._model.tabs) {
+      if (tab.sessionType === "welcome") {
+        tabs.push({
+          id: tab.id,
+          title: tab.title,
+          sessionType: "welcome",
+        });
+        continue;
+      }
+
+      if (tab.sessionType === "directory" && tab.dirModel?.dirSession) {
+        const ds = tab.dirModel.dirSession;
+        tabs.push({
+          id: tab.id,
+          title: tab.title,
+          sessionType: "directory",
+          baseDir: ds.baseDir,
+          targetDir: ds.targetDir,
+          selectedPath: tab.dirModel.selectedPath ?? undefined,
+          expandedPaths: Array.from(tab.dirModel.expandedDirs),
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model,
+        });
+        continue;
+      }
+
+      if (tab.sessionType === "3way") {
+        const s = tab.threeWayModel?.session ?? tab.diffModel?.session;
+        if (s) {
+          const hunkStatuses: Record<
+            string,
+            import("../../core/types.ts").HunkStatus
+          > = {};
+          for (const hunk of s.hunks) {
+            hunkStatuses[hunk.id] = hunk.status;
+          }
+          tabs.push({
+            id: tab.id,
+            title: tab.title,
+            sessionType: "3way",
+            leftPath: s.files.left.path,
+            basePath: s.files.base?.path,
+            rightPath: s.files.right.path,
+            outputPath: s.outputPath,
+            readOnly: s.files.right.readOnly,
+            prompt: s.aiContext?.prompt,
+            agent: s.aiContext?.agent,
+            model: s.aiContext?.model,
+            hunkStatuses,
+          });
+        }
+        continue;
+      }
+
+      const diffSession = tab.diffModel?.session;
+      if (diffSession) {
+        const hunkStatuses: Record<
+          string,
+          import("../../core/types.ts").HunkStatus
+        > = {};
+        for (const hunk of diffSession.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        tabs.push({
+          id: tab.id,
+          title: tab.title,
+          sessionType: tab.sessionType,
+          relativePath: tab.relativePath,
+          leftPath: diffSession.files.left.path,
+          rightPath: diffSession.files.right.path,
+          outputPath: diffSession.outputPath,
+          readOnly: diffSession.files.right.readOnly,
+          prompt: diffSession.aiContext?.prompt,
+          agent: diffSession.aiContext?.agent,
+          model: diffSession.aiContext?.model,
+          hunkStatuses,
+        });
+      }
+    }
+
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      restoreOnStartup,
+      activeTabId: this._model.activeTabId,
+      tabs,
+    };
+  }
+
+  /**
+   * WorkspaceState から各タブのセッションを再開する（B17-02, B17-03）。
+   */
+  restoreWorkspaceState(
+    state: WorkspaceState,
+    dirController?: DirectoryController,
+  ): void {
+    if (!state.tabs || state.tabs.length === 0) return;
+
+    for (const snap of state.tabs) {
+      if (snap.sessionType === "welcome") {
+        this.openWelcomeTab(dirController, false);
+      } else if (
+        snap.sessionType === "directory" &&
+        snap.baseDir &&
+        snap.targetDir
+      ) {
+        if (dirController) {
+          dirController.startDirectorySession(
+            snap.baseDir,
+            snap.targetDir,
+            snap.readOnly,
+          );
+        }
+      } else if (
+        (snap.sessionType === "2way" ||
+          snap.sessionType === "image" ||
+          snap.sessionType === "csv") &&
+        snap.leftPath &&
+        snap.rightPath
+      ) {
+        if (dirController) {
+          dirController.startFileSession(
+            snap.leftPath,
+            snap.rightPath,
+            snap.readOnly,
+          );
+        }
+      }
+    }
+
+    if (state.activeTabId) {
+      this._model.setActiveTab(state.activeTabId);
+    }
   }
 }

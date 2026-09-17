@@ -325,3 +325,38 @@ export interface SessionSnapshot {
   hunkStatuses?: Record<string, HunkStatus>;
   unsavedRightContent?: string;
 }
+
+/** 各タブの状態スナップショット (B17-01) */
+export interface TabStateSnapshot {
+  id: string;
+  title: string;
+  sessionType: "2way" | "3way" | "directory" | "image" | "csv" | "welcome";
+  relativePath?: string;
+  // 2way, image, csv 用
+  leftPath?: string;
+  rightPath?: string;
+  // 3way 用
+  basePath?: string;
+  outputPath?: string;
+  // directory 用
+  baseDir?: string;
+  targetDir?: string;
+  selectedPath?: string;
+  expandedPaths?: string[];
+  // 共通
+  readOnly?: boolean;
+  prompt?: string;
+  agent?: string;
+  model?: string;
+  hunkStatuses?: Record<string, HunkStatus>;
+  unsavedRightContent?: string;
+}
+
+/** ワークスペース全体の状態スナップショット (B17-01) */
+export interface WorkspaceState {
+  version: number;
+  timestamp: string;
+  restoreOnStartup: boolean;
+  activeTabId: string | null;
+  tabs: TabStateSnapshot[];
+}

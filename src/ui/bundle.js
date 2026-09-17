@@ -18948,6 +18948,7 @@ var DirectoryDiffModel = class extends Observable {
   _dirtyFiles = /* @__PURE__ */ new Set();
   _history = [];
   _lastSession = null;
+  _workspaceState = null;
   constructor(initialSession = null) {
     super();
     if (initialSession) {
@@ -18990,6 +18991,13 @@ var DirectoryDiffModel = class extends Observable {
   }
   get lastSession() {
     return this._lastSession;
+  }
+  get workspaceState() {
+    return this._workspaceState;
+  }
+  setWorkspaceState(state) {
+    this._workspaceState = state;
+    this.notify(this);
   }
   get isGitRepo() {
     return Boolean(
@@ -19271,6 +19279,17 @@ var DirectoryController = class {
         }
         break;
       }
+      case "workspace:state_data": {
+        this._model.setWorkspaceState(msg.state);
+        break;
+      }
+      case "workspace:restore_session": {
+        this._model.setWorkspaceState(msg.state);
+        if (this._tabController) {
+          this._tabController.restoreWorkspaceState(msg.state, this);
+        }
+        break;
+      }
     }
   }
   sendMessage(msg) {
@@ -19289,6 +19308,21 @@ var DirectoryController = class {
   }
   restoreLastSession() {
     this.sendMessage({ type: "session:restore_last" });
+  }
+  saveWorkspaceState(state) {
+    this.sendMessage({
+      type: "workspace:save_state",
+      state
+    });
+  }
+  restoreWorkspace() {
+    this.sendMessage({ type: "workspace:restore" });
+  }
+  setRestoreOnStartup(enabled) {
+    this.sendMessage({
+      type: "workspace:set_restore_on_startup",
+      enabled
+    });
   }
   startDropSession(paths, readOnly2) {
     this.sendMessage({
@@ -20252,12 +20286,25 @@ var MenuController = class {
           },
           {
             id: "file:restore",
-            label: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
+            label: "\u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
             shortcut: "Ctrl+Shift+T",
-            disabled: !this._dirModel.lastSession,
+            disabled: !this._dirModel.workspaceState?.tabs.length && !this._dirModel.lastSession,
             action: () => {
               this._model.closeMenu();
-              this._dirController.restoreLastSession();
+              if (this._dirModel.workspaceState?.tabs.length) {
+                this._dirController.restoreWorkspace();
+              } else {
+                this._dirController.restoreLastSession();
+              }
+            }
+          },
+          {
+            id: "file:restore_on_startup",
+            label: "\u8D77\u52D5\u6642\u306B\u524D\u56DE\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143\u3059\u308B",
+            checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
+            action: () => {
+              const current = this._dirModel.workspaceState?.restoreOnStartup !== false;
+              this._dirController.setRestoreOnStartup(!current);
             }
           },
           { id: "file:sep2", label: "", separator: true },
@@ -37635,6 +37682,121 @@ var TabController = class {
     const parts = filePath.split(/[/\\]/);
     return parts[parts.length - 1] || filePath;
   }
+  /**
+   * 現在の全タブ状態を WorkspaceState としてスナップショット化する（B17-01, B17-03）。
+   */
+  snapshotWorkspace(restoreOnStartup = true) {
+    const tabs = [];
+    for (const tab2 of this._model.tabs) {
+      if (tab2.sessionType === "welcome") {
+        tabs.push({
+          id: tab2.id,
+          title: tab2.title,
+          sessionType: "welcome"
+        });
+        continue;
+      }
+      if (tab2.sessionType === "directory" && tab2.dirModel?.dirSession) {
+        const ds = tab2.dirModel.dirSession;
+        tabs.push({
+          id: tab2.id,
+          title: tab2.title,
+          sessionType: "directory",
+          baseDir: ds.baseDir,
+          targetDir: ds.targetDir,
+          selectedPath: tab2.dirModel.selectedPath ?? void 0,
+          expandedPaths: Array.from(tab2.dirModel.expandedDirs),
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model
+        });
+        continue;
+      }
+      if (tab2.sessionType === "3way") {
+        const s3 = tab2.threeWayModel?.session ?? tab2.diffModel?.session;
+        if (s3) {
+          const hunkStatuses = {};
+          for (const hunk of s3.hunks) {
+            hunkStatuses[hunk.id] = hunk.status;
+          }
+          tabs.push({
+            id: tab2.id,
+            title: tab2.title,
+            sessionType: "3way",
+            leftPath: s3.files.left.path,
+            basePath: s3.files.base?.path,
+            rightPath: s3.files.right.path,
+            outputPath: s3.outputPath,
+            readOnly: s3.files.right.readOnly,
+            prompt: s3.aiContext?.prompt,
+            agent: s3.aiContext?.agent,
+            model: s3.aiContext?.model,
+            hunkStatuses
+          });
+        }
+        continue;
+      }
+      const diffSession = tab2.diffModel?.session;
+      if (diffSession) {
+        const hunkStatuses = {};
+        for (const hunk of diffSession.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        tabs.push({
+          id: tab2.id,
+          title: tab2.title,
+          sessionType: tab2.sessionType,
+          relativePath: tab2.relativePath,
+          leftPath: diffSession.files.left.path,
+          rightPath: diffSession.files.right.path,
+          outputPath: diffSession.outputPath,
+          readOnly: diffSession.files.right.readOnly,
+          prompt: diffSession.aiContext?.prompt,
+          agent: diffSession.aiContext?.agent,
+          model: diffSession.aiContext?.model,
+          hunkStatuses
+        });
+      }
+    }
+    return {
+      version: 1,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      restoreOnStartup,
+      activeTabId: this._model.activeTabId,
+      tabs
+    };
+  }
+  /**
+   * WorkspaceState から各タブのセッションを再開する（B17-02, B17-03）。
+   */
+  restoreWorkspaceState(state, dirController) {
+    if (!state.tabs || state.tabs.length === 0) return;
+    for (const snap of state.tabs) {
+      if (snap.sessionType === "welcome") {
+        this.openWelcomeTab(dirController, false);
+      } else if (snap.sessionType === "directory" && snap.baseDir && snap.targetDir) {
+        if (dirController) {
+          dirController.startDirectorySession(
+            snap.baseDir,
+            snap.targetDir,
+            snap.readOnly
+          );
+        }
+      } else if ((snap.sessionType === "2way" || snap.sessionType === "image" || snap.sessionType === "csv") && snap.leftPath && snap.rightPath) {
+        if (dirController) {
+          dirController.startFileSession(
+            snap.leftPath,
+            snap.rightPath,
+            snap.readOnly
+          );
+        }
+      }
+    }
+    if (state.activeTabId) {
+      this._model.setActiveTab(state.activeTabId);
+    }
+  }
 };
 
 // src/ui/components/TabItem.tsx
@@ -38022,6 +38184,7 @@ function App({
     dirModel.selectedPath,
     dirModel.history,
     dirModel.lastSession,
+    dirModel.workspaceState,
     threeWayModel.session,
     tabModel.tabs,
     tabModel.activeTabId,
@@ -38100,12 +38263,35 @@ function App({
         model: ds.aiContext?.model
       });
     }
+    const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
+    const timer = setTimeout(() => {
+      const state = tabController.snapshotWorkspace(restoreOnStartup);
+      dirController.saveWorkspaceState(state);
+    }, 300);
+    return () => clearTimeout(timer);
   }, [
     diffModel.session,
     diffModel.isDirty,
     dirModel.dirSession,
-    dirController
+    dirModel.selectedPath,
+    dirModel.expandedDirs,
+    dirModel.workspaceState?.restoreOnStartup,
+    tabModel.tabs,
+    tabModel.activeTabId,
+    dirController,
+    tabController
   ]);
+  h2(() => {
+    const handleBeforeUnload = () => {
+      const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
+      const state = tabController.snapshotWorkspace(restoreOnStartup);
+      dirController.saveWorkspaceState(state);
+    };
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [dirController, tabController, dirModel.workspaceState?.restoreOnStartup]);
   h2(() => {
     const handleDragOver = (e3) => {
       e3.preventDefault();

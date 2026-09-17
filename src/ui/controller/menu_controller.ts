@@ -184,12 +184,27 @@ export class MenuController {
           },
           {
             id: "file:restore",
-            label: "直前のセッションを復元",
+            label: "前回のセッションを復元",
             shortcut: "Ctrl+Shift+T",
-            disabled: !this._dirModel.lastSession,
+            disabled: !this._dirModel.workspaceState?.tabs.length &&
+              !this._dirModel.lastSession,
             action: () => {
               this._model.closeMenu();
-              this._dirController.restoreLastSession();
+              if (this._dirModel.workspaceState?.tabs.length) {
+                this._dirController.restoreWorkspace();
+              } else {
+                this._dirController.restoreLastSession();
+              }
+            },
+          },
+          {
+            id: "file:restore_on_startup",
+            label: "起動時に前回セッションを復元する",
+            checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
+            action: () => {
+              const current =
+                this._dirModel.workspaceState?.restoreOnStartup !== false;
+              this._dirController.setRestoreOnStartup(!current);
             },
           },
           { id: "file:sep2", label: "", separator: true },

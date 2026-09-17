@@ -47,6 +47,14 @@ export type BackendToUiMessage =
   | {
     type: "window:title_update";
     title: string;
+  }
+  | {
+    type: "workspace:state_data";
+    state: import("../core/types.ts").WorkspaceState | null;
+  }
+  | {
+    type: "workspace:restore_session";
+    state: import("../core/types.ts").WorkspaceState;
   };
 
 /** UI → Backend メッセージ */
@@ -101,6 +109,13 @@ export type UiToBackendMessage =
   | { type: "history:remove"; id: string }
   | { type: "session:save_snapshot"; snapshot: SessionSnapshot }
   | { type: "session:restore_last" }
+  | {
+    type: "workspace:save_state";
+    state: import("../core/types.ts").WorkspaceState;
+  }
+  | { type: "workspace:get_state" }
+  | { type: "workspace:restore" }
+  | { type: "workspace:set_restore_on_startup"; enabled: boolean }
   | { type: "window:set_dirty"; isDirty: boolean }
   | { type: "exit:request"; code?: number }
   | { type: "log"; level: "info" | "warn" | "error"; message: string };

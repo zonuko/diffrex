@@ -26,6 +26,11 @@ import {
   saveSessionSnapshot,
 } from "../core/history.ts";
 import {
+  loadWorkspaceState,
+  saveWorkspaceState,
+  validateAndFilterWorkspaceState,
+} from "../core/workspace_state.ts";
+import {
   type BackendToUiMessage,
   type IpcHandlers,
   parseIncomingMessage,
@@ -264,6 +269,11 @@ export function startDesktopServer(
               title: formatWindowTitle(currentSession, isCurrentDirty),
             });
             options?.handlers?.onUiReady?.();
+            const wsState = await loadWorkspaceState();
+            sendToSocket(socket, {
+              type: "workspace:state_data",
+              state: wsState,
+            });
             break;
           }
 
@@ -856,6 +866,70 @@ export function startDesktopServer(
                 }`,
               });
             }
+            break;
+          }
+
+          case "workspace:save_state": {
+            await saveWorkspaceState(parsed.state);
+            break;
+          }
+
+          case "workspace:get_state": {
+            const state = await loadWorkspaceState();
+            sendToSocket(socket, {
+              type: "workspace:state_data",
+              state,
+            });
+            break;
+          }
+
+          case "workspace:set_restore_on_startup": {
+            let state = await loadWorkspaceState();
+            if (state) {
+              state.restoreOnStartup = parsed.enabled;
+            } else {
+              state = {
+                version: 1,
+                timestamp: new Date().toISOString(),
+                restoreOnStartup: parsed.enabled,
+                activeTabId: null,
+                tabs: [],
+              };
+            }
+            await saveWorkspaceState(state);
+            broadcast({
+              type: "workspace:state_data",
+              state,
+            });
+            break;
+          }
+
+          case "workspace:restore": {
+            const rawState = await loadWorkspaceState();
+            if (!rawState || rawState.tabs.length === 0) {
+              broadcast({
+                type: "save:result",
+                success: false,
+                message: "復元可能なワークスペース状態が見つかりません。",
+              });
+              break;
+            }
+            const filteredState = await validateAndFilterWorkspaceState(
+              rawState,
+            );
+            if (filteredState.tabs.length === 0) {
+              broadcast({
+                type: "save:result",
+                success: false,
+                message:
+                  "復元対象のファイルが存在しないため、復元できませんでした。",
+              });
+              break;
+            }
+            broadcast({
+              type: "workspace:restore_session",
+              state: filteredState,
+            });
             break;
           }
 

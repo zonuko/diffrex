@@ -176,6 +176,17 @@ export class DirectoryController {
         }
         break;
       }
+      case "workspace:state_data": {
+        this._model.setWorkspaceState(msg.state);
+        break;
+      }
+      case "workspace:restore_session": {
+        this._model.setWorkspaceState(msg.state);
+        if (this._tabController) {
+          this._tabController.restoreWorkspaceState(msg.state, this);
+        }
+        break;
+      }
     }
   }
 
@@ -199,6 +210,26 @@ export class DirectoryController {
 
   restoreLastSession(): void {
     this.sendMessage({ type: "session:restore_last" });
+  }
+
+  saveWorkspaceState(
+    state: import("../../core/types.ts").WorkspaceState,
+  ): void {
+    this.sendMessage({
+      type: "workspace:save_state",
+      state,
+    });
+  }
+
+  restoreWorkspace(): void {
+    this.sendMessage({ type: "workspace:restore" });
+  }
+
+  setRestoreOnStartup(enabled: boolean): void {
+    this.sendMessage({
+      type: "workspace:set_restore_on_startup",
+      enabled,
+    });
   }
 
   startDropSession(paths: string[], readOnly?: boolean): void {

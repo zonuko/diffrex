@@ -18,6 +18,10 @@ import {
   recordHistoryEntry,
 } from "./src/core/history.ts";
 import {
+  loadWorkspaceState,
+  validateAndFilterWorkspaceState,
+} from "./src/core/workspace_state.ts";
+import {
   generateContextMenuScript,
   installContextMenu,
   uninstallContextMenu,
@@ -98,22 +102,106 @@ export async function runMain(
       return 0;
     }
 
-    if (parsed.restore && parsed.positional.length === 0) {
-      const snapshot = await loadSessionSnapshot();
-      if (!snapshot) {
-        console.error("Diffrex: 復元可能なセッションが見つかりません。");
-        return 1;
+    if (parsed.positional.length === 0) {
+      if (parsed.noRestore || parsed.welcome) {
+        parsed.mode = "welcome";
+      } else {
+        // 引数なし起動時の前回ワークスペース自動復元 (B17-04)
+        let restored = false;
+        const rawState = await loadWorkspaceState();
+        if (
+          rawState &&
+          (parsed.restore || rawState.restoreOnStartup !== false) &&
+          Array.isArray(rawState.tabs) &&
+          rawState.tabs.length > 0
+        ) {
+          const filteredState = await validateAndFilterWorkspaceState(rawState);
+          const nonWelcomeTabs = filteredState.tabs.filter(
+            (t) => t.sessionType !== "welcome",
+          );
+          if (nonWelcomeTabs.length > 0) {
+            const activeTab = nonWelcomeTabs.find((t) =>
+              t.id === filteredState.activeTabId
+            ) ?? nonWelcomeTabs[0];
+
+            if (
+              activeTab.sessionType === "2way" ||
+              activeTab.sessionType === "image" ||
+              activeTab.sessionType === "csv"
+            ) {
+              if (activeTab.leftPath && activeTab.rightPath) {
+                parsed.left = activeTab.leftPath;
+                parsed.right = activeTab.rightPath;
+                parsed.output = activeTab.outputPath;
+                parsed.mode = activeTab.sessionType;
+                parsed.readOnly = activeTab.readOnly ?? parsed.readOnly;
+                parsed.prompt = activeTab.prompt ?? parsed.prompt;
+                parsed.agent = activeTab.agent ?? parsed.agent;
+                parsed.model = activeTab.model ?? parsed.model;
+                parsed.positional = [activeTab.leftPath, activeTab.rightPath];
+                restored = true;
+              }
+            } else if (activeTab.sessionType === "3way") {
+              if (
+                activeTab.leftPath && activeTab.basePath && activeTab.rightPath
+              ) {
+                parsed.left = activeTab.leftPath;
+                parsed.base = activeTab.basePath;
+                parsed.right = activeTab.rightPath;
+                parsed.output = activeTab.outputPath ?? activeTab.leftPath;
+                parsed.mode = "3way";
+                parsed.readOnly = activeTab.readOnly ?? parsed.readOnly;
+                parsed.prompt = activeTab.prompt ?? parsed.prompt;
+                parsed.agent = activeTab.agent ?? parsed.agent;
+                parsed.model = activeTab.model ?? parsed.model;
+                parsed.positional = [
+                  activeTab.leftPath,
+                  activeTab.basePath,
+                  activeTab.rightPath,
+                ];
+                restored = true;
+              }
+            } else if (activeTab.sessionType === "directory") {
+              if (activeTab.baseDir && activeTab.targetDir) {
+                parsed.left = activeTab.baseDir;
+                parsed.right = activeTab.targetDir;
+                parsed.mode = "directory";
+                parsed.readOnly = activeTab.readOnly ?? parsed.readOnly;
+                parsed.prompt = activeTab.prompt ?? parsed.prompt;
+                parsed.agent = activeTab.agent ?? parsed.agent;
+                parsed.model = activeTab.model ?? parsed.model;
+                parsed.positional = [activeTab.baseDir, activeTab.targetDir];
+                restored = true;
+              }
+            }
+          }
+        }
+
+        if (!restored && parsed.restore) {
+          // 明示的 --restore 時の単一セッションフォールバック (B6-03)
+          const snapshot = await loadSessionSnapshot();
+          if (snapshot) {
+            parsed.left = snapshot.leftPath;
+            parsed.right = snapshot.rightPath;
+            parsed.base = snapshot.basePath;
+            parsed.output = snapshot.outputPath;
+            parsed.mode = snapshot.mode;
+            parsed.readOnly = snapshot.readOnly ?? parsed.readOnly;
+            parsed.prompt = snapshot.prompt ?? parsed.prompt;
+            parsed.agent = snapshot.agent ?? parsed.agent;
+            parsed.model = snapshot.model ?? parsed.model;
+            parsed.positional = [snapshot.leftPath, snapshot.rightPath];
+            restored = true;
+          } else {
+            console.error("Diffrex: 復元可能なセッションが見つかりません。");
+            return 1;
+          }
+        }
+
+        if (!restored) {
+          parsed.mode = "welcome";
+        }
       }
-      parsed.left = snapshot.leftPath;
-      parsed.right = snapshot.rightPath;
-      parsed.base = snapshot.basePath;
-      parsed.output = snapshot.outputPath;
-      parsed.mode = snapshot.mode;
-      parsed.readOnly = snapshot.readOnly ?? parsed.readOnly;
-      parsed.prompt = snapshot.prompt ?? parsed.prompt;
-      parsed.agent = snapshot.agent ?? parsed.agent;
-      parsed.model = snapshot.model ?? parsed.model;
-      parsed.positional = [snapshot.leftPath, snapshot.rightPath];
     }
 
     const validRes = await validateCliArgs(parsed);

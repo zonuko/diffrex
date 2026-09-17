@@ -471,13 +471,13 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-17. ワークスペース状態の自動永続化 & 次回起動時のセッション自動復帰（マルチタブ / ディレクトリツリー復元）
 
-- [ ] **B17-01** `src/core/types.ts` & `src/core/workspace_state.ts` にマルチタブ・ディレクトリツリー状態のスナップショットデータ構造（`WorkspaceState`, `TabStateSnapshot`）および原子的保存・読込処理（`saveWorkspaceState`, `loadWorkspaceState`）を実装。
-- [ ] **B17-02** `src/desktop/ipc.ts` & `src/desktop/window.ts` にワークスペース状態の保存・復元 IPC メッセージ（`workspace:save_state`, `workspace:restore` 等）のハンドラを追加。
-- [ ] **B17-03** `src/ui/App.tsx` & `src/ui/controller/tab_controller.ts` にタブ追加/削除/切替およびディレクトリツリー展開/選択時のデバウンス自動保存ロジック（300ms）と終了時（`exit:request` / `beforeunload` / `close`）の即時保存を統合。
-- [ ] **B17-04** `main.ts` & `src/cli/args.ts` に引数なし起動時の前回ワークスペース自動復元ロジック（`positional.length === 0` かつ前回セッションが存在する場合に自動展開、存在しない場合は Welcome 画面表示）および `--no-restore` / `--welcome` フラグのサポートを追加。
-- [ ] **B17-05** ファイル削除・移動・一時ファイル（Temp / stdin）に対するセーフガード（存在しないファイルの安全なスキップ・警告表示）を実装。
-- [ ] **B17-06** メニューバー（File メニュー等）に「起動時に前回セッションを復元する（Restore on Startup）」設定トグルおよび手動「前回のセッションを復元」コマンドの追加。
-- [ ] **B17-07** テスト: `tests/workspace_state_test.ts`（複数タブ・ディレクトリ状態のシリアライズ/デシリアライズ、引数なし起動時の自動復元判定、存在しないファイルのフォールバック、`--no-restore` 動作の検証）。
+- [x] **B17-01** `src/core/types.ts` & `src/core/workspace_state.ts` にマルチタブ・ディレクトリツリー状態のスナップショットデータ構造（`WorkspaceState`, `TabStateSnapshot`）および原子的保存・読込処理（`saveWorkspaceState`, `loadWorkspaceState`）を実装。
+- [x] **B17-02** `src/desktop/ipc.ts` & `src/desktop/window.ts` にワークスペース状態の保存・復元 IPC メッセージ（`workspace:save_state`, `workspace:restore` 等）のハンドラを追加。
+- [x] **B17-03** `src/ui/App.tsx` & `src/ui/controller/tab_controller.ts` にタブ追加/削除/切替およびディレクトリツリー展開/選択時のデバウンス自動保存ロジック（300ms）と終了時（`exit:request` / `beforeunload` / `close`）の即時保存を統合。
+- [x] **B17-04** `main.ts` & `src/cli/args.ts` に引数なし起動時の前回ワークスペース自動復元ロジック（`positional.length === 0` かつ前回セッションが存在する場合に自動展開、存在しない場合は Welcome 画面表示）および `--no-restore` / `--welcome` フラグのサポートを追加。
+- [x] **B17-05** ファイル削除・移動・一時ファイル（Temp / stdin）に対するセーフガード（存在しないファイルの安全なスキップ・警告表示）を実装。
+- [x] **B17-06** メニューバー（File メニュー等）に「起動時に前回セッションを復元する（Restore on Startup）」設定トグルおよび手動「前回のセッションを復元」コマンドの追加。
+- [x] **B17-07** テスト: `tests/workspace_state_test.ts`（複数タブ・ディレクトリ状態のシリアライズ/デシリアライズ、引数なし起動時の自動復元判定、存在しないファイルのフォールバック、`--no-restore` 動作の検証）。
 
 **AC:** アプリ終了時に開いていた複数のタブ（2-Way, 3-Way, ディレクトリ比較, 画像, CSV）、アクティブタブ、およびディレクトリツリーの展開状態が自動保存され、次回 `diffrex`（引数なし）で起動した際に前回の作業状態がそのまま完全に復帰する。存在しないファイルは安全にスキップされ、`--no-restore` で Welcome 画面から新規開始することもできる。
 

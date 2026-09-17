@@ -244,6 +244,7 @@ export function App(
     dirModel.selectedPath,
     dirModel.history,
     dirModel.lastSession,
+    dirModel.workspaceState,
     threeWayModel.session,
     tabModel.tabs,
     tabModel.activeTabId,
@@ -300,7 +301,7 @@ export function App(
     diffModel.session?.mode,
   ]);
 
-  // 自動セッションスナップショット保存 (B6-03)
+  // 自動セッションスナップショット保存 (B6-03) & ワークスペース自動保存 (B17-03: 300ms デバウンス)
   useEffect(() => {
     if (diffModel.session) {
       const s = diffModel.session;
@@ -337,12 +338,42 @@ export function App(
         model: ds.aiContext?.model,
       });
     }
+
+    // ワークスペース状態の 300ms デバウンス自動保存 (B17-03)
+    const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
+    const timer = setTimeout(() => {
+      const state = tabController.snapshotWorkspace(restoreOnStartup);
+      dirController.saveWorkspaceState(state);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [
     diffModel.session,
     diffModel.isDirty,
     dirModel.dirSession,
+    dirModel.selectedPath,
+    dirModel.expandedDirs,
+    dirModel.workspaceState?.restoreOnStartup,
+    tabModel.tabs,
+    tabModel.activeTabId,
     dirController,
+    tabController,
   ]);
+
+  // アプリ終了時 / ページ離脱時の即時保存 (B17-03)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ??
+        true;
+      const state = tabController.snapshotWorkspace(restoreOnStartup);
+      dirController.saveWorkspaceState(state);
+    };
+
+    globalThis.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      globalThis.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [dirController, tabController, dirModel.workspaceState?.restoreOnStartup]);
 
   // グローバルドラッグ＆ドロップ (B6-02)
   useEffect(() => {
