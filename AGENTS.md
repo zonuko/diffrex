@@ -28,6 +28,9 @@
   構造化データ（JSON / YAML / CSV）比較 技術ナレッジ
 - `docs/TreeSitterAstSemanticDiffKnowledge.md`: Tree-sitter & AST セマンティック
   Diff（GLR・Move / Rename 検知）技術ナレッジ
+- `docs/JevSemanticAnalysisAndConfidenceGatedArchitecture.md`: TypeSafe Jev
+  セマンティック解析 & Confidence-Gated ハイブリッド・レビュー
+  技術アーキテクチャ
 - `docs/TODO.md`: 実装タスク、タスク ID、受入条件、未決定事項
 
 仕様と TODO
