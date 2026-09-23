@@ -491,6 +491,15 @@ export class MenuController {
               this._tabController?.prevTab();
             },
           },
+          { id: "view:sep_conf", label: "", separator: true },
+          {
+            id: "view:confidence_thresholds",
+            label: "確信度しきい値設定 (Confidence Thresholds)...",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setConfidenceSettingsModalOpen(true);
+            },
+          },
         ],
       },
 

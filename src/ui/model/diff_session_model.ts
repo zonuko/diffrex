@@ -30,6 +30,11 @@ export interface DiffSessionModelState {
   expandedHunkIds: ReadonlySet<string>;
 }
 
+export interface ConfidenceThresholds {
+  safe: number;
+  needsReview: number;
+}
+
 export class DiffSessionModel extends Observable<DiffSessionModel> {
   private _session: DiffSessionData | null = null;
   private _connectionStatus: ConnectionStatus = "connecting";
@@ -41,10 +46,40 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
   private _isDirty: boolean = false;
   private _noiseFolded: boolean = true;
   private _expandedHunkIds: Set<string> = new Set();
+  private _hunkExplanations: Map<string, string> = new Map();
+  private _explainStatus: Map<string, "idle" | "loading" | "done" | "error"> =
+    new Map();
+  private _confidenceThresholds: ConfidenceThresholds = {
+    safe: 0.85,
+    needsReview: 0.60,
+  };
 
   constructor(initialSession: DiffSessionData | null = null) {
     super();
     this._session = initialSession;
+    this.loadConfidenceThresholds();
+  }
+
+  private loadConfidenceThresholds(): void {
+    try {
+      if (typeof localStorage !== "undefined") {
+        const saved = localStorage.getItem("diffrex:confidence_thresholds");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (
+            typeof parsed.safe === "number" &&
+            typeof parsed.needsReview === "number"
+          ) {
+            this._confidenceThresholds = {
+              safe: Math.max(0.5, Math.min(0.99, parsed.safe)),
+              needsReview: Math.max(0.1, Math.min(0.8, parsed.needsReview)),
+            };
+          }
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 
   // --- 状態ゲッター ---
@@ -151,6 +186,81 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
     return counts;
   }
 
+  get safeCount(): number {
+    if (!this._session?.hunks) return 0;
+    return this._session.hunks.filter(
+      (h) =>
+        (h.confidence ?? 0) >= this._confidenceThresholds.safe &&
+        h.riskLevel === "normal",
+    ).length;
+  }
+
+  get needsReviewCount(): number {
+    if (!this._session?.hunks) return 0;
+    return this._session.hunks.filter(
+      (h) =>
+        h.riskLevel === "danger" ||
+        (h.confidence !== undefined &&
+          h.confidence < this._confidenceThresholds.needsReview) ||
+        (h.intentAlignment !== undefined && h.intentAlignment === 0),
+    ).length;
+  }
+
+  get confidenceThresholds(): Readonly<ConfidenceThresholds> {
+    return this._confidenceThresholds;
+  }
+
+  setConfidenceThresholds(thresholds: ConfidenceThresholds): void {
+    this._confidenceThresholds = {
+      safe: Math.max(0.5, Math.min(0.99, thresholds.safe)),
+      needsReview: Math.max(0.1, Math.min(0.8, thresholds.needsReview)),
+    };
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(
+          "diffrex:confidence_thresholds",
+          JSON.stringify(this._confidenceThresholds),
+        );
+      }
+    } catch {
+      // ignore
+    }
+    this.notify(this);
+  }
+
+  getHunkExplanation(hunkId: string): string | undefined {
+    return this._hunkExplanations.get(hunkId);
+  }
+
+  getExplainStatus(hunkId: string): "idle" | "loading" | "done" | "error" {
+    return this._explainStatus.get(hunkId) ?? "idle";
+  }
+
+  setExplainLoading(hunkId: string): void {
+    this._explainStatus.set(hunkId, "loading");
+    this.notify(this);
+  }
+
+  setHunkExplanation(
+    hunkId: string,
+    explanation: string,
+    error?: string,
+  ): void {
+    if (error) {
+      this._explainStatus.set(hunkId, "error");
+      this._hunkExplanations.set(hunkId, `解説の取得に失敗しました: ${error}`);
+    } else {
+      this._explainStatus.set(hunkId, "done");
+      this._hunkExplanations.set(hunkId, explanation);
+    }
+    this.notify(this);
+  }
+
+  get hasJevAnalysis(): boolean {
+    if (!this._session?.hunks) return false;
+    return this._session.hunks.some((h) => h.analysisSource === "jev");
+  }
+
   get state(): Readonly<DiffSessionModelState> {
     return {
       session: this._session,
@@ -175,6 +285,31 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
     this._session = session;
     this._isDirty = false;
     this._expandedHunkIds.clear();
+    this.notify(this);
+  }
+
+  /**
+   * Jev セマンティック解析等の外部更新により HunkAnnotation[] を動的に更新する (B-19, B-20)。
+   * 既存のユーザーレビュー進捗（status）を保持しつつ、解析結果をマージする。
+   */
+  updateHunkAnnotations(newHunks: HunkAnnotation[]): void {
+    if (!this._session) return;
+    const hunkMap = new Map<string, HunkAnnotation>();
+    for (const h of newHunks) {
+      hunkMap.set(h.id, h);
+    }
+
+    const currentHunks = this._session.hunks ?? [];
+    const merged = currentHunks.map((oldHunk) => {
+      const updated = hunkMap.get(oldHunk.id);
+      if (!updated) return oldHunk;
+      return {
+        ...updated,
+        status: oldHunk.status, // ユーザーのレビュー状態は維持
+      };
+    });
+
+    this._session.hunks = merged;
     this.notify(this);
   }
 

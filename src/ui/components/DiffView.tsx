@@ -244,25 +244,48 @@ class NoiseFoldWidget extends WidgetType {
   }
 }
 
-// Risk 警告バッジ用 Widget (P4-10)
+// Risk 警告バッジ用 Widget (P4-10, B20-04)
 class RiskBannerWidget extends WidgetType {
   constructor(
+    readonly hunkId: string,
     readonly riskLevel: "warning" | "danger",
     readonly summaryTag: string,
+    readonly confidence?: number,
+    readonly intentAlignment?: number,
+    readonly explainStatus?: "idle" | "loading" | "done" | "error",
+    readonly explanation?: string,
+    readonly onExplainClick?: () => void,
   ) {
     super();
   }
 
   override eq(other: RiskBannerWidget): boolean {
     return (
+      other.hunkId === this.hunkId &&
       other.riskLevel === this.riskLevel &&
-      other.summaryTag === this.summaryTag
+      other.summaryTag === this.summaryTag &&
+      other.confidence === this.confidence &&
+      other.intentAlignment === this.intentAlignment &&
+      other.explainStatus === this.explainStatus &&
+      other.explanation === this.explanation
     );
   }
 
   override toDOM(): HTMLElement {
-    const wrap = document.createElement("span");
+    const wrap = document.createElement("div");
     wrap.className = `cm-risk-banner-widget ${this.riskLevel}`;
+
+    const header = document.createElement("div");
+    header.className = "cm-risk-banner-header";
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "8px";
+
+    const left = document.createElement("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.style.gap = "6px";
 
     const icon = document.createElement("span");
     icon.className = "risk-icon";
@@ -272,13 +295,65 @@ class RiskBannerWidget extends WidgetType {
 
     const text = document.createElement("span");
     text.className = "risk-text";
-    text.textContent = this.summaryTag ||
+    let desc = this.summaryTag ||
       (this.riskLevel === "danger"
         ? "Critical modification"
         : "Potential risk");
+    if (this.confidence !== undefined) {
+      desc += ` (conf: ${Math.round(this.confidence * 100)}%)`;
+    }
+    text.textContent = desc;
 
-    wrap.appendChild(icon);
-    wrap.appendChild(text);
+    left.appendChild(icon);
+    left.appendChild(text);
+    header.appendChild(left);
+
+    // Explain ボタン (B20-04)
+    if (this.onExplainClick) {
+      const btn = document.createElement("button");
+      btn.className = "risk-explain-button";
+      btn.style.fontSize = "11px";
+      btn.style.padding = "2px 8px";
+      btn.style.cursor = "pointer";
+      btn.style.borderRadius = "4px";
+      btn.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+      btn.style.background = "rgba(0, 0, 0, 0.2)";
+      btn.style.color = "inherit";
+
+      if (this.explainStatus === "loading") {
+        btn.textContent = "⌛ Analyzing...";
+        btn.disabled = true;
+      } else if (this.explainStatus === "done") {
+        btn.textContent = "📖 Explained";
+      } else {
+        btn.textContent = "🔍 Explain";
+      }
+
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.onExplainClick?.();
+      });
+      header.appendChild(btn);
+    }
+
+    wrap.appendChild(header);
+
+    // 解説ボックス (B20-04)
+    if (this.explanation) {
+      const explainBox = document.createElement("div");
+      explainBox.className = "cm-risk-explanation-box";
+      explainBox.style.marginTop = "6px";
+      explainBox.style.padding = "8px 10px";
+      explainBox.style.background = "rgba(0, 0, 0, 0.25)";
+      explainBox.style.borderRadius = "4px";
+      explainBox.style.fontSize = "12px";
+      explainBox.style.lineHeight = "1.5";
+      explainBox.style.whiteSpace = "pre-wrap";
+      explainBox.style.fontFamily = "inherit";
+      explainBox.textContent = this.explanation;
+      wrap.appendChild(explainBox);
+    }
+
     return wrap;
   }
 }
@@ -381,7 +456,16 @@ function buildDecorationsForEditor(
           processedBannerPos.add(from);
           bannerRanges.push(
             Decoration.widget({
-              widget: new RiskBannerWidget(h.riskLevel, h.summaryTag || ""),
+              widget: new RiskBannerWidget(
+                h.id,
+                h.riskLevel,
+                h.summaryTag || "",
+                h.confidence,
+                h.intentAlignment,
+                model.getExplainStatus(h.id),
+                model.getHunkExplanation(h.id),
+                () => controller.requestExplainHunk(h.id),
+              ),
               side: -1,
             }).range(from),
           );

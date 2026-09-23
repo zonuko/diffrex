@@ -29,6 +29,7 @@ import { CsvDiffView } from "./components/CsvDiffView.tsx";
 import { WelcomeView } from "./components/WelcomeView.tsx";
 import { ShortcutsModal } from "./components/ShortcutsModal.tsx";
 import { AboutModal } from "./components/AboutModal.tsx";
+import { ConfidenceSettingsModal } from "./components/ConfidenceSettingsModal.tsx";
 import { CommandPalette } from "./components/CommandPalette.tsx";
 import { OpenSessionModal } from "./components/OpenSessionModal.tsx";
 import { TabContainerModel } from "./model/tab_model.ts";
@@ -182,6 +183,7 @@ export function App(
   useEffect(() => {
     dirController.setDiffController(diffController);
     dirController.setTabController(tabController);
+    diffController.sendIpcMessage = (msg) => dirController.sendMessage(msg);
   }, [dirController, diffController, tabController]);
 
   useModel(diffModel);
@@ -537,6 +539,12 @@ export function App(
       {/* モーダル群 */}
       {menuModel.isShortcutsModalOpen && <ShortcutsModal model={menuModel} />}
       {menuModel.isAboutModalOpen && <AboutModal model={menuModel} />}
+      {menuModel.isConfidenceSettingsModalOpen && (
+        <ConfidenceSettingsModal
+          menuModel={menuModel}
+          diffModel={activeTab?.diffModel ?? diffModel}
+        />
+      )}
       {menuModel.isCommandPaletteOpen && (
         <CommandPalette model={menuModel} controller={menuController} />
       )}

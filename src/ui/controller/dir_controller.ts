@@ -187,6 +187,36 @@ export class DirectoryController {
         }
         break;
       }
+      case "session:update_hunk_annotations": {
+        console.log(
+          "[UI] Received session:update_hunk_annotations:",
+          msg.hunks,
+        );
+        this._diffModel.updateHunkAnnotations(msg.hunks);
+        if (this._tabController) {
+          for (const tab of this._tabController.model.tabs) {
+            tab.diffModel?.updateHunkAnnotations(msg.hunks);
+          }
+        }
+        break;
+      }
+      case "hunk:explain_response": {
+        this._diffModel.setHunkExplanation(
+          msg.hunkId,
+          msg.explanation,
+          msg.error,
+        );
+        if (this._tabController) {
+          for (const tab of this._tabController.model.tabs) {
+            tab.diffModel?.setHunkExplanation(
+              msg.hunkId,
+              msg.explanation,
+              msg.error,
+            );
+          }
+        }
+        break;
+      }
     }
   }
 

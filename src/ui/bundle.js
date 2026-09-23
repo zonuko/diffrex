@@ -446,9 +446,33 @@ var DiffSessionModel = class extends Observable {
   _isDirty = false;
   _noiseFolded = true;
   _expandedHunkIds = /* @__PURE__ */ new Set();
+  _hunkExplanations = /* @__PURE__ */ new Map();
+  _explainStatus = /* @__PURE__ */ new Map();
+  _confidenceThresholds = {
+    safe: 0.85,
+    needsReview: 0.6
+  };
   constructor(initialSession = null) {
     super();
     this._session = initialSession;
+    this.loadConfidenceThresholds();
+  }
+  loadConfidenceThresholds() {
+    try {
+      if (typeof localStorage !== "undefined") {
+        const saved = localStorage.getItem("diffrex:confidence_thresholds");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.safe === "number" && typeof parsed.needsReview === "number") {
+            this._confidenceThresholds = {
+              safe: Math.max(0.5, Math.min(0.99, parsed.safe)),
+              needsReview: Math.max(0.1, Math.min(0.8, parsed.needsReview))
+            };
+          }
+        }
+      }
+    } catch {
+    }
   }
   // --- 状態ゲッター ---
   get session() {
@@ -527,6 +551,61 @@ var DiffSessionModel = class extends Observable {
     }
     return counts;
   }
+  get safeCount() {
+    if (!this._session?.hunks) return 0;
+    return this._session.hunks.filter(
+      (h3) => (h3.confidence ?? 0) >= this._confidenceThresholds.safe && h3.riskLevel === "normal"
+    ).length;
+  }
+  get needsReviewCount() {
+    if (!this._session?.hunks) return 0;
+    return this._session.hunks.filter(
+      (h3) => h3.riskLevel === "danger" || h3.confidence !== void 0 && h3.confidence < this._confidenceThresholds.needsReview || h3.intentAlignment !== void 0 && h3.intentAlignment === 0
+    ).length;
+  }
+  get confidenceThresholds() {
+    return this._confidenceThresholds;
+  }
+  setConfidenceThresholds(thresholds) {
+    this._confidenceThresholds = {
+      safe: Math.max(0.5, Math.min(0.99, thresholds.safe)),
+      needsReview: Math.max(0.1, Math.min(0.8, thresholds.needsReview))
+    };
+    try {
+      if (typeof localStorage !== "undefined") {
+        localStorage.setItem(
+          "diffrex:confidence_thresholds",
+          JSON.stringify(this._confidenceThresholds)
+        );
+      }
+    } catch {
+    }
+    this.notify(this);
+  }
+  getHunkExplanation(hunkId) {
+    return this._hunkExplanations.get(hunkId);
+  }
+  getExplainStatus(hunkId) {
+    return this._explainStatus.get(hunkId) ?? "idle";
+  }
+  setExplainLoading(hunkId) {
+    this._explainStatus.set(hunkId, "loading");
+    this.notify(this);
+  }
+  setHunkExplanation(hunkId, explanation, error) {
+    if (error) {
+      this._explainStatus.set(hunkId, "error");
+      this._hunkExplanations.set(hunkId, `\u89E3\u8AAC\u306E\u53D6\u5F97\u306B\u5931\u6557\u3057\u307E\u3057\u305F: ${error}`);
+    } else {
+      this._explainStatus.set(hunkId, "done");
+      this._hunkExplanations.set(hunkId, explanation);
+    }
+    this.notify(this);
+  }
+  get hasJevAnalysis() {
+    if (!this._session?.hunks) return false;
+    return this._session.hunks.some((h3) => h3.analysisSource === "jev");
+  }
   get state() {
     return {
       session: this._session,
@@ -549,6 +628,29 @@ var DiffSessionModel = class extends Observable {
     this._session = session;
     this._isDirty = false;
     this._expandedHunkIds.clear();
+    this.notify(this);
+  }
+  /**
+   * Jev セマンティック解析等の外部更新により HunkAnnotation[] を動的に更新する (B-19, B-20)。
+   * 既存のユーザーレビュー進捗（status）を保持しつつ、解析結果をマージする。
+   */
+  updateHunkAnnotations(newHunks) {
+    if (!this._session) return;
+    const hunkMap = /* @__PURE__ */ new Map();
+    for (const h3 of newHunks) {
+      hunkMap.set(h3.id, h3);
+    }
+    const currentHunks = this._session.hunks ?? [];
+    const merged = currentHunks.map((oldHunk) => {
+      const updated = hunkMap.get(oldHunk.id);
+      if (!updated) return oldHunk;
+      return {
+        ...updated,
+        status: oldHunk.status
+        // ユーザーのレビュー状態は維持
+      };
+    });
+    this._session.hunks = merged;
     this.notify(this);
   }
   /**
@@ -18852,6 +18954,14 @@ var DiffController = class {
   handleIpcMessage(msg) {
     if (msg.type === "session:init") {
       this.model.setSession(msg.data);
+    } else if (msg.type === "session:update_hunk_annotations") {
+      console.log(
+        "[UI DiffController] Received session:update_hunk_annotations:",
+        msg.hunks
+      );
+      this.model.updateHunkAnnotations(msg.hunks);
+    } else if (msg.type === "hunk:explain_response") {
+      this.model.setHunkExplanation(msg.hunkId, msg.explanation, msg.error);
     } else if (msg.type === "save:result") {
       this.model.setSaveStatus({
         status: msg.success ? "saved" : "error",
@@ -18887,6 +18997,16 @@ var DiffController = class {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     }
+  }
+  /**
+   * 疑義 Hunk のオンデマンド深掘り解説をリクエストする (B20-04)。
+   */
+  requestExplainHunk(hunkId) {
+    this.model.setExplainLoading(hunkId);
+    this.sendIpcMessage({
+      type: "hunk:explain_request",
+      hunkId
+    });
   }
   /**
    * 保存要求 (Phase 3 連携)
@@ -19287,6 +19407,36 @@ var DirectoryController = class {
         this._model.setWorkspaceState(msg.state);
         if (this._tabController) {
           this._tabController.restoreWorkspaceState(msg.state, this);
+        }
+        break;
+      }
+      case "session:update_hunk_annotations": {
+        console.log(
+          "[UI] Received session:update_hunk_annotations:",
+          msg.hunks
+        );
+        this._diffModel.updateHunkAnnotations(msg.hunks);
+        if (this._tabController) {
+          for (const tab2 of this._tabController.model.tabs) {
+            tab2.diffModel?.updateHunkAnnotations(msg.hunks);
+          }
+        }
+        break;
+      }
+      case "hunk:explain_response": {
+        this._diffModel.setHunkExplanation(
+          msg.hunkId,
+          msg.explanation,
+          msg.error
+        );
+        if (this._tabController) {
+          for (const tab2 of this._tabController.model.tabs) {
+            tab2.diffModel?.setHunkExplanation(
+              msg.hunkId,
+              msg.explanation,
+              msg.error
+            );
+          }
         }
         break;
       }
@@ -20023,6 +20173,7 @@ var MenuModel = class extends Observable {
   _activeCategoryIndex = null;
   _isShortcutsModalOpen = false;
   _isAboutModalOpen = false;
+  _isConfidenceSettingsModalOpen = false;
   _isCommandPaletteOpen = false;
   _isOpenSessionModalOpen = false;
   _openSessionInitialTab = "file";
@@ -20039,6 +20190,9 @@ var MenuModel = class extends Observable {
   }
   get isAboutModalOpen() {
     return this._isAboutModalOpen;
+  }
+  get isConfidenceSettingsModalOpen() {
+    return this._isConfidenceSettingsModalOpen;
   }
   get isCommandPaletteOpen() {
     return this._isCommandPaletteOpen;
@@ -20102,6 +20256,7 @@ var MenuModel = class extends Observable {
       if (open) {
         this.closeMenu();
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isCommandPaletteOpen = false;
         this._isOpenSessionModalOpen = false;
       }
@@ -20114,6 +20269,20 @@ var MenuModel = class extends Observable {
       if (open) {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
+        this._isCommandPaletteOpen = false;
+        this._isOpenSessionModalOpen = false;
+      }
+      this.notify(this);
+    }
+  }
+  setConfidenceSettingsModalOpen(open) {
+    if (this._isConfidenceSettingsModalOpen !== open) {
+      this._isConfidenceSettingsModalOpen = open;
+      if (open) {
+        this.closeMenu();
+        this._isShortcutsModalOpen = false;
+        this._isAboutModalOpen = false;
         this._isCommandPaletteOpen = false;
         this._isOpenSessionModalOpen = false;
       }
@@ -20128,6 +20297,7 @@ var MenuModel = class extends Observable {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isCommandPaletteOpen = false;
       }
       this.notify(this);
@@ -20140,6 +20310,7 @@ var MenuModel = class extends Observable {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isOpenSessionModalOpen = false;
         this._commandPaletteQuery = "";
         this._commandPaletteSelectedIndex = 0;
@@ -20577,6 +20748,15 @@ var MenuController = class {
               this._model.closeMenu();
               this._tabController?.prevTab();
             }
+          },
+          { id: "view:sep_conf", label: "", separator: true },
+          {
+            id: "view:confidence_thresholds",
+            label: "\u78BA\u4FE1\u5EA6\u3057\u304D\u3044\u5024\u8A2D\u5B9A (Confidence Thresholds)...",
+            action: () => {
+              this._model.closeMenu();
+              this._model.setConfidenceSettingsModalOpen(true);
+            }
           }
         ]
       },
@@ -20999,6 +21179,8 @@ function Header({ model, controller }) {
   const noiseCount = model.noiseCount;
   const riskCounts = model.riskCounts;
   const isNoiseFolded = model.noiseFolded;
+  const hasJev = model.hasJevAnalysis;
+  const safeCount = model.safeCount;
   const isPromptLong = Boolean(prompt && prompt.length > 80);
   return /* @__PURE__ */ u3("div", { class: "header-container", children: [
     /* @__PURE__ */ u3("header", { class: "app-header", children: [
@@ -21025,7 +21207,20 @@ function Header({ model, controller }) {
           modelName && /* @__PURE__ */ u3("span", { class: "badge model", children: [
             "Model: ",
             modelName
-          ] })
+          ] }),
+          hasJev && /* @__PURE__ */ u3(
+            "span",
+            {
+              class: "badge jev",
+              title: "TypeSafe Jev System One Semantic Analysis",
+              style: {
+                background: "rgba(229, 81, 186, 0.15)",
+                color: "#e551ba",
+                borderColor: "rgba(229, 81, 186, 0.3)"
+              },
+              children: "\u26A1 Jev System One"
+            }
+          )
         ] })
       ] }),
       /* @__PURE__ */ u3("div", { class: "header-section header-center", children: [
@@ -21072,7 +21267,27 @@ function Header({ model, controller }) {
             "\u26A1 ",
             riskCounts.warning,
             " warn"
-          ] })
+          ] }),
+          safeCount > 0 && /* @__PURE__ */ u3(
+            "span",
+            {
+              class: "stat-badge safe",
+              title: "High-confidence Safe Changes (Confidence >= 85%)",
+              style: {
+                background: "rgba(34, 197, 94, 0.15)",
+                color: "#22c55e",
+                border: "1px solid rgba(34, 197, 94, 0.3)",
+                padding: "2px 6px",
+                borderRadius: "4px",
+                fontSize: "12px"
+              },
+              children: [
+                "\u{1F6E1}\uFE0F ",
+                safeCount,
+                " safe"
+              ]
+            }
+          )
         ] }),
         noiseCount > 0 && /* @__PURE__ */ u3(
           "button",
@@ -33701,25 +33916,85 @@ var NoiseFoldWidget = class extends WidgetType {
   }
 };
 var RiskBannerWidget = class extends WidgetType {
-  constructor(riskLevel, summaryTag) {
+  constructor(hunkId, riskLevel, summaryTag, confidence, intentAlignment, explainStatus, explanation, onExplainClick) {
     super();
+    this.hunkId = hunkId;
     this.riskLevel = riskLevel;
     this.summaryTag = summaryTag;
+    this.confidence = confidence;
+    this.intentAlignment = intentAlignment;
+    this.explainStatus = explainStatus;
+    this.explanation = explanation;
+    this.onExplainClick = onExplainClick;
   }
   eq(other) {
-    return other.riskLevel === this.riskLevel && other.summaryTag === this.summaryTag;
+    return other.hunkId === this.hunkId && other.riskLevel === this.riskLevel && other.summaryTag === this.summaryTag && other.confidence === this.confidence && other.intentAlignment === this.intentAlignment && other.explainStatus === this.explainStatus && other.explanation === this.explanation;
   }
   toDOM() {
-    const wrap = document.createElement("span");
+    const wrap = document.createElement("div");
     wrap.className = `cm-risk-banner-widget ${this.riskLevel}`;
+    const header = document.createElement("div");
+    header.className = "cm-risk-banner-header";
+    header.style.display = "flex";
+    header.style.alignItems = "center";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "8px";
+    const left = document.createElement("div");
+    left.style.display = "flex";
+    left.style.alignItems = "center";
+    left.style.gap = "6px";
     const icon = document.createElement("span");
     icon.className = "risk-icon";
     icon.textContent = this.riskLevel === "danger" ? "\u26A0\uFE0F High Risk:" : "\u26A1 Warning:";
     const text = document.createElement("span");
     text.className = "risk-text";
-    text.textContent = this.summaryTag || (this.riskLevel === "danger" ? "Critical modification" : "Potential risk");
-    wrap.appendChild(icon);
-    wrap.appendChild(text);
+    let desc = this.summaryTag || (this.riskLevel === "danger" ? "Critical modification" : "Potential risk");
+    if (this.confidence !== void 0) {
+      desc += ` (conf: ${Math.round(this.confidence * 100)}%)`;
+    }
+    text.textContent = desc;
+    left.appendChild(icon);
+    left.appendChild(text);
+    header.appendChild(left);
+    if (this.onExplainClick) {
+      const btn = document.createElement("button");
+      btn.className = "risk-explain-button";
+      btn.style.fontSize = "11px";
+      btn.style.padding = "2px 8px";
+      btn.style.cursor = "pointer";
+      btn.style.borderRadius = "4px";
+      btn.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+      btn.style.background = "rgba(0, 0, 0, 0.2)";
+      btn.style.color = "inherit";
+      if (this.explainStatus === "loading") {
+        btn.textContent = "\u231B Analyzing...";
+        btn.disabled = true;
+      } else if (this.explainStatus === "done") {
+        btn.textContent = "\u{1F4D6} Explained";
+      } else {
+        btn.textContent = "\u{1F50D} Explain";
+      }
+      btn.addEventListener("click", (e3) => {
+        e3.stopPropagation();
+        this.onExplainClick?.();
+      });
+      header.appendChild(btn);
+    }
+    wrap.appendChild(header);
+    if (this.explanation) {
+      const explainBox = document.createElement("div");
+      explainBox.className = "cm-risk-explanation-box";
+      explainBox.style.marginTop = "6px";
+      explainBox.style.padding = "8px 10px";
+      explainBox.style.background = "rgba(0, 0, 0, 0.25)";
+      explainBox.style.borderRadius = "4px";
+      explainBox.style.fontSize = "12px";
+      explainBox.style.lineHeight = "1.5";
+      explainBox.style.whiteSpace = "pre-wrap";
+      explainBox.style.fontFamily = "inherit";
+      explainBox.textContent = this.explanation;
+      wrap.appendChild(explainBox);
+    }
     return wrap;
   }
 };
@@ -33785,7 +34060,16 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
           processedBannerPos.add(from);
           bannerRanges.push(
             Decoration.widget({
-              widget: new RiskBannerWidget(h3.riskLevel, h3.summaryTag || ""),
+              widget: new RiskBannerWidget(
+                h3.id,
+                h3.riskLevel,
+                h3.summaryTag || "",
+                h3.confidence,
+                h3.intentAlignment,
+                model.getExplainStatus(h3.id),
+                model.getHunkExplanation(h3.id),
+                () => controller.requestExplainHunk(h3.id)
+              ),
               side: -1
             }).range(from)
           );
@@ -36779,6 +37063,284 @@ function AboutModal({ model }) {
   ) });
 }
 
+// src/ui/components/ConfidenceSettingsModal.tsx
+function ConfidenceSettingsModal({
+  menuModel,
+  diffModel
+}) {
+  const currentThresholds = diffModel.confidenceThresholds;
+  const [safeVal, setSafeVal] = d2(
+    Math.round(currentThresholds.safe * 100)
+  );
+  const [needsReviewVal, setNeedsReviewVal] = d2(
+    Math.round(currentThresholds.needsReview * 100)
+  );
+  const handleClose = () => {
+    menuModel.setConfidenceSettingsModalOpen(false);
+  };
+  const handleApply = () => {
+    diffModel.setConfidenceThresholds({
+      safe: safeVal / 100,
+      needsReview: needsReviewVal / 100
+    });
+    handleClose();
+  };
+  const handleReset = () => {
+    setSafeVal(85);
+    setNeedsReviewVal(60);
+  };
+  const hunks = diffModel.session?.hunks ?? [];
+  const previewSafeCount = hunks.filter(
+    (h3) => (h3.confidence ?? 0) >= safeVal / 100 && h3.riskLevel === "normal"
+  ).length;
+  const previewNeedsReviewCount = hunks.filter(
+    (h3) => h3.riskLevel === "danger" || h3.confidence !== void 0 && h3.confidence < needsReviewVal / 100 || h3.intentAlignment !== void 0 && h3.intentAlignment === 0
+  ).length;
+  return /* @__PURE__ */ u3("div", { class: "modal-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-card confidence-modal-card",
+      onClick: (e3) => e3.stopPropagation(),
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "confidence-modal-title",
+      style: { maxWidth: "520px" },
+      children: [
+        /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+          /* @__PURE__ */ u3("h2", { id: "confidence-modal-title", class: "modal-title", children: "\u2699\uFE0F \u78BA\u4FE1\u5EA6\u3057\u304D\u3044\u5024\u8A2D\u5B9A (Confidence Thresholds)" }),
+          /* @__PURE__ */ u3(
+            "button",
+            {
+              type: "button",
+              class: "modal-close-button",
+              onClick: handleClose,
+              "aria-label": "\u9589\u3058\u308B",
+              children: "\xD7"
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3("div", { class: "modal-body", style: { padding: "16px 20px" }, children: [
+          /* @__PURE__ */ u3(
+            "p",
+            {
+              style: {
+                fontSize: "13px",
+                color: "var(--text-secondary, #aaa)",
+                marginBottom: "16px"
+              },
+              children: "TypeSafe Jev (System One) \u306B\u3088\u308B\u78BA\u4FE1\u5EA6\u30B9\u30B3\u30A2\u306B\u57FA\u3065\u304D\u3001 \u9AD8\u78BA\u4FE1\u5EA6\u306E\u5B89\u5168\u306A\u5DEE\u5206\u3068\u8981\u7CBE\u67FB\u306E\u7591\u7FA9\u5DEE\u5206\u3092\u81EA\u52D5\u30C8\u30EA\u30A2\u30FC\u30B8\u3059\u308B\u5883\u754C\u5024\u3092\u8A2D\u5B9A\u3057\u307E\u3059\u3002"
+            }
+          ),
+          /* @__PURE__ */ u3("div", { style: { marginBottom: "20px" }, children: [
+            /* @__PURE__ */ u3(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "6px"
+                },
+                children: [
+                  /* @__PURE__ */ u3(
+                    "label",
+                    {
+                      style: {
+                        fontWeight: "bold",
+                        fontSize: "13px",
+                        color: "#22c55e"
+                      },
+                      children: "\u{1F6E1}\uFE0F \u5B89\u5168\u306A\u5909\u66F4 (Safe) \u306E\u3057\u304D\u3044\u5024"
+                    }
+                  ),
+                  /* @__PURE__ */ u3("span", { style: { fontWeight: "bold", fontSize: "14px" }, children: [
+                    safeVal,
+                    "% \u4EE5\u4E0A"
+                  ] })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "input",
+              {
+                type: "range",
+                min: "50",
+                max: "99",
+                value: safeVal,
+                onInput: (e3) => setSafeVal(Number(e3.target.value)),
+                style: { width: "100%", accentColor: "#22c55e" }
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "div",
+              {
+                style: {
+                  fontSize: "11px",
+                  color: "var(--text-muted, #888)",
+                  marginTop: "4px"
+                },
+                children: "\u78BA\u4FE1\u5EA6\u304C\u3053\u306E\u5024\u4EE5\u4E0A\u304B\u3064\u901A\u5E38\u30EA\u30B9\u30AF\u306E Hunk \u306F\u7DD1\u306E Safe \u30D0\u30C3\u30B8\u304C\u4ED8\u304D\u3001\u4E00\u62EC\u627F\u8A8D\u306E\u5BFE\u8C61\u3068\u306A\u308A\u307E\u3059\u3002"
+              }
+            )
+          ] }),
+          /* @__PURE__ */ u3("div", { style: { marginBottom: "20px" }, children: [
+            /* @__PURE__ */ u3(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: "6px"
+                },
+                children: [
+                  /* @__PURE__ */ u3(
+                    "label",
+                    {
+                      style: {
+                        fontWeight: "bold",
+                        fontSize: "13px",
+                        color: "#f59e0b"
+                      },
+                      children: "\u26A0\uFE0F \u8981\u7CBE\u67FB (Needs Review) \u306E\u3057\u304D\u3044\u5024"
+                    }
+                  ),
+                  /* @__PURE__ */ u3("span", { style: { fontWeight: "bold", fontSize: "14px" }, children: [
+                    needsReviewVal,
+                    "% \u672A\u6E80"
+                  ] })
+                ]
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "input",
+              {
+                type: "range",
+                min: "10",
+                max: "80",
+                value: needsReviewVal,
+                onInput: (e3) => setNeedsReviewVal(Number(e3.target.value)),
+                style: { width: "100%", accentColor: "#f59e0b" }
+              }
+            ),
+            /* @__PURE__ */ u3(
+              "div",
+              {
+                style: {
+                  fontSize: "11px",
+                  color: "var(--text-muted, #888)",
+                  marginTop: "4px"
+                },
+                children: "\u78BA\u4FE1\u5EA6\u304C\u3053\u306E\u5024\u3092\u4E0B\u56DE\u308B\uFF08\u307E\u305F\u306F\u9AD8\u30EA\u30B9\u30AF\u30FB\u610F\u56F3\u4E56\u96E2\u306E\uFF09Hunk \u306F\u300C\u8981\u7CBE\u67FB\u300D\u3068\u3057\u3066\u8B66\u544A\u3055\u308C\u307E\u3059\u3002"
+              }
+            )
+          ] }),
+          hunks.length > 0 && /* @__PURE__ */ u3(
+            "div",
+            {
+              style: {
+                background: "rgba(255, 255, 255, 0.05)",
+                padding: "10px 14px",
+                borderRadius: "6px",
+                fontSize: "12px",
+                display: "flex",
+                justifyContent: "space-around",
+                border: "1px solid rgba(255, 255, 255, 0.1)"
+              },
+              children: [
+                /* @__PURE__ */ u3("div", { children: [
+                  "\u5168\u4F53 Hunk \u6570: ",
+                  /* @__PURE__ */ u3("strong", { children: hunks.length })
+                ] }),
+                /* @__PURE__ */ u3("div", { children: [
+                  "Safe \u5019\u88DC:",
+                  " ",
+                  /* @__PURE__ */ u3("strong", { style: { color: "#22c55e" }, children: previewSafeCount }),
+                  " ",
+                  "\u4EF6"
+                ] }),
+                /* @__PURE__ */ u3("div", { children: [
+                  "\u8981\u7CBE\u67FB:",
+                  " ",
+                  /* @__PURE__ */ u3("strong", { style: { color: "#ef4444" }, children: previewNeedsReviewCount }),
+                  " ",
+                  "\u4EF6"
+                ] })
+              ]
+            }
+          )
+        ] }),
+        /* @__PURE__ */ u3(
+          "div",
+          {
+            class: "modal-footer",
+            style: {
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "12px 20px",
+              borderTop: "1px solid var(--border-color, #333)"
+            },
+            children: [
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "modal-secondary-button",
+                  onClick: handleReset,
+                  style: {
+                    padding: "6px 14px",
+                    background: "transparent",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    borderRadius: "4px",
+                    color: "inherit",
+                    cursor: "pointer"
+                  },
+                  children: "\u521D\u671F\u5024\u306B\u623B\u3059 (85% / 60%)"
+                }
+              ),
+              /* @__PURE__ */ u3("div", { style: { display: "flex", gap: "8px" }, children: [
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "modal-secondary-button",
+                    onClick: handleClose,
+                    style: {
+                      padding: "6px 14px",
+                      background: "transparent",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "4px",
+                      color: "inherit",
+                      cursor: "pointer"
+                    },
+                    children: "\u30AD\u30E3\u30F3\u30BB\u30EB"
+                  }
+                ),
+                /* @__PURE__ */ u3(
+                  "button",
+                  {
+                    type: "button",
+                    class: "modal-primary-button",
+                    onClick: handleApply,
+                    style: {
+                      padding: "6px 16px",
+                      background: "var(--accent-color, #0284c7)",
+                      border: "none",
+                      borderRadius: "4px",
+                      color: "#fff",
+                      fontWeight: "bold",
+                      cursor: "pointer"
+                    },
+                    children: "\u9069\u7528"
+                  }
+                )
+              ] })
+            ]
+          }
+        )
+      ]
+    }
+  ) });
+}
+
 // src/ui/components/CommandPalette.tsx
 function CommandPalette({ model, controller }) {
   useModel(model);
@@ -38133,6 +38695,7 @@ function App({
   h2(() => {
     dirController.setDiffController(diffController);
     dirController.setTabController(tabController);
+    diffController.sendIpcMessage = (msg) => dirController.sendMessage(msg);
   }, [dirController, diffController, tabController]);
   useModel(diffModel);
   useModel(dirModel);
@@ -38398,6 +38961,13 @@ function App({
     /* @__PURE__ */ u3("div", { class: "app-body-area", children: contentNode }),
     menuModel.isShortcutsModalOpen && /* @__PURE__ */ u3(ShortcutsModal, { model: menuModel }),
     menuModel.isAboutModalOpen && /* @__PURE__ */ u3(AboutModal, { model: menuModel }),
+    menuModel.isConfidenceSettingsModalOpen && /* @__PURE__ */ u3(
+      ConfidenceSettingsModal,
+      {
+        menuModel,
+        diffModel: activeTab?.diffModel ?? diffModel
+      }
+    ),
     menuModel.isCommandPaletteOpen && /* @__PURE__ */ u3(CommandPalette, { model: menuModel, controller: menuController }),
     menuModel.isOpenSessionModalOpen && /* @__PURE__ */ u3(OpenSessionModal, { model: menuModel, controller: dirController }),
     isGlobalDragging && /* @__PURE__ */ u3("div", { class: "global-drop-overlay", children: /* @__PURE__ */ u3("div", { class: "global-drop-badge", children: [

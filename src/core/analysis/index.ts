@@ -15,6 +15,9 @@ import {
 export * from "./noise.ts";
 export * from "./risk.ts";
 export * from "./ast/index.ts";
+export * from "./jev_client.ts";
+export * from "./semantic_analysis.ts";
+export * from "./deep_dive.ts";
 
 export interface AnalyzeDiffOptions {
   ignoreSpace?: boolean;

@@ -41,6 +41,8 @@ export function Header({ model, controller }: HeaderProps) {
   const noiseCount = model.noiseCount;
   const riskCounts = model.riskCounts;
   const isNoiseFolded = model.noiseFolded;
+  const hasJev = model.hasJevAnalysis;
+  const safeCount = model.safeCount;
 
   const isPromptLong = Boolean(prompt && prompt.length > 80);
 
@@ -63,6 +65,19 @@ export function Header({ model, controller }: HeaderProps) {
           <div class="ai-meta">
             {agent && <span class="badge agent">Agent: {agent}</span>}
             {modelName && <span class="badge model">Model: {modelName}</span>}
+            {hasJev && (
+              <span
+                class="badge jev"
+                title="TypeSafe Jev System One Semantic Analysis"
+                style={{
+                  background: "rgba(229, 81, 186, 0.15)",
+                  color: "#e551ba",
+                  borderColor: "rgba(229, 81, 186, 0.3)",
+                }}
+              >
+                ⚡ Jev System One
+              </span>
+            )}
           </div>
         </div>
 
@@ -106,6 +121,22 @@ export function Header({ model, controller }: HeaderProps) {
               {riskCounts.warning > 0 && (
                 <span class="stat-badge warning" title="Warnings">
                   ⚡ {riskCounts.warning} warn
+                </span>
+              )}
+              {safeCount > 0 && (
+                <span
+                  class="stat-badge safe"
+                  title="High-confidence Safe Changes (Confidence >= 85%)"
+                  style={{
+                    background: "rgba(34, 197, 94, 0.15)",
+                    color: "#22c55e",
+                    border: "1px solid rgba(34, 197, 94, 0.3)",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    fontSize: "12px",
+                  }}
+                >
+                  🛡️ {safeCount} safe
                 </span>
               )}
             </div>

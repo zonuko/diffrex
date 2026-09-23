@@ -463,6 +463,14 @@ export class DiffController {
   handleIpcMessage(msg: BackendToUiMessage): void {
     if (msg.type === "session:init") {
       this.model.setSession(msg.data);
+    } else if (msg.type === "session:update_hunk_annotations") {
+      console.log(
+        "[UI DiffController] Received session:update_hunk_annotations:",
+        msg.hunks,
+      );
+      this.model.updateHunkAnnotations(msg.hunks);
+    } else if (msg.type === "hunk:explain_response") {
+      this.model.setHunkExplanation(msg.hunkId, msg.explanation, msg.error);
     } else if (msg.type === "save:result") {
       this.model.setSaveStatus({
         status: msg.success ? "saved" : "error",
@@ -501,6 +509,17 @@ export class DiffController {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(msg));
     }
+  }
+
+  /**
+   * 疑義 Hunk のオンデマンド深掘り解説をリクエストする (B20-04)。
+   */
+  requestExplainHunk(hunkId: string): void {
+    this.model.setExplainLoading(hunkId);
+    this.sendIpcMessage({
+      type: "hunk:explain_request",
+      hunkId,
+    });
   }
 
   /**

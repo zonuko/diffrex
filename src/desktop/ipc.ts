@@ -6,12 +6,14 @@ import type {
   DiffSessionData,
   DirectoryDiffSessionData,
   HistoryEntry,
+  HunkAnnotation,
   SessionSnapshot,
 } from "../core/types.ts";
 
 /** Backend → UI メッセージ */
 export type BackendToUiMessage =
   | { type: "session:init"; data: DiffSessionData }
+  | { type: "session:update_hunk_annotations"; hunks: HunkAnnotation[] }
   | { type: "dir:tree_data"; data: DirectoryDiffSessionData }
   | {
     type: "file:diff_data";
@@ -55,11 +57,19 @@ export type BackendToUiMessage =
   | {
     type: "workspace:restore_session";
     state: import("../core/types.ts").WorkspaceState;
+  }
+  | {
+    type: "hunk:explain_response";
+    hunkId: string;
+    explanation: string;
+    suggestedAction?: "accept" | "reject" | "review_carefully";
+    error?: string;
   };
 
 /** UI → Backend メッセージ */
 export type UiToBackendMessage =
   | { type: "ui:ready" }
+  | { type: "hunk:explain_request"; hunkId: string }
   | { type: "save:request"; content: string }
   | { type: "save:file_request"; relativePath: string; content: string }
   | { type: "file:diff_request"; relativePath: string }

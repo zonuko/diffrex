@@ -42,6 +42,15 @@ supports the code review experience in the AI ​​era**.
   removed error handling—with visual warning badges.
 - ⚡ **Fast Review Triage**: Quick one-key hunk actions: `A` (Accept), `R`
   (Reject), and `E` (Edit).
+- ⚡ **TypeSafe Jev (System One) Semantic Analysis**: Employs TypeSafe AI's Jev
+  System One model to ultra-fast, non-blocking evaluation of prompt-intent
+  alignment, subtle logic risks, and cosmetic noise. Falls back seamlessly to
+  static heuristics if offline or unconfigured.
+- 🛡️ **Confidence-Gated Hybrid Review & Explain**: Automatically triages hunks
+  by confidence score (safe green badges for $\ge$ 85% confidence; "Needs
+  Review" warning badges for low confidence or high risk). Includes an on-demand
+  "🔍 Explain" trigger to generate detailed natural language explanations, plus
+  customizable confidence thresholds.
 - 📁 **Directory & Folder Comparison**: Recursively compares entire directories
   with an interactive tree view, status indicators (Added, Deleted, Modified),
   and instant file switching.
@@ -272,8 +281,19 @@ diffrex local.ts base.ts remote.ts -o merged.ts
 | `--read-only`           | Open in read-only viewing mode (disables editing and saving)             |
 | `--ignore-space`        | Ignore whitespace differences on startup                                 |
 | `--ignore-comments`     | Ignore comment differences on startup                                    |
+| `--no-restore`          | Disable automatic session restoration on startup                         |
+| `--welcome`             | Force launch with the Welcome / Picker screen                            |
 | `-h`, `--help`          | Display CLI help message                                                 |
 | `-v`, `--version`       | Show version information                                                 |
+
+### 7. Environment Variables
+
+| Variable            | Description                                                                              |
+| :------------------ | :--------------------------------------------------------------------------------------- |
+| `TYPESAFE_API_KEY`  | API key for TypeSafe AI Jev System One semantic diff analysis                            |
+| `TYPESAFE_API_URL`  | Custom endpoint URL for Jev System One (defaults to official API)                        |
+| `OPENAI_API_KEY`    | (Optional) OpenAI API key for on-demand System Two deep-dive explanations (`Explain`)    |
+| `ANTHROPIC_API_KEY` | (Optional) Anthropic API key for on-demand System Two deep-dive explanations (`Explain`) |
 
 ---
 

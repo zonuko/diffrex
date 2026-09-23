@@ -219,6 +219,14 @@ export interface HunkAnnotation {
   summaryTag?: string;
   /** ブロック移動情報 */
   moveInfo?: MoveAnnotation;
+  /** TypeSafe Jev (System One) による確信度（0.0 〜 1.0） */
+  confidence?: number;
+  /** プロンプト意図との合致度スコア（0: 不一致/ハルシネーション, 1: 余計な変更あり, 2: 合致） */
+  intentAlignment?: number;
+  /** 選択肢・スコアの確率分布 */
+  probabilities?: Record<string, number>;
+  /** 解析ソース（static: 従来の正規表現等, jev: TypeSafe Jev System One） */
+  analysisSource?: "static" | "jev";
 }
 
 /** 3-Way 競合解決の選択肢 */

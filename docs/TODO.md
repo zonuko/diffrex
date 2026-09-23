@@ -26,7 +26,10 @@
 - アプリケーション メニューバー & コマンド統合（B-8: Smalltalk-80 MVC に基づく MenuModel / MenuController、最上部 MenuBar（File, Edit, Merge, View, Git, Help）およびサブメニュー UI、開くダイアログモーダル、最近開いたセッション履歴連携、ShortcutsModal、AboutModal、`Ctrl+Shift+P` によるクイックコマンドパレット）。
 - マルチタブ UI & 複数セッション並行管理（B-11: TabContainerModel / TabController によるセッション並行保持・アクティブ切り替え、TabBar / TabItem UI、Dirty ● バッジ、中クリック/×ボタンによるクローズ、未保存確認ダイアログ（保存・破棄・キャンセル）、キーバインド（Ctrl+W, Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+1〜9）、ディレクトリツリーからのダブルクリック/中クリック/右クリックメニューによる新規タブ展開）。
 - サブディレクトリ内 Git リポジトリの差分検出 & マルチリポジトリ対応（B-13: 再帰的 Git スキャン、除外フィルタ、.gitmodules サブモジュール解析、差分集約、--scan-git オプション、リポジトリ切り替えセレクタ UI、個別リポジトリ HEAD からの Base 取得）。
-- `deno task check`（fmt / lint / check / test）が全 214 テストで green。
+- ワークスペース状態の自動永続化 & 次回起動時のセッション自動復帰（B-17: WorkspaceState モデル、起動時自動復元、--no-restore / --welcome オプション、壊れた一時ファイルのスキップ）。
+- TypeSafe Jev (System One) による Hunk セマンティック解析 & ノイズ/リスク判定の高度化（B-19: JevClient、Atomic Questions 組み立て、バックエンド ⇄ UI 間のプログレッシブ更新 IPC、API 未設定時の静的解析フォールバック）。
+- Confidence-Gated ハイブリッド・レビュー基盤（B-20: 確信度トリアージ、安全変更 Safe バッジ、要精査 Needs Review バッジ、疑義 Hunk オンデマンド深掘り解説生成 Explain フック & UI、確信度しきい値設定モーダル & メニューバー統合）。
+- `deno task check`（fmt / lint / check / test）が全 237 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
@@ -359,8 +362,8 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 - [x] **B5-06** `src/ui/components/StructuredToolbar.tsx` に Raw Diff / Canonical Diff の切替 UI を実装し、エディタと連動。
 - [x] **B5-07** `src/core/structured/csv_parser.ts` に RFC 4180 CSV / TSV パーサーおよび行・セル単位の差分検出ロジックを実装。
 - [x] **B5-08** `src/ui/model/csv_diff_model.ts` & `src/ui/components/CsvDiffView.tsx` にテーブルグリッド差分ビュー（追加・削除・変更セルのハイライト）を実装。
-- [x] **B5-09** `src/ui/App.tsx` & `src/cli/args.ts` に画像および構造化データの自動モード判定・単独起動・ディレクトリツリー内での動的切り替えを統合。
-- [x] **B5-10** テスト: `tests/image_diff_test.ts`, `tests/canonical_diff_test.ts`, `tests/csv_diff_test.ts` を追加し検証。
+- [x] **B5-09** `src/ui/App.tsx` & `src/cli/args.ts` に画像および構造化データの自動モード判定・単独起動・ディレクトリツリー内での動的切替を統合。
+- [x] **B5-10** テスト `tests/image_diff_test.ts`, `tests/canonical_diff_test.ts`, `tests/csv_diff_test.ts` を追加し検証。
 
 **AC:** `Diffrex img1.png img2.png` で画像比較画面（2-Up, Swipe, Onion Skin, Pixel Difference）が起動し、同期ズーム/パンができる。JSON/YAML 比較で Canonical モードによりキー順序差分を無視できる。`Diffrex data1.csv data2.csv` でスプレッドシート形式のセル差分グリッドが表示される。ディレクトリ比較の右ペインでも各形式が適切にレンダリングされる。
 
@@ -527,6 +530,27 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 - [ ] **B15-05** `README.md` にオンラインデモ（Live Demo）のリンクとバッジを追記。
 
 **AC:** Deno Deploy 上に Diffrex のデモサイトが公開され、ローカル環境へのインストール不要でブラウザから即座に 2-Way / 3-Way / 画像 / CSV 比較やキーボード操作、AI メタデータデコレーションを体験できる。
+
+#### B-19. TypeSafe Jev (System One) による Hunk セマンティック解析 & ノイズ/リスク判定の高度化
+
+- [x] **B19-01** `src/core/analysis/jev_client.ts` に TypeSafe AI Jev API (`POST https://api.typesafe.ai/v1/systemone`) クライアントを実装（Deno 標準 `fetch`、API キー設定 `TYPESAFE_API_KEY`、型定義: `Choice`, `Score`, `Noul`）。
+- [x] **B19-02** `src/core/analysis/semantic_analysis.ts` に Hunk 単位の Atomic Questions 組み立てロジック（`risk_level`: Choice, `intent_alignment`: Score, `is_cosmetic_noise`: Noul）を実装。ユーザーの指示プロンプトと変更差分を照合し、プロンプト範囲外の不要な変更や意図しないロジック破壊を検出。
+- [x] **B19-03** 非ブロッキング実行 & Graceful Degradation（初期レンダリングをブロックせずバックグラウンドで解析実行。API キー未設定時やオフライン時は既存の正規表現・行数ベース静的解析へ自動フォールバック）。
+- [x] **B19-04** バックエンド ⇄ UI 間のプログレッシブ更新 IPC（`session:update_hunk_annotations`）を実装し、Jev 解析結果が返ってきた Hunk から順次バッジや折りたたみをリアルタイム更新。
+- [x] **B19-05** テスト: `tests/jev_client_test.ts` / `tests/semantic_analysis_test.ts`（モック API による Questions 組み立て、レスポンスの HunkAnnotation マッピング、API エラー・オフライン時のフォールバック処理のテスト）。
+
+**AC:** `TYPESAFE_API_KEY` 設定時に、静的ヒューリスティクスでは捉えきれない「プロンプト意図との乖離」や「意味論的ノイズ」が Jev の System One 超高速判定により瞬時に評価され、Diffrex の起動・描画パフォーマンスを損なうことなくリアルタイムに Hunk バッジと折りたたみが反映される。未設定時は既存の静的解析で安全にフォールバックする。
+
+#### B-20. Confidence-Gated ハイブリッド・レビュー基盤（確信度ルーティング & 疑義 Hunk のオンデマンド深掘り）
+
+- [x] **B20-01** `src/core/types.ts` & `src/ui/model/diff_session_model.ts` の `HunkAnnotation` に確信度（`confidence?: number`）および各質問の確率分布（`probabilities`）フィールドを拡張。
+- [x] **B20-02** 確信度しきい値に基づく自動トリアージ判定（例: `confidence >= 0.85 && riskLevel === "normal"` なら「安全な変更 (Safe)」として低リスク緑バッジ表示、`A` キー等での一括承認対象に候補提示）。
+- [x] **B20-03** 低確信度（`confidence < 0.6`）または高リスク（`riskLevel === "danger"`）の Hunk に対する「要精査 (Needs Review)」警告バッジ & 疑義理由タグ（`intent_alignment` 低下等）の UI 表示。
+- [x] **B20-04** オンデマンド深掘りトリガー（疑義のある Hunk について、ユーザーが詳細を知りたい場合のみ B-3 の重い System Two LLM（Claude / GPT / Ollama）へ「なぜこの変更が危険と判定されたのか？」の詳細な自然言語解説を生成させる連携フック）。
+- [x] **B20-05** 設定モーダルおよびメニューバーへの「確信度しきい値設定（Confidence Threshold）」の追加。
+- [x] **B20-06** テスト: `tests/confidence_gated_review_test.ts`（確信度によるトリアージ分類、しきい値変更に応じた UI 状態更新、一括承認候補フィルタリングのテスト）。
+
+**AC:** Jev が返却する確信度（Confidence）を活用し、高確信度の安全な差分は一発マージ可能とし、低確信度・高リスクの差分は「要精査」として確実にハイライトされる。さらにオンデマンドで System Two LLM を呼び出して詳細解説を得る二段階レビュー体験が実現する。
 
 ---
 

@@ -2,6 +2,7 @@
  * Diffrex エントリポイント（Phase 1, Phase B-1）。
  */
 
+import "./src/core/env.ts";
 import { parseCliArgs } from "./src/cli/args.ts";
 import { printUsage, printVersion } from "./src/cli/usage.ts";
 import { validateCliArgs } from "./src/cli/validate.ts";

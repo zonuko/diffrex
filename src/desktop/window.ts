@@ -2,6 +2,7 @@
  * Deno Desktop ウィンドウおよび UI エンドポイントの管理（P1-09, P1-12, B1-05）。
  */
 
+import "../core/env.ts";
 import { basename, join } from "@std/path";
 import { compareDirectories } from "../core/dir_diff.ts";
 import {
@@ -11,6 +12,11 @@ import {
   writeFileTarget,
 } from "../core/file_io.ts";
 import { buildSession, buildSessionAsync } from "../core/session.ts";
+import {
+  analyzeHunksWithJev,
+  explainHunkWithSystemTwo,
+  JevClient,
+} from "../core/analysis/index.ts";
 import type {
   DiffSessionData,
   DirectoryDiffSessionData,
@@ -184,6 +190,51 @@ export function startDesktopServer(
     }
   };
 
+  const triggerJevAnalysis = (session: DiffSessionData, ws: WebSocket) => {
+    const jev = new JevClient();
+    if (!jev.isConfigured()) {
+      console.log(
+        "\x1b[33m[Jev Desktop]\x1b[0m Semantic analysis skipped: TYPESAFE_API_KEY is not configured.",
+      );
+      return;
+    }
+    if (!session.hunks || session.hunks.length === 0) {
+      console.log(
+        "\x1b[33m[Jev Desktop]\x1b[0m Semantic analysis skipped: No hunks to analyze.",
+      );
+      return;
+    }
+
+    console.log(
+      `\x1b[35m[Jev Desktop]\x1b[0m 🚀 Triggering Jev analysis for session with ${session.hunks.length} hunks...`,
+    );
+
+    (async () => {
+      try {
+        const updated = await analyzeHunksWithJev({
+          hunks: session.hunks,
+          leftContent: session.files.left.content,
+          rightContent: session.files.right.content,
+          prompt: session.aiContext?.prompt,
+          jevClient: jev,
+        });
+        session.hunks = updated;
+        console.log(
+          `\x1b[35m[Jev Desktop]\x1b[0m 📡 Broadcasting session:update_hunk_annotations (${updated.length} hunks) to UI...`,
+        );
+        sendToSocket(ws, {
+          type: "session:update_hunk_annotations",
+          hunks: updated,
+        });
+      } catch (err) {
+        console.warn(
+          "\x1b[31m[Jev Desktop]\x1b[0m Background analysis error:",
+          err,
+        );
+      }
+    })();
+  };
+
   const broadcast = (msg: BackendToUiMessage) => {
     for (const ws of activeSockets) {
       sendToSocket(ws, msg);
@@ -259,10 +310,12 @@ export function startDesktopServer(
                 data: currentSession as DirectoryDiffSessionData,
               });
             } else if (currentSession.mode !== "welcome") {
+              const session = currentSession as DiffSessionData;
               sendToSocket(socket, {
                 type: "session:init",
-                data: currentSession as DiffSessionData,
+                data: session,
               });
+              triggerJevAnalysis(session, socket);
             }
             sendToSocket(socket, {
               type: "window:title_update",
@@ -465,6 +518,7 @@ export function startDesktopServer(
                 relativePath: parsed.relativePath,
                 data: diffSession,
               });
+              triggerJevAnalysis(diffSession, socket);
             } catch (err) {
               sendToSocket(socket, {
                 type: "file:diff_data",
@@ -1112,6 +1166,42 @@ export function startDesktopServer(
                     message: `保存に失敗しました: ${
                       err instanceof Error ? err.message : String(err)
                     }`,
+                  });
+                }
+              }
+            }
+            break;
+          }
+
+          case "hunk:explain_request": {
+            if (
+              currentSession.mode !== "welcome" &&
+              currentSession.mode !== "directory"
+            ) {
+              const session = currentSession as DiffSessionData;
+              const targetHunk = session.hunks?.find((h) =>
+                h.id === parsed.hunkId
+              );
+              if (targetHunk) {
+                try {
+                  const result = await explainHunkWithSystemTwo({
+                    hunk: targetHunk,
+                    leftContent: session.files.left.content,
+                    rightContent: session.files.right.content,
+                    prompt: session.aiContext?.prompt,
+                  });
+                  sendToSocket(socket, {
+                    type: "hunk:explain_response",
+                    hunkId: parsed.hunkId,
+                    explanation: result.explanation,
+                    suggestedAction: result.suggestedAction,
+                  });
+                } catch (err) {
+                  sendToSocket(socket, {
+                    type: "hunk:explain_response",
+                    hunkId: parsed.hunkId,
+                    explanation: "",
+                    error: err instanceof Error ? err.message : String(err),
                   });
                 }
               }

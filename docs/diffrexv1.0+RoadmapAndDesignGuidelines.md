@@ -29,14 +29,18 @@ MVPでは行単位・正規表現ベースの簡易的なノイズ判定です�
 * **対応言語の優先順位:**  
   * 最初に対応する言語（TypeScript/JavaScript, Python, Rust, Go など）の選定。
 
-## **3\. イン・アプリ AIコパイロット（In-App AI Agent）**
+## **3\. イン・アプリ AIコパイロット（In-App AI Agent）＆ セマンティック解析**
 
-MVPは外部から渡されたプロンプトを表示するのみですが、フル機能版では「アプリ内でAIと対話しながら差分を操作・修正する」機能が不可欠です。
+MVPは外部から渡されたプロンプトを表示するのみですが、フル機能版では「アプリ内でAIと対話しながら差分を操作・修正する」機能、および高速な構造化判定モデルによる差分解析が不可欠です。
 
 ### **詰めるべきポイント**
 
+* **System One (Jev / TypeSafe AI) と System Two (LLM) のハイブリッド・トリアージ:**
+  * **System One（Jev）:** 高速・並列・低レイテンシで型付き判定（Choice/Score/Noul）と確信度（Confidence）を取得。各 Hunk がプロンプトの意図と合致しているか、破壊的変更がないか、装飾的ノイズかを瞬時に判定し、UI 描画をブロックせずプログレッシブに反映する。
+  * **Confidence-Gated ルーティング:** 確信度 0.85 以上の安全な差分は一括マージ候補とし、低確信度・高リスク差分は「要精査」としてハイライトする。
+  * **System Two（Claude / GPT / Ollama）:** ユーザーが疑義のある Hunk について詳細解説を求めた場合や、追従プロンプトによる修正依頼時のみオンデマンドで呼び出す。
 * **LLM APIプロバイダーの直接接続:**  
-  * OpenAI, Anthropic, Gemini, および **Ollama (ローカルLLM)** のAPIキー・エンドポイント設定画面。  
+  * TypeSafe AI、OpenAI、Anthropic、Gemini、および **Ollama (ローカルLLM)** のAPIキー・エンドポイント設定画面。  
 * **AIによる自動コンフリクト解消（Auto-Resolve）:**  
   * 3-Way Merge時、1キーでAIが文脈（Base/Local/Remote）を読んで競合を自動解決・提案する。  
 * **差分に対する直接指示（Contextual Prompting）:**  

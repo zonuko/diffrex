@@ -30,6 +30,7 @@ export class MenuModel extends Observable<MenuModel> {
   private _activeCategoryIndex: number | null = null;
   private _isShortcutsModalOpen = false;
   private _isAboutModalOpen = false;
+  private _isConfidenceSettingsModalOpen = false;
   private _isCommandPaletteOpen = false;
   private _isOpenSessionModalOpen = false;
   private _openSessionInitialTab: "file" | "dir" | "git" | "3way" = "file";
@@ -50,6 +51,10 @@ export class MenuModel extends Observable<MenuModel> {
 
   get isAboutModalOpen(): boolean {
     return this._isAboutModalOpen;
+  }
+
+  get isConfidenceSettingsModalOpen(): boolean {
+    return this._isConfidenceSettingsModalOpen;
   }
 
   get isCommandPaletteOpen(): boolean {
@@ -128,6 +133,7 @@ export class MenuModel extends Observable<MenuModel> {
       if (open) {
         this.closeMenu();
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isCommandPaletteOpen = false;
         this._isOpenSessionModalOpen = false;
       }
@@ -141,6 +147,21 @@ export class MenuModel extends Observable<MenuModel> {
       if (open) {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
+        this._isCommandPaletteOpen = false;
+        this._isOpenSessionModalOpen = false;
+      }
+      this.notify(this);
+    }
+  }
+
+  setConfidenceSettingsModalOpen(open: boolean): void {
+    if (this._isConfidenceSettingsModalOpen !== open) {
+      this._isConfidenceSettingsModalOpen = open;
+      if (open) {
+        this.closeMenu();
+        this._isShortcutsModalOpen = false;
+        this._isAboutModalOpen = false;
         this._isCommandPaletteOpen = false;
         this._isOpenSessionModalOpen = false;
       }
@@ -162,6 +183,7 @@ export class MenuModel extends Observable<MenuModel> {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isCommandPaletteOpen = false;
       }
       this.notify(this);
@@ -175,6 +197,7 @@ export class MenuModel extends Observable<MenuModel> {
         this.closeMenu();
         this._isShortcutsModalOpen = false;
         this._isAboutModalOpen = false;
+        this._isConfidenceSettingsModalOpen = false;
         this._isOpenSessionModalOpen = false;
         this._commandPaletteQuery = "";
         this._commandPaletteSelectedIndex = 0;

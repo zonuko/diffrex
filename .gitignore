@@ -16,5 +16,9 @@ tmp/
 # deno desktop のアプリバンドル出力（macOS）
 *.app/
 
+# 環境変数
+.env
+!.env.sample
+
 # macOS
 .DS_Store
