@@ -6,6 +6,7 @@
  */
 
 import type {
+  ExternalConflictInfo,
   TabContainerModel,
   TabItem,
   TabSessionType,
@@ -293,6 +294,136 @@ export class TabController {
   }
 
   /**
+   * 外部ファイル変更イベント（B16-02, B16-03）を処理する。
+   * - 未編集（Clean）時: 自動で新コンテンツを再読み込み
+   * - 編集中（Dirty）時: 競合通知ダイアログを表示
+   */
+  handleFileChanged(msg: {
+    path: string;
+    target?: string;
+    relativePath?: string;
+    mtime: number;
+    content?: string;
+  }): void {
+    const activeTab = this._model.activeTab;
+    if (!activeTab) return;
+
+    const normMsg = msg.path.replace(/\\/g, "/").toLowerCase();
+
+    // 影響を受けるタブか判定
+    const isAffected = (tab: TabItem): boolean => {
+      if (msg.relativePath && tab.relativePath === msg.relativePath) {
+        return true;
+      }
+      if (tab.sessionType === "directory") return true;
+      const leftPath = tab.diffModel?.session?.files.left.path;
+      const rightPath = tab.diffModel?.session?.files.right.path;
+      const basePath = tab.diffModel?.session?.files.base?.path;
+      if (leftPath && leftPath.replace(/\\/g, "/").toLowerCase() === normMsg) {
+        return true;
+      }
+      if (
+        rightPath && rightPath.replace(/\\/g, "/").toLowerCase() === normMsg
+      ) {
+        return true;
+      }
+      if (basePath && basePath.replace(/\\/g, "/").toLowerCase() === normMsg) {
+        return true;
+      }
+      return false;
+    };
+
+    if (isAffected(activeTab)) {
+      if (activeTab.isDirty || activeTab.diffModel?.isDirty) {
+        // 編集中（Dirty）時: 競合通知ダイアログを表示
+        this._model.setPendingExternalConflict({
+          filePath: msg.path,
+          tabId: activeTab.id,
+          relativePath: msg.relativePath,
+          target: msg.target as ExternalConflictInfo["target"],
+          newContent: msg.content,
+        });
+      } else {
+        // 未編集（Clean）時: 自動再読み込み
+        if (activeTab.sessionType === "directory") {
+          if (msg.relativePath) {
+            this._options.onSendMessage?.({
+              type: "file:diff_request",
+              relativePath: msg.relativePath,
+            });
+          }
+        } else {
+          this._options.onSendMessage?.({
+            type: "file:reload_request",
+            relativePath: msg.relativePath,
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * 外部変更競合ダイアログのユーザー選択を調停する（B16-03）。
+   * @param acceptExternal true の場合は破棄して再読み込み、false の場合は現在の編集を保持
+   */
+  resolveExternalConflict(acceptExternal: boolean): void {
+    const conflict = this._model.pendingExternalConflict;
+    if (!conflict) return;
+
+    if (acceptExternal) {
+      const tab = conflict.tabId
+        ? this._model.findTabById(conflict.tabId)
+        : this._model.activeTab;
+      if (tab?.diffModel) {
+        tab.diffModel.setDirty(false);
+      }
+      this._model.updateTabDirty(tab?.id ?? "", false);
+
+      if (conflict.relativePath) {
+        this._options.onSendMessage?.({
+          type: "file:diff_request",
+          relativePath: conflict.relativePath,
+        });
+      } else {
+        this._options.onSendMessage?.({
+          type: "file:reload_request",
+        });
+      }
+    }
+
+    this._model.clearPendingExternalConflict();
+  }
+
+  /**
+   * 手動再読み込みコマンドを実行する（B16-04: F5 / Ctrl+Shift+R）。
+   */
+  reloadCurrentTab(): void {
+    const active = this._model.activeTab;
+    if (!active) return;
+
+    if (active.isDirty || active.diffModel?.isDirty) {
+      this._model.setPendingExternalConflict({
+        filePath: active.title,
+        tabId: active.id,
+        relativePath: active.relativePath,
+      });
+      return;
+    }
+
+    if (active.sessionType === "directory") {
+      this._options.onSendMessage?.({ type: "dir:reload_request" });
+      if (active.dirModel?.selectedPath) {
+        this._options.onSendMessage?.({
+          type: "file:diff_request",
+          relativePath: active.dirModel.selectedPath,
+        });
+      }
+    } else {
+      this._options.onSendMessage?.({ type: "file:reload_request" });
+    }
+  }
+
+  /**
    * タブの並び順を変更する。
    */
   reorderTabs(fromIndex: number, toIndex: number): void {
@@ -305,6 +436,16 @@ export class TabController {
    */
   handleKeyDown(e: KeyboardEvent): boolean {
     const isCtrl = e.ctrlKey || e.metaKey;
+
+    // 0. F5 または Ctrl+Shift+R で再読み込み (B16-04)
+    if (
+      e.key === "F5" ||
+      (isCtrl && e.shiftKey && !e.altKey && (e.key === "r" || e.key === "R"))
+    ) {
+      e.preventDefault();
+      this.reloadCurrentTab();
+      return true;
+    }
 
     // 1. Ctrl+W で現在のタブを閉じる
     if (

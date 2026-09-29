@@ -64,12 +64,26 @@ export type BackendToUiMessage =
     explanation: string;
     suggestedAction?: "accept" | "reject" | "review_carefully";
     error?: string;
+  }
+  | {
+    type: "file:changed";
+    path: string;
+    target?: "left" | "right" | "base" | "target" | "directory";
+    relativePath?: string;
+    mtime: number;
+    content?: string;
+  }
+  | {
+    type: "dir:changed";
+    directory: string;
   };
 
 /** UI → Backend メッセージ */
 export type UiToBackendMessage =
   | { type: "ui:ready" }
   | { type: "hunk:explain_request"; hunkId: string }
+  | { type: "file:reload_request"; relativePath?: string }
+  | { type: "dir:reload_request" }
   | { type: "save:request"; content: string }
   | { type: "save:file_request"; relativePath: string; content: string }
   | { type: "file:diff_request"; relativePath: string }

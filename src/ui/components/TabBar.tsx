@@ -10,6 +10,7 @@ import type { TabContainerModel } from "../model/tab_model.ts";
 import type { TabController } from "../controller/tab_controller.ts";
 import { TabItem } from "./TabItem.tsx";
 import { TabCloseConfirmModal } from "./TabCloseConfirmModal.tsx";
+import { ExternalChangeConflictModal } from "./ExternalChangeConflictModal.tsx";
 import { useModel } from "../hooks/use_model.ts";
 
 export interface TabBarProps {
@@ -28,6 +29,7 @@ export function TabBar({
   const tabs = model.tabs;
   const activeTabId = model.activeTabId;
   const pendingCloseTab = model.pendingCloseTab;
+  const pendingConflict = model.pendingExternalConflict;
 
   return (
     <>
@@ -63,6 +65,14 @@ export function TabBar({
       {pendingCloseTab && (
         <TabCloseConfirmModal
           tab={pendingCloseTab}
+          controller={controller}
+        />
+      )}
+
+      {/* 外部ファイル変更の競合確認ダイアログ (B16-03) */}
+      {pendingConflict && (
+        <ExternalChangeConflictModal
+          conflict={pendingConflict}
           controller={controller}
         />
       )}

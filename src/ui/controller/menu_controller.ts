@@ -225,6 +225,16 @@ export class MenuController {
             },
           },
           {
+            id: "file:reload",
+            label: "最新の状態に再読み込み",
+            shortcut: "F5 / Ctrl+Shift+R",
+            disabled: !hasSession,
+            action: () => {
+              this._model.closeMenu();
+              this.reloadCurrent();
+            },
+          },
+          {
             id: "file:close_tab",
             label: "タブを閉じる",
             shortcut: "Ctrl+W",
@@ -592,6 +602,13 @@ export class MenuController {
   }
 
   /**
+   * 最新の状態に再読み込み（B16-04）。
+   */
+  reloadCurrent(): void {
+    this._dirController.reloadSession();
+  }
+
+  /**
    * コマンドパレット用: メニュー構造から全実行可能コマンドを抽出する。
    */
   getFlatCommandList(): FlatCommandItem[] {
@@ -657,6 +674,18 @@ export class MenuController {
    * グローバルキーイベントのハンドリング（Alt アクセスキー、パレット、ショートカット）。
    */
   handleGlobalKeyDown(e: KeyboardEvent): boolean {
+    const isCtrl = e.ctrlKey || e.metaKey;
+
+    // F5 または Ctrl+Shift+R による再読み込み (B16-04)
+    if (
+      e.key === "F5" ||
+      (isCtrl && e.shiftKey && !e.altKey && (e.key === "r" || e.key === "R"))
+    ) {
+      e.preventDefault();
+      this.reloadCurrent();
+      return true;
+    }
+
     // 0. タブ操作ショートカット（Ctrl+W, Ctrl+Tab, Ctrl+1..9）
     if (
       !this._model.isCommandPaletteOpen &&

@@ -200,6 +200,27 @@ export class DirectoryController {
         }
         break;
       }
+      case "file:changed": {
+        if (this._tabController) {
+          this._tabController.handleFileChanged(msg);
+        } else {
+          if (!this._diffModel.isDirty) {
+            if (
+              msg.relativePath &&
+              this._model.selectedPath === msg.relativePath
+            ) {
+              this.selectFile(msg.relativePath);
+            } else if (!msg.relativePath) {
+              this.sendMessage({ type: "file:reload_request" });
+            }
+          }
+        }
+        break;
+      }
+      case "dir:changed": {
+        this.sendMessage({ type: "dir:reload_request" });
+        break;
+      }
       case "hunk:explain_response": {
         this._diffModel.setHunkExplanation(
           msg.hunkId,
@@ -223,6 +244,19 @@ export class DirectoryController {
   sendMessage(msg: UiToBackendMessage): void {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify(msg));
+    }
+  }
+
+  reloadSession(): void {
+    if (this._tabController) {
+      this._tabController.reloadCurrentTab();
+    } else if (this._model.dirSession) {
+      this.sendMessage({ type: "dir:reload_request" });
+      if (this._model.selectedPath) {
+        this.selectFile(this._model.selectedPath);
+      }
+    } else {
+      this.sendMessage({ type: "file:reload_request" });
     }
   }
 

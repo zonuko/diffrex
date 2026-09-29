@@ -19423,6 +19423,24 @@ var DirectoryController = class {
         }
         break;
       }
+      case "file:changed": {
+        if (this._tabController) {
+          this._tabController.handleFileChanged(msg);
+        } else {
+          if (!this._diffModel.isDirty) {
+            if (msg.relativePath && this._model.selectedPath === msg.relativePath) {
+              this.selectFile(msg.relativePath);
+            } else if (!msg.relativePath) {
+              this.sendMessage({ type: "file:reload_request" });
+            }
+          }
+        }
+        break;
+      }
+      case "dir:changed": {
+        this.sendMessage({ type: "dir:reload_request" });
+        break;
+      }
       case "hunk:explain_response": {
         this._diffModel.setHunkExplanation(
           msg.hunkId,
@@ -19445,6 +19463,18 @@ var DirectoryController = class {
   sendMessage(msg) {
     if (this._ws && this._ws.readyState === WebSocket.OPEN) {
       this._ws.send(JSON.stringify(msg));
+    }
+  }
+  reloadSession() {
+    if (this._tabController) {
+      this._tabController.reloadCurrentTab();
+    } else if (this._model.dirSession) {
+      this.sendMessage({ type: "dir:reload_request" });
+      if (this._model.selectedPath) {
+        this.selectFile(this._model.selectedPath);
+      }
+    } else {
+      this.sendMessage({ type: "file:reload_request" });
     }
   }
   requestHistory() {
@@ -20496,6 +20526,16 @@ var MenuController = class {
             }
           },
           {
+            id: "file:reload",
+            label: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F",
+            shortcut: "F5 / Ctrl+Shift+R",
+            disabled: !hasSession,
+            action: () => {
+              this._model.closeMenu();
+              this.reloadCurrent();
+            }
+          },
+          {
             id: "file:close_tab",
             label: "\u30BF\u30D6\u3092\u9589\u3058\u308B",
             shortcut: "Ctrl+W",
@@ -20845,6 +20885,12 @@ var MenuController = class {
     }
   }
   /**
+   * 最新の状態に再読み込み（B16-04）。
+   */
+  reloadCurrent() {
+    this._dirController.reloadSession();
+  }
+  /**
    * コマンドパレット用: メニュー構造から全実行可能コマンドを抽出する。
    */
   getFlatCommandList() {
@@ -20900,6 +20946,12 @@ var MenuController = class {
    * グローバルキーイベントのハンドリング（Alt アクセスキー、パレット、ショートカット）。
    */
   handleGlobalKeyDown(e3) {
+    const isCtrl = e3.ctrlKey || e3.metaKey;
+    if (e3.key === "F5" || isCtrl && e3.shiftKey && !e3.altKey && (e3.key === "r" || e3.key === "R")) {
+      e3.preventDefault();
+      this.reloadCurrent();
+      return true;
+    }
     if (!this._model.isCommandPaletteOpen && !this._model.isShortcutsModalOpen && !this._model.isAboutModalOpen && !this._model.isOpenSessionModalOpen && this._tabController?.handleKeyDown(e3)) {
       return true;
     }
@@ -36927,6 +36979,10 @@ var SHORTCUT_SECTIONS = [
     title: "\u30D5\u30A1\u30A4\u30EB & \u30BB\u30C3\u30B7\u30E7\u30F3",
     shortcuts: [
       { keys: ["Ctrl + S"], description: "\u7DE8\u96C6\u5185\u5BB9\u3092\u4FDD\u5B58" },
+      {
+        keys: ["F5", "Ctrl + Shift + R"],
+        description: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F"
+      },
       { keys: ["Ctrl + O"], description: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F" },
       { keys: ["Ctrl + Shift + O"], description: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F" },
       { keys: ["Ctrl + Shift + T"], description: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u81EA\u52D5\u5FA9\u5143" },
@@ -37790,6 +37846,7 @@ var TabContainerModel = class extends Observable {
   _tabs = [];
   _activeTabId = null;
   _pendingCloseTabId = null;
+  _pendingExternalConflict = null;
   constructor(initialTabs = []) {
     super();
     this._tabs = [...initialTabs];
@@ -37821,6 +37878,21 @@ var TabContainerModel = class extends Observable {
   get pendingCloseTab() {
     if (!this._pendingCloseTabId) return null;
     return this._tabs.find((t4) => t4.id === this._pendingCloseTabId) ?? null;
+  }
+  get pendingExternalConflict() {
+    return this._pendingExternalConflict;
+  }
+  setPendingExternalConflict(conflict) {
+    if (this._pendingExternalConflict !== conflict) {
+      this._pendingExternalConflict = conflict;
+      this.notify(this);
+    }
+  }
+  clearPendingExternalConflict() {
+    if (this._pendingExternalConflict !== null) {
+      this._pendingExternalConflict = null;
+      this.notify(this);
+    }
   }
   // --- タブ操作ミューテーション ---
   /**
@@ -38180,6 +38252,112 @@ var TabController = class {
     this._model.setPendingCloseTabId(null);
   }
   /**
+   * 外部ファイル変更イベント（B16-02, B16-03）を処理する。
+   * - 未編集（Clean）時: 自動で新コンテンツを再読み込み
+   * - 編集中（Dirty）時: 競合通知ダイアログを表示
+   */
+  handleFileChanged(msg) {
+    const activeTab = this._model.activeTab;
+    if (!activeTab) return;
+    const normMsg = msg.path.replace(/\\/g, "/").toLowerCase();
+    const isAffected = (tab2) => {
+      if (msg.relativePath && tab2.relativePath === msg.relativePath) {
+        return true;
+      }
+      if (tab2.sessionType === "directory") return true;
+      const leftPath = tab2.diffModel?.session?.files.left.path;
+      const rightPath = tab2.diffModel?.session?.files.right.path;
+      const basePath = tab2.diffModel?.session?.files.base?.path;
+      if (leftPath && leftPath.replace(/\\/g, "/").toLowerCase() === normMsg) {
+        return true;
+      }
+      if (rightPath && rightPath.replace(/\\/g, "/").toLowerCase() === normMsg) {
+        return true;
+      }
+      if (basePath && basePath.replace(/\\/g, "/").toLowerCase() === normMsg) {
+        return true;
+      }
+      return false;
+    };
+    if (isAffected(activeTab)) {
+      if (activeTab.isDirty || activeTab.diffModel?.isDirty) {
+        this._model.setPendingExternalConflict({
+          filePath: msg.path,
+          tabId: activeTab.id,
+          relativePath: msg.relativePath,
+          target: msg.target,
+          newContent: msg.content
+        });
+      } else {
+        if (activeTab.sessionType === "directory") {
+          if (msg.relativePath) {
+            this._options.onSendMessage?.({
+              type: "file:diff_request",
+              relativePath: msg.relativePath
+            });
+          }
+        } else {
+          this._options.onSendMessage?.({
+            type: "file:reload_request",
+            relativePath: msg.relativePath
+          });
+        }
+      }
+    }
+  }
+  /**
+   * 外部変更競合ダイアログのユーザー選択を調停する（B16-03）。
+   * @param acceptExternal true の場合は破棄して再読み込み、false の場合は現在の編集を保持
+   */
+  resolveExternalConflict(acceptExternal) {
+    const conflict = this._model.pendingExternalConflict;
+    if (!conflict) return;
+    if (acceptExternal) {
+      const tab2 = conflict.tabId ? this._model.findTabById(conflict.tabId) : this._model.activeTab;
+      if (tab2?.diffModel) {
+        tab2.diffModel.setDirty(false);
+      }
+      this._model.updateTabDirty(tab2?.id ?? "", false);
+      if (conflict.relativePath) {
+        this._options.onSendMessage?.({
+          type: "file:diff_request",
+          relativePath: conflict.relativePath
+        });
+      } else {
+        this._options.onSendMessage?.({
+          type: "file:reload_request"
+        });
+      }
+    }
+    this._model.clearPendingExternalConflict();
+  }
+  /**
+   * 手動再読み込みコマンドを実行する（B16-04: F5 / Ctrl+Shift+R）。
+   */
+  reloadCurrentTab() {
+    const active = this._model.activeTab;
+    if (!active) return;
+    if (active.isDirty || active.diffModel?.isDirty) {
+      this._model.setPendingExternalConflict({
+        filePath: active.title,
+        tabId: active.id,
+        relativePath: active.relativePath
+      });
+      return;
+    }
+    if (active.sessionType === "directory") {
+      this._options.onSendMessage?.({ type: "dir:reload_request" });
+      if (active.dirModel?.selectedPath) {
+        this._options.onSendMessage?.({
+          type: "file:diff_request",
+          relativePath: active.dirModel.selectedPath
+        });
+      }
+    } else {
+      this._options.onSendMessage?.({ type: "file:reload_request" });
+    }
+  }
+  /**
    * タブの並び順を変更する。
    */
   reorderTabs(fromIndex, toIndex) {
@@ -38191,6 +38369,11 @@ var TabController = class {
    */
   handleKeyDown(e3) {
     const isCtrl = e3.ctrlKey || e3.metaKey;
+    if (e3.key === "F5" || isCtrl && e3.shiftKey && !e3.altKey && (e3.key === "r" || e3.key === "R")) {
+      e3.preventDefault();
+      this.reloadCurrentTab();
+      return true;
+    }
     if (isCtrl && !e3.shiftKey && !e3.altKey && (e3.key === "w" || e3.key === "W")) {
       e3.preventDefault();
       this.closeCurrentTab();
@@ -38543,6 +38726,90 @@ function TabCloseConfirmModal({
   );
 }
 
+// src/ui/components/ExternalChangeConflictModal.tsx
+function ExternalChangeConflictModal({
+  conflict,
+  controller
+}) {
+  h2(() => {
+    const handleKeyDown = (e3) => {
+      if (e3.key === "Escape") {
+        e3.preventDefault();
+        controller.resolveExternalConflict(false);
+      }
+    };
+    globalThis.addEventListener("keydown", handleKeyDown);
+    return () => {
+      globalThis.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [controller]);
+  const displayName = conflict.relativePath || conflict.filePath.split(/[/\\]/).pop() || conflict.filePath;
+  return /* @__PURE__ */ u3(
+    "div",
+    {
+      class: "modal-backdrop",
+      onClick: () => controller.resolveExternalConflict(false),
+      children: /* @__PURE__ */ u3(
+        "div",
+        {
+          class: "modal-dialog tab-confirm-modal",
+          onClick: (e3) => e3.stopPropagation(),
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": "external-conflict-title",
+          children: [
+            /* @__PURE__ */ u3("div", { class: "modal-header", children: [
+              /* @__PURE__ */ u3("h3", { id: "external-conflict-title", class: "modal-title", children: "\u26A0\uFE0F \u30D5\u30A1\u30A4\u30EB\u304C\u5916\u90E8\u3067\u5909\u66F4\u3055\u308C\u307E\u3057\u305F" }),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "modal-close-btn",
+                  onClick: () => controller.resolveExternalConflict(false),
+                  title: "\u73FE\u5728\u306E\u7DE8\u96C6\u3092\u4FDD\u6301\u3057\u3066\u9589\u3058\u308B (Escape)",
+                  children: "\xD7"
+                }
+              )
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "modal-body", children: [
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-message", children: [
+                /* @__PURE__ */ u3("strong", { children: [
+                  '"',
+                  displayName,
+                  '"'
+                ] }),
+                " ",
+                "\u304C\u5916\u90E8\u30A8\u30C7\u30A3\u30BF\u307E\u305F\u306F\u30C4\u30FC\u30EB\u306B\u3088\u3063\u3066\u5909\u66F4\u3055\u308C\u307E\u3057\u305F\u3002"
+              ] }),
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-submessage", children: "\u73FE\u5728\u306E\u672A\u4FDD\u5B58\u306E\u7DE8\u96C6\u3092\u7834\u68C4\u3057\u3066\u6700\u65B0\u306E\u5185\u5BB9\u3092\u518D\u8AAD\u307F\u8FBC\u307F\u3057\u307E\u3059\u304B\uFF1F \u305D\u308C\u3068\u3082\u73FE\u5728\u306E\u7DE8\u96C6\u3092\u4FDD\u6301\u3057\u307E\u3059\u304B\uFF1F" })
+            ] }),
+            /* @__PURE__ */ u3("div", { class: "modal-footer tab-confirm-footer", children: [
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "btn btn-danger",
+                  onClick: () => controller.resolveExternalConflict(true),
+                  children: "\u{1F504} \u518D\u8AAD\u307F\u8FBC\u307F\uFF08\u7DE8\u96C6\u3092\u7834\u68C4\uFF09"
+                }
+              ),
+              /* @__PURE__ */ u3(
+                "button",
+                {
+                  type: "button",
+                  class: "btn btn-primary",
+                  onClick: () => controller.resolveExternalConflict(false),
+                  children: "\u{1F6E1}\uFE0F \u73FE\u5728\u306E\u7DE8\u96C6\u3092\u4FDD\u6301"
+                }
+              )
+            ] })
+          ]
+        }
+      )
+    }
+  );
+}
+
 // src/ui/components/TabBar.tsx
 function TabBar({
   model,
@@ -38553,6 +38820,7 @@ function TabBar({
   const tabs = model.tabs;
   const activeTabId = model.activeTabId;
   const pendingCloseTab = model.pendingCloseTab;
+  const pendingConflict = model.pendingExternalConflict;
   return /* @__PURE__ */ u3(S, { children: [
     /* @__PURE__ */ u3("nav", { class: "app-tab-bar", "aria-label": "\u30BB\u30C3\u30B7\u30E7\u30F3\u30BF\u30D6", children: [
       /* @__PURE__ */ u3("div", { class: "tab-list-container", children: tabs.map((tab2, idx) => /* @__PURE__ */ u3(
@@ -38581,6 +38849,13 @@ function TabBar({
       TabCloseConfirmModal,
       {
         tab: pendingCloseTab,
+        controller
+      }
+    ),
+    pendingConflict && /* @__PURE__ */ u3(
+      ExternalChangeConflictModal,
+      {
+        conflict: pendingConflict,
         controller
       }
     )

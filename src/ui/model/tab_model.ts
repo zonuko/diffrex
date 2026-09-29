@@ -37,10 +37,19 @@ export interface TabItem {
   closable: boolean;
 }
 
+export interface ExternalConflictInfo {
+  filePath: string;
+  tabId?: string;
+  relativePath?: string;
+  target?: "left" | "right" | "base" | "target" | "directory";
+  newContent?: string;
+}
+
 export class TabContainerModel extends Observable<TabContainerModel> {
   private _tabs: TabItem[] = [];
   private _activeTabId: string | null = null;
   private _pendingCloseTabId: string | null = null;
+  private _pendingExternalConflict: ExternalConflictInfo | null = null;
 
   constructor(initialTabs: TabItem[] = []) {
     super();
@@ -81,6 +90,24 @@ export class TabContainerModel extends Observable<TabContainerModel> {
   get pendingCloseTab(): TabItem | null {
     if (!this._pendingCloseTabId) return null;
     return this._tabs.find((t) => t.id === this._pendingCloseTabId) ?? null;
+  }
+
+  get pendingExternalConflict(): ExternalConflictInfo | null {
+    return this._pendingExternalConflict;
+  }
+
+  setPendingExternalConflict(conflict: ExternalConflictInfo | null): void {
+    if (this._pendingExternalConflict !== conflict) {
+      this._pendingExternalConflict = conflict;
+      this.notify(this);
+    }
+  }
+
+  clearPendingExternalConflict(): void {
+    if (this._pendingExternalConflict !== null) {
+      this._pendingExternalConflict = null;
+      this.notify(this);
+    }
   }
 
   // --- タブ操作ミューテーション ---

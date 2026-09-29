@@ -22,6 +22,7 @@ import type {
   DirectoryDiffSessionData,
   FileTarget,
 } from "../core/types.ts";
+import { FileWatcher, normalizeWatcherPath } from "../core/watcher.ts";
 import { openDirectoryDialog, openFileDialog } from "./dialog.ts";
 import {
   clearHistory,
@@ -257,6 +258,117 @@ export function startDesktopServer(
     });
   };
 
+  const fileWatcher = new FileWatcher({
+    debounceMs: 150,
+    selfSaveWindowMs: 2000,
+  });
+
+  const syncFileWatcher = (session: AnySessionData) => {
+    fileWatcher.clear();
+    if (session.mode !== "welcome") {
+      fileWatcher.registerSession(session);
+    }
+  };
+
+  const setCurrentSession = (session: AnySessionData) => {
+    currentSession = session;
+    syncFileWatcher(session);
+  };
+
+  syncFileWatcher(currentSession);
+
+  fileWatcher.onChange(async (event) => {
+    if (currentSession.mode === "directory") {
+      const dirSession = currentSession as DirectoryDiffSessionData;
+      try {
+        let refreshedSession: DirectoryDiffSessionData;
+        if (dirSession.isGitRepo) {
+          const { buildGitDirectoryDiffSession } = await import(
+            "../core/git/status.ts"
+          );
+          refreshedSession = await buildGitDirectoryDiffSession(
+            dirSession.targetDir,
+            {
+              branch: dirSession.git?.branch,
+              readOnly: dirSession.readOnly,
+              prompt: dirSession.aiContext?.prompt,
+              agent: dirSession.aiContext?.agent,
+              model: dirSession.aiContext?.model,
+            },
+          );
+        } else {
+          refreshedSession = await compareDirectories(
+            dirSession.baseDir,
+            dirSession.targetDir,
+            {
+              readOnly: dirSession.readOnly,
+              prompt: dirSession.aiContext?.prompt,
+              agent: dirSession.aiContext?.agent,
+              model: dirSession.aiContext?.model,
+            },
+          );
+        }
+        currentSession = refreshedSession;
+        broadcast({
+          type: "dir:tree_data",
+          data: refreshedSession,
+        });
+
+        const normEvent = normalizeWatcherPath(event.path);
+        const normTarget = normalizeWatcherPath(dirSession.targetDir);
+        let relPath: string | undefined;
+        if (normEvent.startsWith(normTarget)) {
+          relPath = event.path
+            .slice(dirSession.targetDir.length)
+            .replace(/^[/\\]+/, "")
+            .replace(/\\/g, "/");
+        }
+        broadcast({
+          type: "file:changed",
+          path: event.path,
+          relativePath: relPath,
+          target: "directory",
+          mtime: event.timestamp,
+        });
+      } catch (err) {
+        console.warn("FileWatcher: Failed to refresh directory:", err);
+      }
+    } else if (
+      currentSession.mode === "2way" ||
+      currentSession.mode === "3way" ||
+      currentSession.mode === "image" ||
+      currentSession.mode === "csv"
+    ) {
+      const session = currentSession as DiffSessionData;
+      const normEvent = normalizeWatcherPath(event.path);
+      const normLeft = normalizeWatcherPath(session.files.left.path);
+      const normRight = normalizeWatcherPath(session.files.right.path);
+      const normBase = session.files.base?.path
+        ? normalizeWatcherPath(session.files.base.path)
+        : undefined;
+
+      const isLeft = normEvent === normLeft;
+      const isRight = normEvent === normRight;
+      const isBase = normBase !== undefined && normEvent === normBase;
+
+      if (isLeft || isRight || isBase) {
+        let content: string | undefined;
+        try {
+          content = await Deno.readTextFile(event.path);
+        } catch {
+          // ignore
+        }
+        broadcast({
+          type: "file:changed",
+          path: event.path,
+          target: isLeft ? "left" : isRight ? "right" : "base",
+          mtime: event.timestamp,
+          content,
+        });
+      }
+    }
+  });
+
   const cleanupCurrentGitTempWorktree = async () => {
     if (currentSession && currentSession.mode === "directory") {
       const dir = currentSession as DirectoryDiffSessionData;
@@ -327,6 +439,152 @@ export function startDesktopServer(
               type: "workspace:state_data",
               state: wsState,
             });
+            break;
+          }
+
+          case "dir:reload_request": {
+            if (currentSession.mode === "directory") {
+              const dirSession = currentSession as DirectoryDiffSessionData;
+              try {
+                let refreshedSession: DirectoryDiffSessionData;
+                if (dirSession.isGitRepo) {
+                  const { buildGitDirectoryDiffSession } = await import(
+                    "../core/git/status.ts"
+                  );
+                  refreshedSession = await buildGitDirectoryDiffSession(
+                    dirSession.targetDir,
+                    {
+                      branch: dirSession.git?.branch,
+                      readOnly: dirSession.readOnly,
+                      prompt: dirSession.aiContext?.prompt,
+                      agent: dirSession.aiContext?.agent,
+                      model: dirSession.aiContext?.model,
+                    },
+                  );
+                } else {
+                  refreshedSession = await compareDirectories(
+                    dirSession.baseDir,
+                    dirSession.targetDir,
+                    {
+                      readOnly: dirSession.readOnly,
+                      prompt: dirSession.aiContext?.prompt,
+                      agent: dirSession.aiContext?.agent,
+                      model: dirSession.aiContext?.model,
+                    },
+                  );
+                }
+                setCurrentSession(refreshedSession);
+                broadcast({
+                  type: "dir:tree_data",
+                  data: refreshedSession,
+                });
+              } catch (err) {
+                console.warn("dir:reload_request failed:", err);
+              }
+            }
+            break;
+          }
+
+          case "file:reload_request": {
+            if (currentSession.mode === "directory") {
+              if (parsed.relativePath) {
+                const dirSession = currentSession as DirectoryDiffSessionData;
+                const leftFullPath = join(
+                  dirSession.baseDir,
+                  parsed.relativePath,
+                );
+                const rightFullPath = join(
+                  dirSession.targetDir,
+                  parsed.relativePath,
+                );
+                try {
+                  const [leftRes, rightRes] = await Promise.all([
+                    readFileTarget(leftFullPath, { readOnly: true }),
+                    readFileTarget(rightFullPath, {
+                      readOnly: dirSession.readOnly,
+                    }),
+                  ]);
+                  metadataMap.set(rightFullPath, rightRes.meta);
+                  const fileDiff = await buildSessionAsync({
+                    args: {
+                      mode: "2way",
+                      left: leftFullPath,
+                      right: rightFullPath,
+                      readOnly: dirSession.readOnly,
+                    },
+                    left: leftRes.target,
+                    right: rightRes.target,
+                  });
+                  sendToSocket(socket, {
+                    type: "file:diff_data",
+                    relativePath: parsed.relativePath,
+                    data: fileDiff,
+                  });
+                } catch (err) {
+                  sendToSocket(socket, {
+                    type: "file:diff_data",
+                    relativePath: parsed.relativePath,
+                    data: null,
+                    error: err instanceof Error ? err.message : String(err),
+                  });
+                }
+              }
+            } else if (
+              currentSession.mode === "2way" ||
+              currentSession.mode === "3way" ||
+              currentSession.mode === "image" ||
+              currentSession.mode === "csv"
+            ) {
+              const session = currentSession as DiffSessionData;
+              try {
+                const [leftRes, rightRes] = await Promise.all([
+                  readFileTarget(session.files.left.path, {
+                    readOnly: session.files.left.readOnly,
+                  }),
+                  readFileTarget(session.files.right.path, {
+                    readOnly: session.files.right.readOnly,
+                  }),
+                ]);
+                let baseTarget = session.files.base;
+                if (session.files.base?.path) {
+                  const baseRes = await readFileTarget(
+                    session.files.base.path,
+                    {
+                      readOnly: true,
+                    },
+                  );
+                  baseTarget = baseRes.target;
+                  metadataMap.set(session.files.base.path, baseRes.meta);
+                }
+                metadataMap.set(session.files.left.path, leftRes.meta);
+                metadataMap.set(session.files.right.path, rightRes.meta);
+
+                const refreshed = await buildSessionAsync({
+                  args: {
+                    mode: session.mode,
+                    left: session.files.left.path,
+                    right: session.files.right.path,
+                    base: session.files.base?.path,
+                    output: session.outputPath,
+                    readOnly: session.files.right.readOnly,
+                    prompt: session.aiContext?.prompt,
+                    agent: session.aiContext?.agent,
+                    model: session.aiContext?.model,
+                  },
+                  left: leftRes.target,
+                  right: rightRes.target,
+                  base: baseTarget,
+                });
+                setCurrentSession(refreshed);
+                updateWindowTitle(false);
+                broadcast({
+                  type: "session:init",
+                  data: refreshed,
+                });
+              } catch (err) {
+                console.warn("file:reload_request failed:", err);
+              }
+            }
             break;
           }
 
@@ -552,6 +810,7 @@ export function startDesktopServer(
 
             try {
               const meta = metadataMap.get(targetFullPath);
+              fileWatcher.markSelfSave(targetFullPath);
               await writeFileTarget(targetFullPath, parsed.content, meta);
               updateWindowTitle(false);
               broadcast({
@@ -602,7 +861,7 @@ export function startDesktopServer(
                 parsed.targetDir,
                 { readOnly: parsed.readOnly },
               );
-              currentSession = session;
+              setCurrentSession(session);
               updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "directory",
@@ -643,7 +902,7 @@ export function startDesktopServer(
                 session.git = {
                   isGitRepo: true,
                 };
-                currentSession = session;
+                setCurrentSession(session);
                 updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
@@ -671,7 +930,7 @@ export function startDesktopServer(
                   branch: parsed.branch,
                   tempWorktreePath: tempWt.path,
                 };
-                currentSession = session;
+                setCurrentSession(session);
                 updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
@@ -686,7 +945,7 @@ export function startDesktopServer(
                   readOnly: parsed.readOnly,
                 },
               );
-              currentSession = session;
+              setCurrentSession(session);
               updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "directory",
@@ -759,7 +1018,7 @@ export function startDesktopServer(
                 left: leftRes.target,
                 right: rightRes.target,
               });
-              currentSession = session;
+              setCurrentSession(session);
               updateWindowTitle(false);
               await recordHistoryEntry({
                 mode: "2way",
@@ -851,7 +1110,7 @@ export function startDesktopServer(
                     model: snapshot.model,
                   },
                 );
-                currentSession = session;
+                setCurrentSession(session);
                 updateWindowTitle(false);
                 broadcast({
                   type: "dir:tree_data",
@@ -904,7 +1163,7 @@ export function startDesktopServer(
                   }
                 }
 
-                currentSession = session;
+                setCurrentSession(session);
                 updateWindowTitle(snapshot.unsavedRightContent != null);
                 broadcast({
                   type: "session:init",
@@ -1021,7 +1280,7 @@ export function startDesktopServer(
                   const session = await compareDirectories(path1, path2, {
                     readOnly: parsed.readOnly,
                   });
-                  currentSession = session;
+                  setCurrentSession(session);
                   updateWindowTitle(false);
                   await recordHistoryEntry({
                     mode: "directory",
@@ -1057,7 +1316,7 @@ export function startDesktopServer(
                     left: leftRes.target,
                     right: rightRes.target,
                   });
-                  currentSession = session;
+                  setCurrentSession(session);
                   updateWindowTitle(false);
                   await recordHistoryEntry({
                     mode: "2way",
@@ -1110,7 +1369,7 @@ export function startDesktopServer(
                   readOnly: parsed.readOnly ?? false,
                 },
               });
-              currentSession = session;
+              setCurrentSession(session);
               updateWindowTitle(false);
               broadcast({
                 type: "session:init",
@@ -1152,6 +1411,7 @@ export function startDesktopServer(
                   const meta = metadataMap.get(savePath) ??
                     metadataMap.get(session.files.right.path) ??
                     metadataMap.get(session.files.left.path);
+                  fileWatcher.markSelfSave(savePath);
                   await writeFileTarget(savePath, parsed.content, meta);
                   updateWindowTitle(false);
                   broadcast({
@@ -1434,6 +1694,7 @@ export function startDesktopServer(
       }
     }
     activeSockets.clear();
+    fileWatcher.close();
     await cleanupCurrentGitTempWorktree();
     await server.shutdown();
     if (!hasResolvedExit) {

@@ -59,6 +59,10 @@ const SHORTCUT_SECTIONS: ShortcutSection[] = [
     title: "ファイル & セッション",
     shortcuts: [
       { keys: ["Ctrl + S"], description: "編集内容を保存" },
+      {
+        keys: ["F5", "Ctrl + Shift + R"],
+        description: "最新の状態に再読み込み",
+      },
       { keys: ["Ctrl + O"], description: "ファイル比較を開く" },
       { keys: ["Ctrl + Shift + O"], description: "フォルダ比較を開く" },
       { keys: ["Ctrl + Shift + T"], description: "直前のセッションを自動復元" },
