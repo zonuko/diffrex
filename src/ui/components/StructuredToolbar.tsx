@@ -1,7 +1,10 @@
 /**
  * 構造化データ（JSON / YAML）用のツールバーコンポーネント（StructuredToolbar）。
- * Raw Diff と Canonical (正規化) Diff の切り替えを提供。
+ * Raw Diff と Canonical (正規化) Diff の切り替えを提供（i18n 対応）。
  */
+
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface StructuredToolbarProps {
   fileType: "json" | "yaml";
@@ -16,6 +19,7 @@ export function StructuredToolbar({
   isSemanticallyEqual,
   onToggleCanonical,
 }: StructuredToolbarProps) {
+  useModel(i18n);
   const label = fileType === "json" ? "JSON" : "YAML";
 
   return (
@@ -27,17 +31,17 @@ export function StructuredToolbar({
             type="button"
             className={`btn-toggle ${!isCanonical ? "active" : ""}`}
             onClick={() => onToggleCanonical(false)}
-            title="元のテキストのまま差分を表示"
+            title={i18n.t("structuredToolbar.rawDiffTitle")}
           >
-            Raw Diff
+            {i18n.t("structuredToolbar.rawDiff")}
           </button>
           <button
             type="button"
             className={`btn-toggle ${isCanonical ? "active" : ""}`}
             onClick={() => onToggleCanonical(true)}
-            title="キー順序を辞書順ソート・正規化して実質差分を表示"
+            title={i18n.t("structuredToolbar.canonicalTitle")}
           >
-            Canonical (Normalized)
+            {i18n.t("structuredToolbar.canonical")}
           </button>
         </div>
       </div>
@@ -45,7 +49,7 @@ export function StructuredToolbar({
       <div className="structured-toolbar-right">
         {isSemanticallyEqual && (
           <span className="semantic-equal-tag">
-            ✓ Semantically Identical (No Value Changes)
+            {i18n.t("structuredToolbar.semanticallyIdentical")}
           </span>
         )}
       </div>

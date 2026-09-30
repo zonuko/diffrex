@@ -17,6 +17,10 @@ import type { DirectoryController } from "./dir_controller.ts";
 import type { ThreeWaySessionModel } from "../model/three_way_session_model.ts";
 import type { ThreeWayController } from "./three_way_controller.ts";
 import type { TabController } from "./tab_controller.ts";
+import { i18n } from "../i18n/i18n_model.ts";
+import { ja } from "../i18n/locales/ja.ts";
+import { en } from "../i18n/locales/en.ts";
+import type { TranslationKey } from "../i18n/types.ts";
 
 export interface FlatCommandItem {
   id: string;
@@ -25,6 +29,7 @@ export interface FlatCommandItem {
   shortcut?: string;
   action: () => void;
   disabled?: boolean;
+  searchAliases?: string[];
 }
 
 export class MenuController {
@@ -55,6 +60,11 @@ export class MenuController {
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
     this._tabController = tabController;
+
+    // 言語切り替え時に自動でメニューを再構築する
+    i18n.subscribe(() => {
+      this.rebuildMenu();
+    });
 
     this.rebuildMenu();
   }
@@ -120,7 +130,12 @@ export class MenuController {
         { id: "sep_recent", label: "", separator: true },
         {
           id: "recent_clear",
-          label: "履歴をすべて消去",
+          label: i18n.t("menu.items.clearHistory"),
+          searchAliases: [
+            i18n.locale === "ja"
+              ? en.menu.items.clearHistory
+              : ja.menu.items.clearHistory,
+          ],
           action: () => {
             this._model.closeMenu();
             this._dirController.clearHistory();
@@ -130,61 +145,66 @@ export class MenuController {
       : [
         {
           id: "recent_empty",
-          label: "(履歴はありません)",
+          label: i18n.t("menu.items.noHistory"),
           disabled: true,
         },
       ];
+
+    const mi = (
+      id: string,
+      key: keyof typeof ja.menu.items,
+      opts?: Partial<MenuItemDef>,
+    ): MenuItemDef => {
+      const label = i18n.t(`menu.items.${key}` as TranslationKey);
+      const other = i18n.locale === "ja"
+        ? en.menu.items[key]
+        : ja.menu.items[key];
+      return {
+        id,
+        label,
+        searchAliases: other ? [other] : undefined,
+        ...opts,
+      };
+    };
 
     const categories: MenuCategoryDef[] = [
       // 1. File (F)
       {
         id: "file",
-        label: "ファイル",
-        accessKey: "F",
+        label: i18n.t("menu.categories.file.label"),
+        accessKey: i18n.t("menu.categories.file.accessKey"),
         items: [
-          {
-            id: "file:open_file",
-            label: "ファイル比較を開く...",
+          mi("file:open_file", "openFile", {
             shortcut: "Ctrl+O",
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "file");
             },
-          },
-          {
-            id: "file:open_dir",
-            label: "フォルダ比較を開く...",
+          }),
+          mi("file:open_dir", "openDir", {
             shortcut: "Ctrl+Shift+O",
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "dir");
             },
-          },
-          {
-            id: "file:open_git",
-            label: "単一 Git リポジトリを開く...",
+          }),
+          mi("file:open_git", "openGit", {
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "git");
             },
-          },
-          {
-            id: "file:open_3way",
-            label: "3-Way マージを開く...",
+          }),
+          mi("file:open_3way", "open3Way", {
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "3way");
             },
-          },
+          }),
           { id: "file:sep1", label: "", separator: true },
-          {
-            id: "file:recent",
-            label: "最近開いたセッション",
+          mi("file:recent", "recentSessions", {
             children: recentItems,
-          },
-          {
-            id: "file:restore",
-            label: "前回のセッションを復元",
+          }),
+          mi("file:restore", "restoreSession", {
             shortcut: "Ctrl+Shift+T",
             disabled: !this._dirModel.workspaceState?.tabs.length &&
               !this._dirModel.lastSession,
@@ -196,21 +216,17 @@ export class MenuController {
                 this._dirController.restoreLastSession();
               }
             },
-          },
-          {
-            id: "file:restore_on_startup",
-            label: "起動時に前回セッションを復元する",
+          }),
+          mi("file:restore_on_startup", "restoreOnStartup", {
             checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
             action: () => {
               const current =
                 this._dirModel.workspaceState?.restoreOnStartup !== false;
               this._dirController.setRestoreOnStartup(!current);
             },
-          },
+          }),
           { id: "file:sep2", label: "", separator: true },
-          {
-            id: "file:save",
-            label: "保存",
+          mi("file:save", "save", {
             shortcut: "Ctrl+S",
             disabled: !canSave,
             action: () => {
@@ -223,20 +239,16 @@ export class MenuController {
                 this._diffController.requestSave();
               }
             },
-          },
-          {
-            id: "file:reload",
-            label: "最新の状態に再読み込み",
+          }),
+          mi("file:reload", "reload", {
             shortcut: "F5 / Ctrl+Shift+R",
             disabled: !hasSession,
             action: () => {
               this._model.closeMenu();
               this.reloadCurrent();
             },
-          },
-          {
-            id: "file:close_tab",
-            label: "タブを閉じる",
+          }),
+          mi("file:close_tab", "closeTab", {
             shortcut: "Ctrl+W",
             disabled: !this._tabController ||
               (this._tabController.model.tabs.length <= 1 &&
@@ -245,91 +257,88 @@ export class MenuController {
               this._model.closeMenu();
               this._tabController?.closeCurrentTab();
             },
-          },
+          }),
           { id: "file:sep3", label: "", separator: true },
-          {
-            id: "file:welcome",
-            label: "Welcome 画面を表示",
+          mi("file:welcome", "showWelcome", {
             disabled: !hasSession,
             action: () => {
               this._model.closeMenu();
               this._dirModel.setDirSession(null);
               this._diffModel.setSession(null);
             },
-          },
-          {
-            id: "file:exit",
-            label: "終了",
+          }),
+          mi("file:exit", "exit", {
             shortcut: "Ctrl+Q",
             action: () => {
               this._model.closeMenu();
               this._dirController.requestExit(0);
             },
-          },
+          }),
         ],
       },
 
       // 2. Edit (E)
       {
         id: "edit",
-        label: "編集",
-        accessKey: "E",
+        label: i18n.t("menu.categories.edit.label"),
+        accessKey: i18n.t("menu.categories.edit.accessKey"),
         items: [
           {
             id: "edit:toggle_mode",
             label: this._diffModel.mode === "editing"
-              ? "ナビゲーションモードに戻る"
-              : "エディタ編集モードに入る",
+              ? i18n.t("menu.items.backToNav")
+              : i18n.t("menu.items.enterEdit"),
             shortcut: "E / Enter",
             disabled: !isTextDiff,
+            searchAliases: [
+              this._diffModel.mode === "editing"
+                ? (i18n.locale === "ja"
+                  ? en.menu.items.backToNav
+                  : ja.menu.items.backToNav)
+                : (i18n.locale === "ja"
+                  ? en.menu.items.enterEdit
+                  : ja.menu.items.enterEdit),
+            ],
             action: () => {
               this._model.closeMenu();
               this._diffController.toggleEditMode();
             },
           },
           { id: "edit:sep1", label: "", separator: true },
-          {
-            id: "edit:undo",
-            label: "元に戻す",
+          mi("edit:undo", "undo", {
             shortcut: "Ctrl+Z",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.undo();
             },
-          },
-          {
-            id: "edit:redo",
-            label: "やり直す",
+          }),
+          mi("edit:redo", "redo", {
             shortcut: "Ctrl+Y",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.redo();
             },
-          },
+          }),
           { id: "edit:sep2", label: "", separator: true },
-          {
-            id: "edit:palette",
-            label: "コマンドパレット...",
+          mi("edit:palette", "commandPalette", {
             shortcut: "Ctrl+Shift+P",
             action: () => {
               this._model.closeMenu();
               this._model.setCommandPaletteOpen(true);
             },
-          },
+          }),
         ],
       },
 
       // 3. Merge (M)
       {
         id: "merge",
-        label: "マージ",
-        accessKey: "M",
+        label: i18n.t("menu.categories.merge.label"),
+        accessKey: i18n.t("menu.categories.merge.accessKey"),
         items: [
-          {
-            id: "merge:next_hunk",
-            label: "次の差分 (Hunk)",
+          mi("merge:next_hunk", "nextHunk", {
             shortcut: "Alt+Down / J",
             disabled: !isTextDiff && !is3Way,
             action: () => {
@@ -340,10 +349,8 @@ export class MenuController {
                 this._diffController.nextHunk();
               }
             },
-          },
-          {
-            id: "merge:prev_hunk",
-            label: "前の差分 (Hunk)",
+          }),
+          mi("merge:prev_hunk", "prevHunk", {
             shortcut: "Alt+Up / K",
             disabled: !isTextDiff && !is3Way,
             action: () => {
@@ -354,11 +361,9 @@ export class MenuController {
                 this._diffController.prevHunk();
               }
             },
-          },
+          }),
           { id: "merge:sep1", label: "", separator: true },
-          {
-            id: "merge:left_to_right",
-            label: "左の内容を右へ適用 (マージ)",
+          mi("merge:left_to_right", "mergeLeftToRight", {
             shortcut: "Ctrl+R",
             disabled: !isTextDiff ||
               this._diffModel.session?.files.right.readOnly,
@@ -366,10 +371,8 @@ export class MenuController {
               this._model.closeMenu();
               this._diffController.mergeLeftToRight();
             },
-          },
-          {
-            id: "merge:right_to_left",
-            label: "右の内容を左へ適用 (リバート)",
+          }),
+          mi("merge:right_to_left", "mergeRightToLeft", {
             shortcut: "Ctrl+L",
             disabled: !isTextDiff ||
               this._diffModel.session?.files.left.readOnly,
@@ -377,76 +380,62 @@ export class MenuController {
               this._model.closeMenu();
               this._diffController.mergeRightToLeft();
             },
-          },
+          }),
           { id: "merge:sep2", label: "", separator: true },
-          {
-            id: "merge:accept",
-            label: "現在の Hunk を承認",
+          mi("merge:accept", "acceptHunk", {
             shortcut: "A",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.acceptHunk();
             },
-          },
-          {
-            id: "merge:reject",
-            label: "現在の Hunk を拒否",
+          }),
+          mi("merge:reject", "rejectHunk", {
             shortcut: "R",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.rejectHunk();
             },
-          },
-          {
-            id: "merge:accept_all",
-            label: "すべての Hunk を一括承認",
+          }),
+          mi("merge:accept_all", "acceptAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.acceptAllHunks();
             },
-          },
-          {
-            id: "merge:reject_all",
-            label: "すべての Hunk を一括拒否",
+          }),
+          mi("merge:reject_all", "rejectAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.rejectAllHunks();
             },
-          },
+          }),
           ...(is3Way
             ? [
               { id: "merge:sep3", label: "", separator: true },
-              {
-                id: "merge:3way_base",
-                label: "[3-Way] Base (共通祖先) を採用",
+              mi("merge:3way_base", "threeWayBase", {
                 shortcut: "Alt+B",
                 action: () => {
                   this._model.closeMenu();
                   this._threeWayController?.resolveActiveHunk("base");
                 },
-              },
-              {
-                id: "merge:3way_left",
-                label: "[3-Way] Left (Ours) を採用",
+              }),
+              mi("merge:3way_left", "threeWayLeft", {
                 shortcut: "Alt+L",
                 action: () => {
                   this._model.closeMenu();
                   this._threeWayController?.resolveActiveHunk("local");
                 },
-              },
-              {
-                id: "merge:3way_right",
-                label: "[3-Way] Right (Theirs) を採用",
+              }),
+              mi("merge:3way_right", "threeWayRight", {
                 shortcut: "Alt+R",
                 action: () => {
                   this._model.closeMenu();
                   this._threeWayController?.resolveActiveHunk("remote");
                 },
-              },
+              }),
             ]
             : []),
         ],
@@ -455,12 +444,10 @@ export class MenuController {
       // 4. View (V)
       {
         id: "view",
-        label: "表示",
-        accessKey: "V",
+        label: i18n.t("menu.categories.view.label"),
+        accessKey: i18n.t("menu.categories.view.accessKey"),
         items: [
-          {
-            id: "view:toggle_noise",
-            label: "ノイズ差分（空白・コメント）を折りたたむ",
+          mi("view:toggle_noise", "toggleNoise", {
             shortcut: "Ctrl+N",
             checked: this._diffModel.noiseFolded,
             disabled: !isTextDiff,
@@ -468,20 +455,16 @@ export class MenuController {
               this._model.closeMenu();
               this._diffController.toggleNoiseFolded();
             },
-          },
-          {
-            id: "view:expand_all",
-            label: "すべての折りたたみを展開",
+          }),
+          mi("view:expand_all", "expandAll", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.expandAllHunks();
             },
-          },
+          }),
           { id: "view:sep_tabs", label: "", separator: true },
-          {
-            id: "view:next_tab",
-            label: "次のタブ",
+          mi("view:next_tab", "nextTab", {
             shortcut: "Ctrl+Tab",
             disabled: !this._tabController ||
               this._tabController.model.tabs.length <= 1,
@@ -489,10 +472,8 @@ export class MenuController {
               this._model.closeMenu();
               this._tabController?.nextTab();
             },
-          },
-          {
-            id: "view:prev_tab",
-            label: "前のタブ",
+          }),
+          mi("view:prev_tab", "prevTab", {
             shortcut: "Ctrl+Shift+Tab",
             disabled: !this._tabController ||
               this._tabController.model.tabs.length <= 1,
@@ -500,15 +481,38 @@ export class MenuController {
               this._model.closeMenu();
               this._tabController?.prevTab();
             },
-          },
+          }),
           { id: "view:sep_conf", label: "", separator: true },
-          {
-            id: "view:confidence_thresholds",
-            label: "確信度しきい値設定 (Confidence Thresholds)...",
+          mi("view:confidence_thresholds", "confidenceSettings", {
             action: () => {
               this._model.closeMenu();
               this._model.setConfidenceSettingsModalOpen(true);
             },
+          }),
+          { id: "view:sep_lang", label: "", separator: true },
+          {
+            id: "view:language",
+            label: i18n.t("menu.items.language"),
+            children: [
+              {
+                id: "view:lang_ja",
+                label: i18n.t("menu.items.languageJa"),
+                checked: i18n.locale === "ja",
+                action: () => {
+                  this._model.closeMenu();
+                  i18n.setLocale("ja");
+                },
+              },
+              {
+                id: "view:lang_en",
+                label: i18n.t("menu.items.languageEn"),
+                checked: i18n.locale === "en",
+                action: () => {
+                  this._model.closeMenu();
+                  i18n.setLocale("en");
+                },
+              },
+            ],
           },
         ],
       },
@@ -516,12 +520,10 @@ export class MenuController {
       // 5. Git (G)
       {
         id: "git",
-        label: "Git",
-        accessKey: "G",
+        label: i18n.t("menu.categories.git.label"),
+        accessKey: i18n.t("menu.categories.git.accessKey"),
         items: [
-          {
-            id: "git:rescan",
-            label: "未コミット差分を再スキャン",
+          mi("git:rescan", "rescanGit", {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
@@ -535,10 +537,8 @@ export class MenuController {
                 );
               }
             },
-          },
-          {
-            id: "git:worktrees",
-            label: "Worktree 一覧を表示...",
+          }),
+          mi("git:worktrees", "worktreeList", {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
@@ -549,34 +549,30 @@ export class MenuController {
                 });
               }
             },
-          },
+          }),
         ],
       },
 
       // 6. Help (H)
       {
         id: "help",
-        label: "ヘルプ",
-        accessKey: "H",
+        label: i18n.t("menu.categories.help.label"),
+        accessKey: i18n.t("menu.categories.help.accessKey"),
         items: [
-          {
-            id: "help:shortcuts",
-            label: "キーボードショートカット一覧",
+          mi("help:shortcuts", "shortcuts", {
             shortcut: "F1 / ?",
             action: () => {
               this._model.closeMenu();
               this._model.setShortcutsModalOpen(true);
             },
-          },
+          }),
           { id: "help:sep1", label: "", separator: true },
-          {
-            id: "help:about",
-            label: "Diffrex について (About)",
+          mi("help:about", "about", {
             action: () => {
               this._model.closeMenu();
               this._model.setAboutModalOpen(true);
             },
-          },
+          }),
         ],
       },
     ];
@@ -627,6 +623,7 @@ export class MenuController {
             shortcut: item.shortcut,
             action: item.action,
             disabled: item.disabled,
+            searchAliases: item.searchAliases,
           });
         }
       }
@@ -641,6 +638,10 @@ export class MenuController {
 
   /**
    * コマンドパレットの絞り込み検索。
+   *
+   * 現在のロケールのラベル・カテゴリ・ショートカットだけでなく、
+   * searchAliases（もう一方の言語の文言）も検索対象とするため、
+   * 日英どちらの言語で入力しても該当コマンドがヒットする。
    */
   filterCommands(query: string): FlatCommandItem[] {
     const all = this.getFlatCommandList();
@@ -650,10 +651,13 @@ export class MenuController {
     const q = query.toLowerCase().trim();
     return all.filter((c) => {
       if (c.disabled) return false;
+      const matchesAlias = c.searchAliases &&
+        c.searchAliases.some((alias) => alias.toLowerCase().includes(q));
       return (
         c.label.toLowerCase().includes(q) ||
         c.category.toLowerCase().includes(q) ||
-        (c.shortcut && c.shortcut.toLowerCase().includes(q))
+        (c.shortcut && c.shortcut.toLowerCase().includes(q)) ||
+        Boolean(matchesAlias)
       );
     });
   }

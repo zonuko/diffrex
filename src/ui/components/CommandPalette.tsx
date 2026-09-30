@@ -9,6 +9,7 @@ import { useEffect, useRef } from "preact/hooks";
 import type { MenuModel } from "../model/menu_model.ts";
 import type { MenuController } from "../controller/menu_controller.ts";
 import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface CommandPaletteProps {
   model: MenuModel;
@@ -17,6 +18,7 @@ export interface CommandPaletteProps {
 
 export function CommandPalette({ model, controller }: CommandPaletteProps) {
   useModel(model);
+  useModel(i18n);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +59,7 @@ export function CommandPalette({ model, controller }: CommandPaletteProps) {
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="コマンドパレット"
+        aria-label={i18n.t("commandPalette.ariaLabel")}
       >
         <div class="command-palette-input-wrapper">
           <span class="command-palette-icon">🔍</span>
@@ -65,7 +67,7 @@ export function CommandPalette({ model, controller }: CommandPaletteProps) {
             ref={inputRef}
             type="text"
             class="command-palette-input"
-            placeholder="実行するコマンドを入力... (例: マージ, 保存, 次の差分)"
+            placeholder={i18n.t("commandPalette.placeholder")}
             value={model.commandPaletteQuery}
             onInput={(e) =>
               model.setCommandPaletteQuery(
@@ -79,7 +81,7 @@ export function CommandPalette({ model, controller }: CommandPaletteProps) {
           {filteredCommands.length === 0
             ? (
               <div class="command-palette-empty">
-                一致するコマンドが見つかりません
+                {i18n.t("commandPalette.empty")}
               </div>
             )
             : (

@@ -1,13 +1,15 @@
 /**
  * TabCloseConfirmModal コンポーネント (B11-06 Smalltalk-80 MVC View)
  *
- * 未保存の変更があるタブを閉じる際の確認ダイアログ。
+ * 未保存の変更があるタブを閉じる際の確認ダイアログ（i18n 対応）。
  * 「保存して閉じる」「保存しない（破棄）」「キャンセル」の3択を提供する。
  */
 
 import { useEffect } from "preact/hooks";
 import type { TabItem } from "../model/tab_model.ts";
 import type { TabController } from "../controller/tab_controller.ts";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface TabCloseConfirmModalProps {
   tab: TabItem;
@@ -18,6 +20,8 @@ export function TabCloseConfirmModal({
   tab,
   controller,
 }: TabCloseConfirmModalProps) {
+  useModel(i18n);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -45,13 +49,13 @@ export function TabCloseConfirmModal({
       >
         <div class="modal-header">
           <h3 id="tab-confirm-title" class="modal-title">
-            ⚠️ 未保存の変更があります
+            {i18n.t("tabCloseConfirmModal.title")}
           </h3>
           <button
             type="button"
             class="modal-close-btn"
             onClick={() => controller.cancelCloseTab()}
-            title="キャンセル (Escape)"
+            title={`${i18n.t("tabCloseConfirmModal.cancel")} (Escape)`}
           >
             ×
           </button>
@@ -59,10 +63,10 @@ export function TabCloseConfirmModal({
 
         <div class="modal-body">
           <p class="tab-confirm-message">
-            <strong>"{tab.title}"</strong> への変更が保存されていません。
+            {i18n.t("tabCloseConfirmModal.message", { title: tab.title })}
           </p>
           <p class="tab-confirm-submessage">
-            閉じる前に変更を保存しますか？
+            {i18n.t("tabCloseConfirmModal.submessage")}
           </p>
         </div>
 
@@ -72,21 +76,21 @@ export function TabCloseConfirmModal({
             class="btn btn-primary"
             onClick={() => controller.confirmCloseTab(true)}
           >
-            💾 保存して閉じる
+            {i18n.t("tabCloseConfirmModal.saveAndClose")}
           </button>
           <button
             type="button"
             class="btn btn-danger"
             onClick={() => controller.confirmCloseTab(false)}
           >
-            🗑️ 保存せずに閉じる
+            {i18n.t("tabCloseConfirmModal.discardAndClose")}
           </button>
           <button
             type="button"
             class="btn btn-secondary"
             onClick={() => controller.cancelCloseTab()}
           >
-            キャンセル
+            {i18n.t("tabCloseConfirmModal.cancel")}
           </button>
         </div>
       </div>

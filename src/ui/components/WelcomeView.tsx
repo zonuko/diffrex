@@ -8,12 +8,16 @@
 import { useState } from "preact/hooks";
 import type { DirectoryController } from "../controller/dir_controller.ts";
 import type { HistoryEntry } from "../../core/types.ts";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface WelcomeViewProps {
   controller: DirectoryController;
 }
 
 export function WelcomeView({ controller }: WelcomeViewProps) {
+  useModel(i18n);
+
   const [tab, setTab] = useState<"dir" | "file" | "git">("dir");
   const [basePath, setBasePath] = useState("");
   const [targetPath, setTargetPath] = useState("");
@@ -31,7 +35,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
   const handleStart = () => {
     if (tab === "git") {
       if (!gitRepoPath.trim()) {
-        setErrorMsg("Git リポジトリフォルダを指定してください。");
+        setErrorMsg(i18n.t("welcome.errors.specifyGit"));
         return;
       }
       setErrorMsg("");
@@ -43,7 +47,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
     }
 
     if (!basePath.trim() || !targetPath.trim()) {
-      setErrorMsg("両方のパスを指定してください。");
+      setErrorMsg(i18n.t("welcome.errors.specifyBoth"));
       return;
     }
     setErrorMsg("");
@@ -197,7 +201,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
               />
               <span>Diffrex</span>
             </div>
-            <p class="welcome-subtitle">AI-Friendly Diff & Merge Tool</p>
+            <p class="welcome-subtitle">{i18n.t("welcome.tagline")}</p>
           </div>
 
           {/* 前回のセッション復元バナー (B6-03) */}
@@ -205,7 +209,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
             <div class="welcome-restore-banner">
               <div class="welcome-restore-info">
                 <span class="welcome-restore-title">
-                  ⏮️ 前回のセッションを復元
+                  ⏮️ {i18n.t("welcome.restoreLastSession")}
                 </span>
                 <span class="welcome-restore-desc">
                   {lastSession.leftPath} ⇄ {lastSession.rightPath}
@@ -216,7 +220,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                 class="welcome-restore-btn"
                 onClick={() => controller.restoreLastSession()}
               >
-                復元して再開
+                {i18n.t("welcome.restoreLastSession")}
               </button>
             </div>
           )}
@@ -230,7 +234,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                 setErrorMsg("");
               }}
             >
-              📁 フォルダ比較
+              {i18n.t("welcome.tabDir")}
             </button>
             <button
               type="button"
@@ -240,7 +244,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                 setErrorMsg("");
               }}
             >
-              📄 ファイル比較
+              {i18n.t("welcome.tabFile")}
             </button>
             <button
               type="button"
@@ -250,7 +254,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                 setErrorMsg("");
               }}
             >
-              🌿 Git 差分
+              {i18n.t("welcome.tabGit")}
             </button>
           </div>
 
@@ -280,9 +284,9 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                     }}
                   >
                     <label class="welcome-label">
-                      Git リポジトリ / ワーキングツリー フォルダ
+                      {i18n.t("welcome.gitRepo")}
                       <span class="welcome-drop-hint">
-                        （またはここにドロップ）
+                        {` (${i18n.t("welcome.dragDropHint")})`}
                       </span>
                     </label>
                     <div class="welcome-input-row">
@@ -299,14 +303,14 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                         class="welcome-browse-btn"
                         onClick={() => handleBrowse("base")}
                       >
-                        📁 参照...
+                        📁 {i18n.t("welcome.browse")}
                       </button>
                     </div>
                   </div>
 
                   <div class="welcome-form-group">
                     <label class="welcome-label">
-                      比較ブランチ（任意。省略時は HEAD との未コミット差分）
+                      {i18n.t("welcome.branchOptional")}
                     </label>
                     <div class="welcome-input-row">
                       <input
@@ -337,10 +341,10 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                   >
                     <label class="welcome-label">
                       {tab === "dir"
-                        ? "Base フォルダ（変更前 / 旧）"
-                        : "Base ファイル（変更前 / 旧）"}
+                        ? i18n.t("welcome.baseFolder")
+                        : i18n.t("welcome.baseFile")}
                       <span class="welcome-drop-hint">
-                        （またはここにドロップ）
+                        {` (${i18n.t("welcome.dragDropHint")})`}
                       </span>
                     </label>
                     <div class="welcome-input-row">
@@ -359,7 +363,9 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                         class="welcome-browse-btn"
                         onClick={() => handleBrowse("base")}
                       >
-                        {tab === "dir" ? "📁 参照..." : "📄 参照..."}
+                        {tab === "dir"
+                          ? `📁 ${i18n.t("welcome.browse")}`
+                          : `📄 ${i18n.t("welcome.browse")}`}
                       </button>
                     </div>
                   </div>
@@ -378,10 +384,10 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                   >
                     <label class="welcome-label">
                       {tab === "dir"
-                        ? "Target フォルダ（変更後 / 新・編集先）"
-                        : "Target ファイル（変更後 / 新・編集先）"}
+                        ? i18n.t("welcome.targetFolder")
+                        : i18n.t("welcome.targetFile")}
                       <span class="welcome-drop-hint">
-                        （またはここにドロップ）
+                        {` (${i18n.t("welcome.dragDropHint")})`}
                       </span>
                     </label>
                     <div class="welcome-input-row">
@@ -400,7 +406,9 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                         class="welcome-browse-btn"
                         onClick={() => handleBrowse("target")}
                       >
-                        {tab === "dir" ? "📁 参照..." : "📄 参照..."}
+                        {tab === "dir"
+                          ? `📁 ${i18n.t("welcome.browse")}`
+                          : `📄 ${i18n.t("welcome.browse")}`}
                       </button>
                     </div>
                   </div>
@@ -415,7 +423,7 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
                   onChange={(e) =>
                     setReadOnly((e.target as HTMLInputElement).checked)}
                 />
-                <span>読み取り専用（保存無効）</span>
+                <span>{i18n.t("welcome.readOnlyMode")}</span>
               </label>
             </div>
 
@@ -426,12 +434,12 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
               class="welcome-submit-btn"
               onClick={handleStart}
             >
-              {tab === "git" ? "未コミット差分を開く" : "比較を開始"}
+              {i18n.t("welcome.startDiff")}
             </button>
 
             <div class="welcome-dropzone-notice">
               <span>
-                💡 2つのファイルをまとめてここにドロップしても比較を開始できます
+                💡 {i18n.t("welcome.dragDropHint")}
               </span>
             </div>
           </div>
@@ -441,14 +449,14 @@ export function WelcomeView({ controller }: WelcomeViewProps) {
         {history.length > 0 && (
           <div class="welcome-history-card">
             <div class="welcome-history-header">
-              <h3>🕒 比較履歴</h3>
+              <h3>🕒 {i18n.t("welcome.recentSessions")}</h3>
               <button
                 type="button"
                 class="welcome-clear-history-btn"
-                title="履歴をすべて削除"
+                title={i18n.t("welcome.clearAll")}
                 onClick={() => controller.clearHistory()}
               >
-                全消去
+                {i18n.t("welcome.clearAll")}
               </button>
             </div>
 

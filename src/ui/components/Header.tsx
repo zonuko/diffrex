@@ -9,6 +9,7 @@ import { useState } from "preact/hooks";
 import type { DiffSessionModel } from "../model/diff_session_model.ts";
 import type { DiffController } from "../controller/diff_controller.ts";
 import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface HeaderProps {
   model: DiffSessionModel;
@@ -17,6 +18,7 @@ export interface HeaderProps {
 
 export function Header({ model, controller }: HeaderProps) {
   useModel(model);
+  useModel(i18n);
   const [isPromptExpanded, setIsPromptExpanded] = useState(false);
 
   const session = model.session;
@@ -29,10 +31,10 @@ export function Header({ model, controller }: HeaderProps) {
 
   const isConnected = connectionStatus === "connected";
   const statusLabel = connectionStatus === "connected"
-    ? "Connected"
+    ? i18n.t("header.connected")
     : connectionStatus === "connecting"
-    ? "Connecting..."
-    : "Disconnected";
+    ? i18n.t("header.connecting")
+    : i18n.t("header.disconnected");
 
   const totalHunks = session?.hunks?.length ?? model.chunks.length;
   const unreviewed = model.unreviewedCount;
@@ -75,7 +77,7 @@ export function Header({ model, controller }: HeaderProps) {
                   borderColor: "rgba(229, 81, 186, 0.3)",
                 }}
               >
-                ⚡ Jev System One
+                {i18n.t("header.jevSystemOne")}
               </span>
             )}
           </div>
@@ -91,36 +93,47 @@ export function Header({ model, controller }: HeaderProps) {
                 title={`Accepted: ${statusCounts.accepted}, Rejected: ${statusCounts.rejected}, Edited: ${statusCounts.edited}`}
               >
                 {isAllReviewed
-                  ? <span>✓ All Reviewed ({totalHunks}/{totalHunks})</span>
+                  ? (
+                    <span>
+                      {i18n.t("header.allReviewed", { total: totalHunks })}
+                    </span>
+                  )
                   : (
                     <span>
-                      Unreviewed: <strong>{unreviewed}/{totalHunks}</strong>
+                      {i18n.t("header.unreviewed", {
+                        unreviewed,
+                        total: totalHunks,
+                      })}
                     </span>
                   )}
               </span>
               {statusCounts.accepted > 0 && (
                 <span class="stat-badge accepted" title="Accepted hunks">
-                  ✓ {statusCounts.accepted}
+                  {i18n.t("header.acceptedBadge", {
+                    count: statusCounts.accepted,
+                  })}
                 </span>
               )}
               {statusCounts.rejected > 0 && (
                 <span class="stat-badge rejected" title="Rejected hunks">
-                  ✗ {statusCounts.rejected}
+                  {i18n.t("header.rejectedBadge", {
+                    count: statusCounts.rejected,
+                  })}
                 </span>
               )}
               {statusCounts.edited > 0 && (
                 <span class="stat-badge edited" title="Edited hunks">
-                  ✎ {statusCounts.edited}
+                  {i18n.t("header.editedBadge", { count: statusCounts.edited })}
                 </span>
               )}
               {riskCounts.danger > 0 && (
                 <span class="stat-badge danger" title="High Risk Changes">
-                  ⚠️ {riskCounts.danger} danger
+                  {i18n.t("header.dangerBadge", { count: riskCounts.danger })}
                 </span>
               )}
               {riskCounts.warning > 0 && (
                 <span class="stat-badge warning" title="Warnings">
-                  ⚡ {riskCounts.warning} warn
+                  {i18n.t("header.warningBadge", { count: riskCounts.warning })}
                 </span>
               )}
               {safeCount > 0 && (
@@ -136,7 +149,7 @@ export function Header({ model, controller }: HeaderProps) {
                     fontSize: "12px",
                   }}
                 >
-                  🛡️ {safeCount} safe
+                  {i18n.t("header.safeBadge", { count: safeCount })}
                 </span>
               )}
             </div>
@@ -147,13 +160,13 @@ export function Header({ model, controller }: HeaderProps) {
               type="button"
               class={`filter-toggle-btn ${isNoiseFolded ? "active" : ""}`}
               onClick={() => controller.toggleNoiseFolded()}
-              title="Toggle noise hunks visibility (Ctrl+N)"
+              title={i18n.t("header.noiseFoldedTitle")}
             >
               <span class="toggle-icon">{isNoiseFolded ? "▶" : "▼"}</span>
               <span>
                 {isNoiseFolded
-                  ? `Noise folded (${noiseCount})`
-                  : `Noise visible (${noiseCount})`}
+                  ? i18n.t("header.noiseFolded", { count: noiseCount })
+                  : i18n.t("header.noiseVisible", { count: noiseCount })}
               </span>
               <kbd>Ctrl+N</kbd>
             </button>
@@ -177,10 +190,12 @@ export function Header({ model, controller }: HeaderProps) {
             onClick={() =>
               isPromptLong && setIsPromptExpanded(!isPromptExpanded)}
           >
-            <span class="prompt-label">Prompt</span>
+            <span class="prompt-label">{i18n.t("header.prompt")}</span>
             {isPromptLong && (
               <span class="prompt-expand-hint">
-                {isPromptExpanded ? "▲ Collapse" : "▼ Expand full prompt"}
+                {isPromptExpanded
+                  ? i18n.t("header.collapsePrompt")
+                  : i18n.t("header.expandPrompt")}
               </span>
             )}
           </div>

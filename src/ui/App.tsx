@@ -36,6 +36,7 @@ import { TabContainerModel } from "./model/tab_model.ts";
 import { TabController } from "./controller/tab_controller.ts";
 import { TabBar } from "./components/TabBar.tsx";
 import { useModel } from "./hooks/use_model.ts";
+import { i18n } from "./i18n/i18n_model.ts";
 import type { DiffSessionData } from "../core/types.ts";
 
 export interface AppProps {
@@ -191,6 +192,7 @@ export function App(
   useModel(threeWayModel);
   useModel(menuModel);
   useModel(tabModel);
+  useModel(i18n);
 
   const [isGlobalDragging, setIsGlobalDragging] = useState(false);
 

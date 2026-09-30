@@ -1,10 +1,12 @@
 /**
  * ShortcutsModal (B8-04 Smalltalk-80 MVC View)
  *
- * キーボードショートカット一覧ダイアログ。
+ * キーボードショートカット一覧ダイアログ（i18n 対応）。
  */
 
 import type { MenuModel } from "../model/menu_model.ts";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface ShortcutsModalProps {
   model: MenuModel;
@@ -15,66 +17,123 @@ interface ShortcutSection {
   shortcuts: { keys: string[]; description: string }[];
 }
 
-const SHORTCUT_SECTIONS: ShortcutSection[] = [
-  {
-    title: "差分ナビゲーション",
-    shortcuts: [
-      { keys: ["Alt + ↓", "J"], description: "次の差分 (Hunk) に移動" },
-      { keys: ["Alt + ↑", "K"], description: "前の差分 (Hunk) に移動" },
-    ],
-  },
-  {
-    title: "マージ & レビュー操作",
-    shortcuts: [
-      { keys: ["Ctrl + R"], description: "左の内容を右側へ適用 (マージ)" },
-      { keys: ["Ctrl + L"], description: "右の内容を左側へ適用 (リバート)" },
-      { keys: ["A"], description: "現在の Hunk を承認 (Accepted)" },
-      { keys: ["R"], description: "現在の Hunk を拒否 (Rejected)" },
-      { keys: ["E", "Enter"], description: "エディタ直接編集モードに入る" },
-      { keys: ["Escape"], description: "ナビゲーションモードに戻る" },
-      { keys: ["Alt + B"], description: "[3-Way] Base (共通祖先) を採用" },
-      { keys: ["Alt + L"], description: "[3-Way] Left (Ours) を採用" },
-      { keys: ["Alt + R"], description: "[3-Way] Right (Theirs) を採用" },
-    ],
-  },
-  {
-    title: "表示 & コマンド",
-    shortcuts: [
-      {
-        keys: ["Ctrl + Shift + P"],
-        description: "クイックコマンドパレットを開く",
-      },
-      {
-        keys: ["Ctrl + N"],
-        description: "ノイズ差分（空白・コメント）の折りたたみ切替",
-      },
-      {
-        keys: ["Alt + F/E/M/V/G/H"],
-        description: "メニューバーの各カテゴリを開く",
-      },
-      { keys: ["F1", "?"], description: "キーボードショートカット一覧を表示" },
-    ],
-  },
-  {
-    title: "ファイル & セッション",
-    shortcuts: [
-      { keys: ["Ctrl + S"], description: "編集内容を保存" },
-      {
-        keys: ["F5", "Ctrl + Shift + R"],
-        description: "最新の状態に再読み込み",
-      },
-      { keys: ["Ctrl + O"], description: "ファイル比較を開く" },
-      { keys: ["Ctrl + Shift + O"], description: "フォルダ比較を開く" },
-      { keys: ["Ctrl + Shift + T"], description: "直前のセッションを自動復元" },
-      { keys: ["Ctrl + Q"], description: "Diffrex を終了" },
-    ],
-  },
-];
+function getShortcutSections(): ShortcutSection[] {
+  return [
+    {
+      title: i18n.t("shortcutsModal.sections.navigation"),
+      shortcuts: [
+        {
+          keys: ["Alt + ↓", "J"],
+          description: i18n.t("shortcutsModal.items.nextHunk"),
+        },
+        {
+          keys: ["Alt + ↑", "K"],
+          description: i18n.t("shortcutsModal.items.prevHunk"),
+        },
+      ],
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.mergeReview"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + R"],
+          description: i18n.t("shortcutsModal.items.mergeLeftToRight"),
+        },
+        {
+          keys: ["Ctrl + L"],
+          description: i18n.t("shortcutsModal.items.mergeRightToLeft"),
+        },
+        {
+          keys: ["A"],
+          description: i18n.t("shortcutsModal.items.acceptHunk"),
+        },
+        {
+          keys: ["R"],
+          description: i18n.t("shortcutsModal.items.rejectHunk"),
+        },
+        {
+          keys: ["E", "Enter"],
+          description: i18n.t("shortcutsModal.items.enterEdit"),
+        },
+        {
+          keys: ["Escape"],
+          description: i18n.t("shortcutsModal.items.exitEdit"),
+        },
+        {
+          keys: ["Alt + B"],
+          description: i18n.t("shortcutsModal.items.threeWayBase"),
+        },
+        {
+          keys: ["Alt + L"],
+          description: i18n.t("shortcutsModal.items.threeWayLeft"),
+        },
+        {
+          keys: ["Alt + R"],
+          description: i18n.t("shortcutsModal.items.threeWayRight"),
+        },
+      ],
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.viewCommand"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + Shift + P"],
+          description: i18n.t("shortcutsModal.items.commandPalette"),
+        },
+        {
+          keys: ["Ctrl + N"],
+          description: i18n.t("shortcutsModal.items.toggleNoise"),
+        },
+        {
+          keys: ["Alt + F/E/M/V/G/H"],
+          description: i18n.t("shortcutsModal.items.menuCategories"),
+        },
+        {
+          keys: ["F1", "?"],
+          description: i18n.t("shortcutsModal.items.showShortcuts"),
+        },
+      ],
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.fileSession"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + S"],
+          description: i18n.t("shortcutsModal.items.save"),
+        },
+        {
+          keys: ["F5", "Ctrl + Shift + R"],
+          description: i18n.t("shortcutsModal.items.reload"),
+        },
+        {
+          keys: ["Ctrl + O"],
+          description: i18n.t("shortcutsModal.items.openFile"),
+        },
+        {
+          keys: ["Ctrl + Shift + O"],
+          description: i18n.t("shortcutsModal.items.openDir"),
+        },
+        {
+          keys: ["Ctrl + Shift + T"],
+          description: i18n.t("shortcutsModal.items.restoreSession"),
+        },
+        {
+          keys: ["Ctrl + Q"],
+          description: i18n.t("shortcutsModal.items.exitApp"),
+        },
+      ],
+    },
+  ];
+}
 
 export function ShortcutsModal({ model }: ShortcutsModalProps) {
+  useModel(i18n);
+
   const handleClose = () => {
     model.setShortcutsModalOpen(false);
   };
+
+  const sections = getShortcutSections();
 
   return (
     <div class="modal-overlay" onClick={handleClose}>
@@ -87,20 +146,20 @@ export function ShortcutsModal({ model }: ShortcutsModalProps) {
       >
         <div class="modal-header">
           <h2 id="shortcuts-title" class="modal-title">
-            ⌨️ キーボードショートカット一覧
+            {i18n.t("shortcutsModal.title")}
           </h2>
           <button
             type="button"
             class="modal-close-button"
             onClick={handleClose}
-            aria-label="閉じる"
+            aria-label={i18n.t("shortcutsModal.close")}
           >
             ×
           </button>
         </div>
 
         <div class="modal-body shortcuts-modal-body">
-          {SHORTCUT_SECTIONS.map((section) => (
+          {sections.map((section) => (
             <div key={section.title} class="shortcuts-section">
               <h3 class="shortcuts-section-title">{section.title}</h3>
               <div class="shortcuts-table">
@@ -128,7 +187,7 @@ export function ShortcutsModal({ model }: ShortcutsModalProps) {
             class="button primary"
             onClick={handleClose}
           >
-            閉じる (Esc)
+            {i18n.t("shortcutsModal.close")} (Esc)
           </button>
         </div>
       </div>

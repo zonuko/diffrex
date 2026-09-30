@@ -9,6 +9,8 @@ import type { DirectoryTreeNode, FileDiffStatus } from "../../core/types.ts";
 import type { DirectoryController } from "../controller/dir_controller.ts";
 import type { DirectoryDiffModel } from "../model/dir_diff_model.ts";
 import { FileIcon } from "./FileIcon.tsx";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface DirectoryTreeViewProps {
   model: DirectoryDiffModel;
@@ -19,6 +21,7 @@ export function DirectoryTreeView({
   model,
   controller,
 }: DirectoryTreeViewProps) {
+  useModel(i18n);
   const session = model.dirSession;
   if (!session) return null;
 
@@ -32,7 +35,7 @@ export function DirectoryTreeView({
           <div class="git-header-row">
             <span
               class="git-branch-badge"
-              title="Git ワーキングツリー差分モード"
+              title={i18n.t("directoryTree.gitWorkingTreeMode")}
             >
               🌿 {session.git?.branch ?? "HEAD"}
             </span>
@@ -44,14 +47,16 @@ export function DirectoryTreeView({
               <select
                 class="subrepo-selector"
                 value={model.selectedSubRepo}
-                title="表示する Git リポジトリの絞り込み"
+                title={i18n.t("directoryTree.subRepoFilterTitle")}
                 onChange={(e) => {
                   const val = (e.target as HTMLSelectElement).value;
                   model.setSelectedSubRepo(val);
                 }}
               >
                 <option value="all">
-                  📦 すべてのリポジトリ ({model.subRepos.length})
+                  {i18n.t("directoryTree.allRepos", {
+                    count: model.subRepos.length,
+                  })}
                 </option>
                 {model.subRepos.map((sr) => (
                   <option key={sr.relativePath} value={sr.relativePath}>
@@ -68,7 +73,7 @@ export function DirectoryTreeView({
           {session.git?.worktrees && session.git.worktrees.length > 1 && (
             <select
               class="worktree-selector"
-              title="Worktree 比較"
+              title={i18n.t("directoryTree.worktreeDiff")}
               onChange={(e) => {
                 const targetWt = (e.target as HTMLSelectElement).value;
                 if (targetWt && targetWt !== session.targetDir) {
@@ -78,7 +83,7 @@ export function DirectoryTreeView({
                 }
               }}
             >
-              <option value="">Worktree 比較...</option>
+              <option value="">{i18n.t("directoryTree.worktreeDiff")}</option>
               {session.git.worktrees.map((wt) => (
                 <option key={wt.path} value={wt.path}>
                   {wt.branch ? `${wt.branch} (${wt.path})` : wt.path}
@@ -100,7 +105,9 @@ export function DirectoryTreeView({
           {summary.deleted > 0 && (
             <span class="badge-count badge-del">{summary.deleted} D</span>
           )}
-          <span class="badge-count badge-total">計 {summary.total}</span>
+          <span class="badge-count badge-total">
+            {i18n.t("directoryTree.totalCount", { count: summary.total })}
+          </span>
         </div>
 
         <div class="dir-tree-actions">
@@ -112,15 +119,19 @@ export function DirectoryTreeView({
                 (e.target as HTMLSelectElement).value as FileDiffStatus | "all",
               )}
           >
-            <option value="all">全ファイル表示</option>
-            <option value="modified">変更のみ (M)</option>
-            <option value="added">追加のみ (A)</option>
-            <option value="deleted">削除のみ (D)</option>
+            <option value="all">{i18n.t("directoryTree.filterAll")}</option>
+            <option value="modified">
+              {i18n.t("directoryTree.filterModified")}
+            </option>
+            <option value="added">{i18n.t("directoryTree.filterAdded")}</option>
+            <option value="deleted">
+              {i18n.t("directoryTree.filterDeleted")}
+            </option>
           </select>
           <button
             type="button"
             class="tree-action-btn"
-            title="すべて展開"
+            title={i18n.t("directoryTree.expandAllTitle")}
             onClick={() => model.expandAll()}
           >
             ⊞
@@ -128,7 +139,7 @@ export function DirectoryTreeView({
           <button
             type="button"
             class="tree-action-btn"
-            title="すべて折りたたむ"
+            title={i18n.t("directoryTree.collapseAllTitle")}
             onClick={() => model.collapseAll()}
           >
             ⊟
@@ -151,7 +162,11 @@ export function DirectoryTreeView({
               ))}
             </ul>
           )
-          : <div class="tree-empty">ファイルが見つかりません</div>}
+          : (
+            <div class="tree-empty">
+              {i18n.t("directoryTree.noFilesFound")}
+            </div>
+          )}
       </div>
     </aside>
   );
@@ -319,13 +334,20 @@ function TreeNodeItem({
               subRepoInfo.isSubmodule ? "submodule" : "repo"
             }`}
             title={subRepoInfo.isSubmodule
-              ? "Git サブモジュール"
-              : "Git リポジトリ"}
+              ? i18n.t("directoryTree.submoduleTag")
+              : i18n.t("directoryTree.repoTag")}
           >
             {subRepoInfo.isSubmodule ? "submodule" : "repo"}
           </span>
         )}
-        {isDirty && <span class="tree-dirty-dot" title="未保存の変更">●</span>}
+        {isDirty && (
+          <span
+            class="tree-dirty-dot"
+            title={i18n.t("directoryTree.unsavedChanges")}
+          >
+            ●
+          </span>
+        )}
         <span class="tree-badge-container">
           {getStatusBadge(node)}
         </span>
@@ -344,7 +366,7 @@ function TreeNodeItem({
               controller.selectFile(node.relativePath, false);
             }}
           >
-            📄 このタブで開く
+            {i18n.t("directoryTree.openInThisTab")}
           </button>
           <button
             type="button"
@@ -354,7 +376,7 @@ function TreeNodeItem({
               controller.selectFile(node.relativePath, true);
             }}
           >
-            🗂️ 新規タブで開く
+            {i18n.t("directoryTree.openInNewTab")}
           </button>
         </div>
       )}

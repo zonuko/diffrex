@@ -2,12 +2,14 @@
  * OpenSessionModal (B8-03 Smalltalk-80 MVC View)
  *
  * ファイル比較・フォルダ比較・Git リポジトリ・3-Way マージを
- * メニューバーから即座に開始するためのダイアログモーダル。
+ * メニューバーから即座に開始するためのダイアログモーダル（i18n 対応）。
  */
 
 import { useState } from "preact/hooks";
 import type { MenuModel } from "../model/menu_model.ts";
 import type { DirectoryController } from "../controller/dir_controller.ts";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface OpenSessionModalProps {
   model: MenuModel;
@@ -18,6 +20,8 @@ export function OpenSessionModal({
   model,
   controller,
 }: OpenSessionModalProps) {
+  useModel(i18n);
+
   const [tab, setTab] = useState<"file" | "dir" | "git" | "3way">(
     model.openSessionInitialTab,
   );
@@ -54,9 +58,7 @@ export function OpenSessionModal({
 
     if (tab === "file") {
       if (!leftPath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "比較元 (Left) と比較先 (Right) の両方を指定してください。",
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyBothFiles"));
         return;
       }
       handleClose();
@@ -67,9 +69,7 @@ export function OpenSessionModal({
       );
     } else if (tab === "dir") {
       if (!leftPath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "Base フォルダと Target フォルダの両方を指定してください。",
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyBothDirs"));
         return;
       }
       handleClose();
@@ -80,7 +80,7 @@ export function OpenSessionModal({
       );
     } else if (tab === "git") {
       if (!gitRepoPath.trim()) {
-        setErrorMsg("Git リポジトリフォルダを指定してください。");
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyGitRepo"));
         return;
       }
       handleClose();
@@ -90,13 +90,10 @@ export function OpenSessionModal({
       });
     } else if (tab === "3way") {
       if (!leftPath.trim() || !basePath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "Local, Base, Remote の 3 つすべてのファイルを指定してください。",
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyThreeWayFiles"));
         return;
       }
       handleClose();
-      // 3-Way セッション開始 IPC または drop session
       controller.startDropSession([
         leftPath.trim(),
         basePath.trim(),
@@ -116,13 +113,13 @@ export function OpenSessionModal({
       >
         <div class="modal-header">
           <h2 id="open-session-title" class="modal-title">
-            📂 比較・マージ対象を開く
+            📂 {i18n.t("openSessionModal.title")}
           </h2>
           <button
             type="button"
             class="modal-close-button"
             onClick={handleClose}
-            aria-label="閉じる"
+            aria-label={i18n.t("openSessionModal.cancel")}
           >
             ×
           </button>
@@ -138,7 +135,7 @@ export function OpenSessionModal({
                 setErrorMsg("");
               }}
             >
-              📄 ファイル比較
+              {i18n.t("openSessionModal.tabFile")}
             </button>
             <button
               type="button"
@@ -148,7 +145,7 @@ export function OpenSessionModal({
                 setErrorMsg("");
               }}
             >
-              📁 フォルダ比較
+              {i18n.t("openSessionModal.tabDir")}
             </button>
             <button
               type="button"
@@ -158,7 +155,7 @@ export function OpenSessionModal({
                 setErrorMsg("");
               }}
             >
-              🌿 Git 差分
+              {i18n.t("openSessionModal.tabGit")}
             </button>
             <button
               type="button"
@@ -168,7 +165,7 @@ export function OpenSessionModal({
                 setErrorMsg("");
               }}
             >
-              💥 3-Way マージ
+              {i18n.t("openSessionModal.tab3Way")}
             </button>
           </div>
 
@@ -183,7 +180,9 @@ export function OpenSessionModal({
               ? (
                 <>
                   <div class="welcome-field">
-                    <label class="welcome-label">Git リポジトリフォルダ:</label>
+                    <label class="welcome-label">
+                      {i18n.t("openSessionModal.gitRepo")}:
+                    </label>
                     <div class="welcome-input-group">
                       <input
                         type="text"
@@ -198,19 +197,19 @@ export function OpenSessionModal({
                         class="button secondary"
                         onClick={() => handleBrowse("dir", "git")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
 
                   <div class="welcome-field">
                     <label class="welcome-label">
-                      比較ブランチ / コミット (省略時は HEAD):
+                      {i18n.t("openSessionModal.branchOptional")}:
                     </label>
                     <input
                       type="text"
                       class="welcome-input"
-                      placeholder="main, HEAD~1, feature など"
+                      placeholder="main, HEAD~1, feature..."
                       value={gitBranch}
                       onInput={(e) =>
                         setGitBranch((e.target as HTMLInputElement).value)}
@@ -222,7 +221,9 @@ export function OpenSessionModal({
               ? (
                 <>
                   <div class="welcome-field">
-                    <label class="welcome-label">Local (変更中ファイル):</label>
+                    <label class="welcome-label">
+                      {i18n.t("openSessionModal.localFile")}:
+                    </label>
                     <div class="welcome-input-group">
                       <input
                         type="text"
@@ -237,13 +238,15 @@ export function OpenSessionModal({
                         class="button secondary"
                         onClick={() => handleBrowse("file", "left")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
 
                   <div class="welcome-field">
-                    <label class="welcome-label">Base (共通祖先):</label>
+                    <label class="welcome-label">
+                      {i18n.t("openSessionModal.ancestorFile")}:
+                    </label>
                     <div class="welcome-input-group">
                       <input
                         type="text"
@@ -258,13 +261,15 @@ export function OpenSessionModal({
                         class="button secondary"
                         onClick={() => handleBrowse("file", "base")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
 
                   <div class="welcome-field">
-                    <label class="welcome-label">Remote (マージ対象):</label>
+                    <label class="welcome-label">
+                      {i18n.t("openSessionModal.remoteFile")}:
+                    </label>
                     <div class="welcome-input-group">
                       <input
                         type="text"
@@ -279,7 +284,7 @@ export function OpenSessionModal({
                         class="button secondary"
                         onClick={() => handleBrowse("file", "right")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
@@ -290,8 +295,8 @@ export function OpenSessionModal({
                   <div class="welcome-field">
                     <label class="welcome-label">
                       {tab === "dir"
-                        ? "Base フォルダ (比較元):"
-                        : "Left ファイル (比較元):"}
+                        ? `${i18n.t("openSessionModal.baseDir")}:`
+                        : `${i18n.t("openSessionModal.baseFile")}:`}
                     </label>
                     <div class="welcome-input-group">
                       <input
@@ -310,7 +315,7 @@ export function OpenSessionModal({
                         onClick={() =>
                           handleBrowse(tab === "dir" ? "dir" : "file", "left")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
@@ -318,8 +323,8 @@ export function OpenSessionModal({
                   <div class="welcome-field">
                     <label class="welcome-label">
                       {tab === "dir"
-                        ? "Target フォルダ (比較先):"
-                        : "Right ファイル (比較先):"}
+                        ? `${i18n.t("openSessionModal.targetDir")}:`
+                        : `${i18n.t("openSessionModal.targetFile")}:`}
                     </label>
                     <div class="welcome-input-group">
                       <input
@@ -338,7 +343,7 @@ export function OpenSessionModal({
                         onClick={() =>
                           handleBrowse(tab === "dir" ? "dir" : "file", "right")}
                       >
-                        参照...
+                        {i18n.t("openSessionModal.browse")}
                       </button>
                     </div>
                   </div>
@@ -353,7 +358,7 @@ export function OpenSessionModal({
                   onChange={(e) =>
                     setReadOnly((e.target as HTMLInputElement).checked)}
                 />
-                読み取り専用モード (編集・保存を無効化)
+                {i18n.t("openSessionModal.readOnly")}
               </label>
             </div>
           </div>
@@ -365,14 +370,14 @@ export function OpenSessionModal({
             class="button secondary"
             onClick={handleClose}
           >
-            キャンセル (Esc)
+            {i18n.t("openSessionModal.cancel")} (Esc)
           </button>
           <button
             type="button"
             class="button primary"
             onClick={handleStart}
           >
-            比較を開始
+            {i18n.t("openSessionModal.startSession")}
           </button>
         </div>
       </div>

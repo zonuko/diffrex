@@ -28,8 +28,8 @@
 - サブディレクトリ内 Git リポジトリの差分検出 & マルチリポジトリ対応（B-13: 再帰的 Git スキャン、除外フィルタ、.gitmodules サブモジュール解析、差分集約、--scan-git オプション、リポジトリ切り替えセレクタ UI、個別リポジトリ HEAD からの Base 取得）。
 - ワークスペース状態の自動永続化 & 次回起動時のセッション自動復帰（B-17: WorkspaceState モデル、起動時自動復元、--no-restore / --welcome オプション、壊れた一時ファイルのスキップ）。
 - TypeSafe Jev (System One) による Hunk セマンティック解析 & ノイズ/リスク判定の高度化（B-19: JevClient、Atomic Questions 組み立て、バックエンド ⇄ UI 間のプログレッシブ更新 IPC、API 未設定時の静的解析フォールバック）。
-- Confidence-Gated ハイブリッド・レビュー基盤（B-20: 確信度トリアージ、安全変更 Safe バッジ、要精査 Needs Review バッジ、疑義 Hunk オンデマンド深掘り解説生成 Explain フック & UI、確信度しきい値設定モーダル & メニューバー統合）。
-- `deno task check`（fmt / lint / check / test）が全 237 テストで green。
+- メニュー・UI 国際化（B-18: 型安全辞書スキーマ、I18nModel、表示メニューの言語切り替えサブメニュー、コマンドパレット日英双方向検索エイリアス、全モーダルおよびメインビューの i18n 化、localStorage 永続化とシステムロケール自動判定）。
+- `deno task check`（fmt / lint / check / test）が全 251 テストで green。
 
 ## 目標ディレクトリ構成（Phase 1〜4 で段階的に作る）
 
@@ -499,13 +499,13 @@ MVP（Phase 0〜5）完了後の拡張機能群。費用対効果・依存関係
 
 #### B-18. メニュー・UI 国際化（i18n: 日英多言語対応 & 型安全辞書基盤）
 
-- [ ] **B18-01** `src/ui/i18n/types.ts` & `src/ui/i18n/locales/ja.ts`, `en.ts` にピュア TypeScript 型安全辞書スキーマ（外部ライブラリ不使用、`as const` + `typeof` による英語キー欠落の静的検査）および言語型（`Locale = "ja" | "en"`）を定義。
-- [ ] **B18-02** `src/ui/i18n/i18n_model.ts` に Smalltalk-80 MVC に基づく `I18nModel`（現在の言語状態、`localStorage` 永続化とシステムロケール自動判定、`t(key, params)` 補間関数、`Observable` による変更通知）を実装。
-- [ ] **B18-03** メニューバー（`src/ui/components/MenuBar.tsx`, `src/ui/controller/menu_controller.ts`）の多言語化対応。各メニュー項目・アクセスキーの日英対応および「表示 (View)」配下への「言語 (Language: 日本語 / English)」切り替えサブメニューの追加。
-- [ ] **B18-04** クイックコマンドパレット（`CommandPalette.tsx`）の多言語化。英語モード・日本語モードでのコマンド名表示、および日英どちらの入力でもコマンドがヒットする検索エイリアス対応。
-- [ ] **B18-05** 各種モーダル・ダイアログ（`OpenSessionModal`, `AboutModal`, `ShortcutsModal`, `TabCloseConfirmModal`）の文言の i18n 化。
-- [ ] **B18-06** メイン画面ビュー（`Header.tsx` のレビュー判定ボタン・AIメタデータ、`StatusBar.tsx` の差分統計、`WelcomeView.tsx`、`StructuredToolbar.tsx`、`DirectoryTreeView.tsx` コンテキストメニュー）の文言の i18n 化。
-- [ ] **B18-07** テスト: `tests/i18n_test.ts`（辞書キーの網羅性・欠落検査テスト、`I18nModel` の言語切り替えと `t()` 補間テスト、永続化復元テスト）。
+- [x] **B18-01** `src/ui/i18n/types.ts` & `src/ui/i18n/locales/ja.ts`, `en.ts` にピュア TypeScript 型安全辞書スキーマ（外部ライブラリ不使用、`as const` + `typeof` による英語キー欠落の静的検査）および言語型（`Locale = "ja" | "en"`）を定義。
+- [x] **B18-02** `src/ui/i18n/i18n_model.ts` に Smalltalk-80 MVC に基づく `I18nModel`（現在の言語状態、`localStorage` 永続化とシステムロケール自動判定、`t(key, params)` 補間関数、`Observable` による変更通知）を実装。
+- [x] **B18-03** メニューバー（`src/ui/components/MenuBar.tsx`, `src/ui/controller/menu_controller.ts`）の多言語化対応。各メニュー項目・アクセスキーの日英対応および「表示 (View)」配下への「言語 (Language: 日本語 / English)」切り替えサブメニューの追加。
+- [x] **B18-04** クイックコマンドパレット（`CommandPalette.tsx`）の多言語化。英語モード・日本語モードでのコマンド名表示、および日英どちらの入力でもコマンドがヒットする検索エイリアス対応。
+- [x] **B18-05** 各種モーダル・ダイアログ（`OpenSessionModal`, `AboutModal`, `ShortcutsModal`, `TabCloseConfirmModal`）の文言の i18n 化。
+- [x] **B18-06** メイン画面ビュー（`Header.tsx` のレビュー判定ボタン・AIメタデータ、`StatusBar.tsx` の差分統計、`WelcomeView.tsx`、`StructuredToolbar.tsx`、`DirectoryTreeView.tsx` コンテキストメニュー）の文言の i18n 化。
+- [x] **B18-07** テスト: `tests/i18n_test.ts`（辞書キーの網羅性・欠落検査テスト、`I18nModel` の言語切り替えと `t()` 補間テスト、永続化復元テスト）。
 
 **AC:** メニューバーの「表示」→「言語」から「日本語」と「English」を即座に切り替えられ、メニュー項目・コマンドパレット・ダイアログ・ステータスバー等の表記がリアルタイムに日英で切り替わる。選択した言語は `localStorage` に保持され、次回起動時も自動的に復元される（初期値はシステム言語連動）。英語辞書のキー欠落がコンパイル時に検知され、型安全性が保証される。
 

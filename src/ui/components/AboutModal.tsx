@@ -1,16 +1,20 @@
 /**
  * AboutModal (B8-04 Smalltalk-80 MVC View)
  *
- * アプリケーション情報ダイアログ。
+ * アプリケーション情報ダイアログ（i18n 対応）。
  */
 
 import type { MenuModel } from "../model/menu_model.ts";
+import { useModel } from "../hooks/use_model.ts";
+import { i18n } from "../i18n/i18n_model.ts";
 
 export interface AboutModalProps {
   model: MenuModel;
 }
 
 export function AboutModal({ model }: AboutModalProps) {
+  useModel(i18n);
+
   const handleClose = () => {
     model.setAboutModalOpen(false);
   };
@@ -26,13 +30,13 @@ export function AboutModal({ model }: AboutModalProps) {
       >
         <div class="modal-header">
           <h2 id="about-title" class="modal-title">
-            Diffrex について
+            {i18n.t("aboutModal.title")}
           </h2>
           <button
             type="button"
             class="modal-close-button"
             onClick={handleClose}
-            aria-label="閉じる"
+            aria-label={i18n.t("aboutModal.close")}
           >
             ×
           </button>
@@ -50,35 +54,39 @@ export function AboutModal({ model }: AboutModalProps) {
             <div class="about-logo-badge">⚡ DIFFREX</div>
           </div>
 
-          <h3 class="about-app-name">Diffrex (ディフレクス)</h3>
+          <h3 class="about-app-name">{i18n.t("aboutModal.appName")}</h3>
           <p class="about-tagline">
-            AI-Friendly Diff & Merge Tool for Deno Desktop
+            {i18n.t("aboutModal.tagline")}
           </p>
 
           <div class="about-info-grid">
-            <div class="about-info-label">バージョン:</div>
-            <div class="about-info-value">v0.1.0 (MVP + B-14 + B-8)</div>
+            <div class="about-info-label">
+              {i18n.t("aboutModal.versionLabel")}
+            </div>
+            <div class="about-info-value">v0.1.0 (MVP + B-14 + B-8 + B-18)</div>
 
-            <div class="about-info-label">ランタイム:</div>
+            <div class="about-info-label">
+              {i18n.t("aboutModal.runtimeLabel")}
+            </div>
             <div class="about-info-value">Deno v2.9+ / Deno Desktop</div>
 
-            <div class="about-info-label">UI エンジン:</div>
+            <div class="about-info-label">
+              {i18n.t("aboutModal.uiEngineLabel")}
+            </div>
             <div class="about-info-value">
               Preact + CodeMirror 6 + Smalltalk-80 MVC
             </div>
 
-            <div class="about-info-label">アーキテクチャ:</div>
+            <div class="about-info-label">
+              {i18n.t("aboutModal.architectureLabel")}
+            </div>
             <div class="about-info-value">
-              Pure TypeScript Observer Pattern (外部ライブラリ不使用)
+              {i18n.t("aboutModal.architectureValue")}
             </div>
           </div>
 
           <p class="about-description">
-            Diffrex は、AI
-            生成コードの高速レビューと安全なマージを支援するデスクトップ差分ツールです。
-            プロンプトやモデルメタデータの可視化、空白・コメントなどのノイズ差分の自動折りたたみ、
-            秘密情報やシグネチャ変更などのリスク検知、3-Way
-            マージ、画像・CSV比較、Git Worktree 連携を強力にサポートします。
+            {i18n.t("aboutModal.description")}
           </p>
 
           <div class="about-links">
@@ -88,7 +96,7 @@ export function AboutModal({ model }: AboutModalProps) {
               rel="noopener noreferrer"
               class="about-link"
             >
-              GitHub リポジトリ
+              {i18n.t("aboutModal.githubRepo")}
             </a>
           </div>
         </div>
@@ -99,7 +107,7 @@ export function AboutModal({ model }: AboutModalProps) {
             class="button primary"
             onClick={handleClose}
           >
-            閉じる (Esc)
+            {i18n.t("aboutModal.close")} (Esc)
           </button>
         </div>
       </div>

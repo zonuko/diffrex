@@ -16,6 +16,7 @@ export interface MenuItemDef {
   separator?: boolean;
   action?: () => void;
   children?: MenuItemDef[];
+  searchAliases?: string[];
 }
 
 export interface MenuCategoryDef {

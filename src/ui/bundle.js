@@ -20363,6 +20363,618 @@ var MenuModel = class extends Observable {
   }
 };
 
+// src/ui/i18n/locales/ja.ts
+var ja = {
+  menu: {
+    categories: {
+      file: { label: "\u30D5\u30A1\u30A4\u30EB", accessKey: "F" },
+      edit: { label: "\u7DE8\u96C6", accessKey: "E" },
+      merge: { label: "\u30DE\u30FC\u30B8", accessKey: "M" },
+      view: { label: "\u8868\u793A", accessKey: "V" },
+      git: { label: "Git", accessKey: "G" },
+      help: { label: "\u30D8\u30EB\u30D7", accessKey: "H" }
+    },
+    items: {
+      // file
+      openFile: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F...",
+      openDir: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F...",
+      openGit: "\u5358\u4E00 Git \u30EA\u30DD\u30B8\u30C8\u30EA\u3092\u958B\u304F...",
+      open3Way: "3-Way \u30DE\u30FC\u30B8\u3092\u958B\u304F...",
+      recentSessions: "\u6700\u8FD1\u958B\u3044\u305F\u30BB\u30C3\u30B7\u30E7\u30F3",
+      clearHistory: "\u5C65\u6B74\u3092\u3059\u3079\u3066\u6D88\u53BB",
+      noHistory: "(\u5C65\u6B74\u306F\u3042\u308A\u307E\u305B\u3093)",
+      restoreSession: "\u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
+      restoreOnStartup: "\u8D77\u52D5\u6642\u306B\u524D\u56DE\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143\u3059\u308B",
+      save: "\u4FDD\u5B58",
+      reload: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F",
+      closeTab: "\u30BF\u30D6\u3092\u9589\u3058\u308B",
+      showWelcome: "Welcome \u753B\u9762\u3092\u8868\u793A",
+      exit: "\u7D42\u4E86",
+      // edit
+      backToNav: "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B",
+      enterEdit: "\u30A8\u30C7\u30A3\u30BF\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B",
+      undo: "\u5143\u306B\u623B\u3059",
+      redo: "\u3084\u308A\u76F4\u3059",
+      commandPalette: "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8...",
+      // merge
+      nextHunk: "\u6B21\u306E\u5DEE\u5206 (Hunk)",
+      prevHunk: "\u524D\u306E\u5DEE\u5206 (Hunk)",
+      mergeLeftToRight: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)",
+      mergeRightToLeft: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)",
+      acceptHunk: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D",
+      rejectHunk: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426",
+      acceptAllHunks: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u627F\u8A8D",
+      rejectAllHunks: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u62D2\u5426",
+      threeWayBase: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528",
+      threeWayLeft: "[3-Way] Left (Ours) \u3092\u63A1\u7528",
+      threeWayRight: "[3-Way] Right (Theirs) \u3092\u63A1\u7528",
+      // view
+      toggleNoise: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u3092\u6298\u308A\u305F\u305F\u3080",
+      expandAll: "\u3059\u3079\u3066\u306E\u6298\u308A\u305F\u305F\u307F\u3092\u5C55\u958B",
+      nextTab: "\u6B21\u306E\u30BF\u30D6",
+      prevTab: "\u524D\u306E\u30BF\u30D6",
+      confidenceSettings: "\u78BA\u4FE1\u5EA6\u3057\u304D\u3044\u5024\u8A2D\u5B9A (Confidence Thresholds)...",
+      language: "\u8A00\u8A9E (Language)",
+      languageJa: "\u65E5\u672C\u8A9E",
+      languageEn: "English",
+      // git
+      rescanGit: "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\u3092\u518D\u30B9\u30AD\u30E3\u30F3",
+      worktreeList: "Worktree \u4E00\u89A7\u3092\u8868\u793A...",
+      // help
+      shortcuts: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7",
+      about: "Diffrex \u306B\u3064\u3044\u3066 (About)"
+    }
+  },
+  commandPalette: {
+    placeholder: "\u5B9F\u884C\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u3092\u5165\u529B... (\u4F8B: \u30DE\u30FC\u30B8, \u4FDD\u5B58, \u6B21\u306E\u5DEE\u5206)",
+    empty: "\u4E00\u81F4\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093",
+    ariaLabel: "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8"
+  },
+  header: {
+    connected: "Connected",
+    connecting: "Connecting...",
+    disconnected: "Disconnected",
+    agent: "Agent: {agent}",
+    model: "Model: {model}",
+    jevSystemOne: "\u26A1 Jev System One",
+    allReviewed: "\u2713 \u5168\u30EC\u30D3\u30E5\u30FC\u5B8C\u4E86 ({total}/{total})",
+    unreviewed: "\u672A\u30EC\u30D3\u30E5\u30FC: {unreviewed}/{total}",
+    acceptedBadge: "\u2713 {count}",
+    rejectedBadge: "\u2717 {count}",
+    editedBadge: "\u270E {count}",
+    dangerBadge: "\u26A0\uFE0F {count} danger",
+    warningBadge: "\u26A1 {count} warn",
+    safeBadge: "\u{1F6E1}\uFE0F {count} safe",
+    noiseFolded: "\u30CE\u30A4\u30BA\u6298\u308A\u305F\u305F\u307F ({count})",
+    noiseVisible: "\u30CE\u30A4\u30BA\u8868\u793A\u4E2D ({count})",
+    prompt: "Prompt",
+    collapsePrompt: "\u25B2 \u6298\u308A\u305F\u305F\u3080",
+    expandPrompt: "\u25BC \u5168\u30D7\u30ED\u30F3\u30D7\u30C8\u3092\u5C55\u958B",
+    noiseFoldedTitle: "\u30CE\u30A4\u30BA\u5DEE\u5206\u306E\u8868\u793A\u5207\u308A\u66FF\u3048 (Ctrl+N)"
+  },
+  statusBar: {
+    noDiffs: "\u5DEE\u5206\u306A\u3057",
+    hunkInfo: "Hunk {current} / {total}",
+    allReviewed: "\u2728 \u5168\u30EC\u30D3\u30E5\u30FC\u5B8C\u4E86",
+    readOnly: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528",
+    saving: "\u4FDD\u5B58\u4E2D...",
+    saved: "\u4FDD\u5B58\u5B8C\u4E86",
+    modified: "\u7DE8\u96C6\u4E2D *",
+    keys: {
+      accept: "\u627F\u8A8D",
+      reject: "\u62D2\u5426",
+      edit: "\u7DE8\u96C6",
+      next: "\u6B21",
+      prev: "\u524D",
+      merge: "\u30DE\u30FC\u30B8(\u2192)",
+      noise: "\u30CE\u30A4\u30BA",
+      save: "\u4FDD\u5B58",
+      finish: "\u5B8C\u4E86"
+    }
+  },
+  welcome: {
+    tagline: "AI\u30D5\u30EC\u30F3\u30C9\u30EA\u30FC\u306A\u9AD8\u901F\u5DEE\u5206 & \u30DE\u30FC\u30B8\u30C4\u30FC\u30EB",
+    tabDir: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03",
+    tabFile: "\u{1F4C4} \u5358\u4E00\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03",
+    tabGit: "\u{1F33F} Git \u30EA\u30DD\u30B8\u30C8\u30EA\u6BD4\u8F03",
+    dirDesc: "2\u3064\u306E\u30D5\u30A9\u30EB\u30C0\u9593\u306E\u5168\u5DEE\u5206\u3092\u30C4\u30EA\u30FC\u30D3\u30E5\u30FC\u3067\u4E26\u884C\u6BD4\u8F03\u30FB\u30DE\u30FC\u30B8\u3057\u307E\u3059\u3002",
+    fileDesc: "2\u3064\u306E\u30D5\u30A1\u30A4\u30EB\u9593\u306E\u884C\u5358\u4F4D\u30FB\u5358\u8A9E\u5358\u4F4D\u306E\u5DEE\u5206\u3092\u6BD4\u8F03\u30FB\u76F4\u63A5\u7DE8\u96C6\u3057\u307E\u3059\u3002",
+    gitDesc: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u306E\u5909\u66F4\uFF08HEAD vs \u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\uFF09\u3092\u4E00\u62EC\u6BD4\u8F03\u30FB\u30EC\u30D3\u30E5\u30FC\u3057\u307E\u3059\u3002",
+    baseFolder: "\u6BD4\u8F03\u5143 (Base) \u30D5\u30A9\u30EB\u30C0",
+    targetFolder: "\u6BD4\u8F03\u5148 (Target) \u30D5\u30A9\u30EB\u30C0",
+    baseFile: "\u6BD4\u8F03\u5143 (Base / \u5DE6\u5074)",
+    targetFile: "\u6BD4\u8F03\u5148 (Target / \u53F3\u5074)",
+    gitRepo: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0",
+    branchOptional: "\u6BD4\u8F03\u5BFE\u8C61\u30D6\u30E9\u30F3\u30C1 (\u7701\u7565\u6642\u306F HEAD)",
+    browse: "\u53C2\u7167...",
+    readOnlyMode: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u30E2\u30FC\u30C9\uFF08\u4FDD\u5B58\u3092\u7981\u6B62\u3059\u308B\uFF09",
+    startDiff: "\u6BD4\u8F03\u3092\u958B\u59CB",
+    restoreLastSession: "\u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
+    recentSessions: "\u6700\u8FD1\u306E\u30BB\u30C3\u30B7\u30E7\u30F3",
+    noRecentSessions: "\u6700\u8FD1\u306E\u6BD4\u8F03\u5C65\u6B74\u306F\u3042\u308A\u307E\u305B\u3093\u3002",
+    clearAll: "\u3059\u3079\u3066\u6D88\u53BB",
+    dragDropHint: "\u307E\u305F\u306F \u3053\u3053\u306B\u30D5\u30A9\u30EB\u30C0 / \u30D5\u30A1\u30A4\u30EB\u3092\u30C9\u30E9\u30C3\u30B0\uFF06\u30C9\u30ED\u30C3\u30D7",
+    errors: {
+      specifyGit: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+      specifyBoth: "\u4E21\u65B9\u306E\u30D1\u30B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    }
+  },
+  shortcutsModal: {
+    title: "\u2328\uFE0F \u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7",
+    close: "\u9589\u3058\u308B",
+    sections: {
+      navigation: "\u5DEE\u5206\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3",
+      mergeReview: "\u30DE\u30FC\u30B8 & \u30EC\u30D3\u30E5\u30FC\u64CD\u4F5C",
+      viewCommand: "\u8868\u793A & \u30B3\u30DE\u30F3\u30C9",
+      fileSession: "\u30D5\u30A1\u30A4\u30EB & \u30BB\u30C3\u30B7\u30E7\u30F3"
+    },
+    items: {
+      nextHunk: "\u6B21\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5",
+      prevHunk: "\u524D\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5",
+      mergeLeftToRight: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u5074\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)",
+      mergeRightToLeft: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u5074\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)",
+      acceptHunk: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D (Accepted)",
+      rejectHunk: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426 (Rejected)",
+      enterEdit: "\u30A8\u30C7\u30A3\u30BF\u76F4\u63A5\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B",
+      exitEdit: "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B",
+      threeWayBase: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528",
+      threeWayLeft: "[3-Way] Left (Ours) \u3092\u63A1\u7528",
+      threeWayRight: "[3-Way] Right (Theirs) \u3092\u63A1\u7528",
+      commandPalette: "\u30AF\u30A4\u30C3\u30AF\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8\u3092\u958B\u304F",
+      toggleNoise: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u306E\u6298\u308A\u305F\u305F\u307F\u5207\u66FF",
+      menuCategories: "\u30E1\u30CB\u30E5\u30FC\u30D0\u30FC\u306E\u5404\u30AB\u30C6\u30B4\u30EA\u3092\u958B\u304F",
+      showShortcuts: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7\u3092\u8868\u793A",
+      save: "\u7DE8\u96C6\u5185\u5BB9\u3092\u4FDD\u5B58",
+      reload: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F",
+      openFile: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F",
+      openDir: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F",
+      restoreSession: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u81EA\u52D5\u5FA9\u5143",
+      exitApp: "Diffrex \u3092\u7D42\u4E86"
+    }
+  },
+  aboutModal: {
+    title: "Diffrex \u306B\u3064\u3044\u3066",
+    appName: "Diffrex (\u30C7\u30A3\u30D5\u30EC\u30AF\u30B9)",
+    tagline: "AI-Friendly Diff & Merge Tool for Deno Desktop",
+    versionLabel: "\u30D0\u30FC\u30B8\u30E7\u30F3:",
+    runtimeLabel: "\u30E9\u30F3\u30BF\u30A4\u30E0:",
+    uiEngineLabel: "UI \u30A8\u30F3\u30B8\u30F3:",
+    architectureLabel: "\u30A2\u30FC\u30AD\u30C6\u30AF\u30C1\u30E3:",
+    architectureValue: "Pure TypeScript Observer Pattern (\u5916\u90E8\u30E9\u30A4\u30D6\u30E9\u30EA\u4E0D\u4F7F\u7528)",
+    description: "Diffrex \u306F\u3001AI \u751F\u6210\u30B3\u30FC\u30C9\u306E\u9AD8\u901F\u30EC\u30D3\u30E5\u30FC\u3068\u5B89\u5168\u306A\u30DE\u30FC\u30B8\u3092\u652F\u63F4\u3059\u308B\u30C7\u30B9\u30AF\u30C8\u30C3\u30D7\u5DEE\u5206\u30C4\u30FC\u30EB\u3067\u3059\u3002\u30D7\u30ED\u30F3\u30D7\u30C8\u3084\u30E2\u30C7\u30EB\u30E1\u30BF\u30C7\u30FC\u30BF\u306E\u53EF\u8996\u5316\u3001\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\u306A\u3069\u306E\u30CE\u30A4\u30BA\u5DEE\u5206\u306E\u81EA\u52D5\u6298\u308A\u305F\u305F\u307F\u3001\u79D8\u5BC6\u60C5\u5831\u3084\u30B7\u30B0\u30CD\u30C1\u30E3\u5909\u66F4\u306A\u3069\u306E\u30EA\u30B9\u30AF\u691C\u77E5\u30013-Way \u30DE\u30FC\u30B8\u3001\u753B\u50CF\u30FBCSV\u6BD4\u8F03\u3001Git Worktree \u9023\u643A\u3092\u5F37\u529B\u306B\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059\u3002",
+    githubRepo: "GitHub \u30EA\u30DD\u30B8\u30C8\u30EA",
+    close: "\u9589\u3058\u308B"
+  },
+  openSessionModal: {
+    title: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u958B\u304F",
+    tabFile: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03",
+    tabDir: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03",
+    tabGit: "\u{1F33F} Git \u30EA\u30DD\u30B8\u30C8\u30EA",
+    tab3Way: "\u{1F4A5} 3-Way \u30DE\u30FC\u30B8",
+    baseFile: "\u6BD4\u8F03\u5143 (Left / Base)",
+    targetFile: "\u6BD4\u8F03\u5148 (Right / Target)",
+    baseDir: "\u6BD4\u8F03\u5143 (Left / Base \u30D5\u30A9\u30EB\u30C0)",
+    targetDir: "\u6BD4\u8F03\u5148 (Right / Target \u30D5\u30A9\u30EB\u30C0)",
+    gitRepo: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0",
+    branchOptional: "\u30D6\u30E9\u30F3\u30C1\u540D (\u7701\u7565\u6642\u306F HEAD)",
+    localFile: "\u30ED\u30FC\u30AB\u30EB (Left / Local)",
+    ancestorFile: "\u5171\u901A\u7956\u5148 (Center / Base)",
+    remoteFile: "\u30EA\u30E2\u30FC\u30C8 (Right / Remote)",
+    browse: "\u53C2\u7167...",
+    readOnly: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u30E2\u30FC\u30C9 (\u7DE8\u96C6\u30FB\u4FDD\u5B58\u4E0D\u53EF)",
+    startSession: "\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u958B\u59CB",
+    cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB",
+    errors: {
+      specifyBothFiles: "\u6BD4\u8F03\u5143 (Left) \u3068\u6BD4\u8F03\u5148 (Right) \u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+      specifyBothDirs: "Base \u30D5\u30A9\u30EB\u30C0\u3068 Target \u30D5\u30A9\u30EB\u30C0\u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+      specifyGitRepo: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+      specifyThreeWayFiles: "Local, Base, Remote \u306E 3 \u3064\u3059\u3079\u3066\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
+    }
+  },
+  tabCloseConfirmModal: {
+    title: "\u26A0\uFE0F \u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059",
+    message: '"{title}" \u3078\u306E\u5909\u66F4\u304C\u4FDD\u5B58\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002',
+    submessage: "\u9589\u3058\u308B\u524D\u306B\u5909\u66F4\u3092\u4FDD\u5B58\u3057\u307E\u3059\u304B\uFF1F",
+    saveAndClose: "\u{1F4BE} \u4FDD\u5B58\u3057\u3066\u9589\u3058\u308B",
+    discardAndClose: "\u{1F5D1}\uFE0F \u4FDD\u5B58\u305B\u305A\u306B\u9589\u3058\u308B",
+    cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB"
+  },
+  structuredToolbar: {
+    rawDiff: "Raw Diff",
+    rawDiffTitle: "\u5143\u306E\u30C6\u30AD\u30B9\u30C8\u306E\u307E\u307E\u5DEE\u5206\u3092\u8868\u793A",
+    canonical: "Canonical (Normalized)",
+    canonicalTitle: "\u30AD\u30FC\u9806\u5E8F\u3092\u8F9E\u66F8\u9806\u30BD\u30FC\u30C8\u30FB\u6B63\u898F\u5316\u3057\u3066\u5B9F\u8CEA\u5DEE\u5206\u3092\u8868\u793A",
+    semanticallyIdentical: "\u2713 Semantically Identical (No Value Changes)"
+  },
+  directoryTree: {
+    openInThisTab: "\u{1F4C4} \u3053\u306E\u30BF\u30D6\u3067\u958B\u304F",
+    openInNewTab: "\u{1F5C2}\uFE0F \u65B0\u898F\u30BF\u30D6\u3067\u958B\u304F",
+    gitWorkingTreeMode: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u5DEE\u5206\u30E2\u30FC\u30C9",
+    headVsWorkingTree: "HEAD vs Working Tree",
+    allRepos: "\u{1F4E6} \u3059\u3079\u3066\u306E\u30EA\u30DD\u30B8\u30C8\u30EA ({count})",
+    worktreeDiff: "Worktree \u6BD4\u8F03...",
+    uncommittedDiffs: "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206",
+    submoduleTag: "Git \u30B5\u30D6\u30E2\u30B8\u30E5\u30FC\u30EB",
+    repoTag: "Git \u30EA\u30DD\u30B8\u30C8\u30EA",
+    unsavedChanges: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4",
+    filterAll: "\u5168\u30D5\u30A1\u30A4\u30EB\u8868\u793A",
+    filterModified: "\u5909\u66F4\u306E\u307F (M)",
+    filterAdded: "\u8FFD\u52A0\u306E\u307F (A)",
+    filterDeleted: "\u524A\u9664\u306E\u307F (D)",
+    subRepoFilterTitle: "\u8868\u793A\u3059\u308B Git \u30EA\u30DD\u30B8\u30C8\u30EA\u306E\u7D5E\u308A\u8FBC\u307F",
+    totalCount: "\u8A08 {count}",
+    expandAllTitle: "\u3059\u3079\u3066\u5C55\u958B",
+    collapseAllTitle: "\u3059\u3079\u3066\u6298\u308A\u305F\u305F\u3080",
+    noFilesFound: "\u30D5\u30A1\u30A4\u30EB\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093"
+  },
+  common: {
+    ok: "OK",
+    cancel: "\u30AD\u30E3\u30F3\u30BB\u30EB",
+    close: "\u9589\u3058\u308B",
+    save: "\u4FDD\u5B58",
+    delete: "\u524A\u9664",
+    all: "\u3059\u3079\u3066"
+  }
+};
+
+// src/ui/i18n/locales/en.ts
+var en = {
+  menu: {
+    categories: {
+      file: { label: "File", accessKey: "F" },
+      edit: { label: "Edit", accessKey: "E" },
+      merge: { label: "Merge", accessKey: "M" },
+      view: { label: "View", accessKey: "V" },
+      git: { label: "Git", accessKey: "G" },
+      help: { label: "Help", accessKey: "H" }
+    },
+    items: {
+      // file
+      openFile: "Open File Diff...",
+      openDir: "Open Directory Diff...",
+      openGit: "Open Single Git Repository...",
+      open3Way: "Open 3-Way Merge...",
+      recentSessions: "Recent Sessions",
+      clearHistory: "Clear History",
+      noHistory: "(No history)",
+      restoreSession: "Restore Previous Session",
+      restoreOnStartup: "Restore Previous Session on Startup",
+      save: "Save",
+      reload: "Reload / Refresh",
+      closeTab: "Close Tab",
+      showWelcome: "Show Welcome Screen",
+      exit: "Exit",
+      // edit
+      backToNav: "Back to Navigation Mode",
+      enterEdit: "Enter Editor Edit Mode",
+      undo: "Undo",
+      redo: "Redo",
+      commandPalette: "Command Palette...",
+      // merge
+      nextHunk: "Next Hunk",
+      prevHunk: "Previous Hunk",
+      mergeLeftToRight: "Apply Left to Right (Merge)",
+      mergeRightToLeft: "Apply Right to Left (Revert)",
+      acceptHunk: "Accept Current Hunk",
+      rejectHunk: "Reject Current Hunk",
+      acceptAllHunks: "Accept All Hunks",
+      rejectAllHunks: "Reject All Hunks",
+      threeWayBase: "[3-Way] Use Base (Ancestor)",
+      threeWayLeft: "[3-Way] Use Left (Ours)",
+      threeWayRight: "[3-Way] Use Right (Theirs)",
+      // view
+      toggleNoise: "Fold Noise Diffs (Whitespace & Comments)",
+      expandAll: "Expand All Folds",
+      nextTab: "Next Tab",
+      prevTab: "Previous Tab",
+      confidenceSettings: "Confidence Threshold Settings...",
+      language: "Language",
+      languageJa: "\u65E5\u672C\u8A9E (Japanese)",
+      languageEn: "English",
+      // git
+      rescanGit: "Rescan Uncommitted Changes",
+      worktreeList: "List Worktrees...",
+      // help
+      shortcuts: "Keyboard Shortcuts",
+      about: "About Diffrex"
+    }
+  },
+  commandPalette: {
+    placeholder: "Type a command to run... (e.g. Merge, Save, Next Hunk)",
+    empty: "No matching commands found",
+    ariaLabel: "Command Palette"
+  },
+  header: {
+    connected: "Connected",
+    connecting: "Connecting...",
+    disconnected: "Disconnected",
+    agent: "Agent: {agent}",
+    model: "Model: {model}",
+    jevSystemOne: "\u26A1 Jev System One",
+    allReviewed: "\u2713 All Reviewed ({total}/{total})",
+    unreviewed: "Unreviewed: {unreviewed}/{total}",
+    acceptedBadge: "\u2713 {count}",
+    rejectedBadge: "\u2717 {count}",
+    editedBadge: "\u270E {count}",
+    dangerBadge: "\u26A0\uFE0F {count} danger",
+    warningBadge: "\u26A1 {count} warn",
+    safeBadge: "\u{1F6E1}\uFE0F {count} safe",
+    noiseFolded: "Noise folded ({count})",
+    noiseVisible: "Noise visible ({count})",
+    prompt: "Prompt",
+    collapsePrompt: "\u25B2 Collapse",
+    expandPrompt: "\u25BC Expand full prompt",
+    noiseFoldedTitle: "Toggle noise hunks visibility (Ctrl+N)"
+  },
+  statusBar: {
+    noDiffs: "No Diffs",
+    hunkInfo: "Hunk {current} / {total}",
+    allReviewed: "\u2728 ALL REVIEWED",
+    readOnly: "READ-ONLY",
+    saving: "SAVING...",
+    saved: "SAVED",
+    modified: "MODIFIED *",
+    keys: {
+      accept: "Accept",
+      reject: "Reject",
+      edit: "Edit",
+      next: "Next",
+      prev: "Prev",
+      merge: "Merge(\u2192)",
+      noise: "Noise",
+      save: "Save",
+      finish: "Finish"
+    }
+  },
+  welcome: {
+    tagline: "AI-Friendly Fast Diff & Merge Tool",
+    tabDir: "\u{1F4C1} Directory Diff",
+    tabFile: "\u{1F4C4} Single File Diff",
+    tabGit: "\u{1F33F} Git Repository Diff",
+    dirDesc: "Compare and merge all differences between two directories side-by-side in a tree view.",
+    fileDesc: "Compare and directly edit line-by-line and word-by-word diffs between two files.",
+    gitDesc: "Compare and review changes in Git working tree (HEAD vs uncommitted changes) in bulk.",
+    baseFolder: "Base Directory",
+    targetFolder: "Target Directory",
+    baseFile: "Base File (Left)",
+    targetFile: "Target File (Right)",
+    gitRepo: "Git Repository Directory",
+    branchOptional: "Target Branch (Default: HEAD)",
+    browse: "Browse...",
+    readOnlyMode: "Read-only mode (Disable saving)",
+    startDiff: "Start Diff",
+    restoreLastSession: "Restore Previous Session",
+    recentSessions: "Recent Sessions",
+    noRecentSessions: "No recent sessions.",
+    clearAll: "Clear All",
+    dragDropHint: "or drag and drop folders / files here",
+    errors: {
+      specifyGit: "Please specify a Git repository folder.",
+      specifyBoth: "Please specify both paths."
+    }
+  },
+  shortcutsModal: {
+    title: "\u2328\uFE0F Keyboard Shortcuts",
+    close: "Close",
+    sections: {
+      navigation: "Diff Navigation",
+      mergeReview: "Merge & Review Operations",
+      viewCommand: "View & Commands",
+      fileSession: "File & Session"
+    },
+    items: {
+      nextHunk: "Navigate to next diff (Hunk)",
+      prevHunk: "Navigate to previous diff (Hunk)",
+      mergeLeftToRight: "Apply left content to right (Merge)",
+      mergeRightToLeft: "Apply right content to left (Revert)",
+      acceptHunk: "Accept current Hunk",
+      rejectHunk: "Reject current Hunk",
+      enterEdit: "Enter editor direct edit mode",
+      exitEdit: "Return to navigation mode",
+      threeWayBase: "[3-Way] Choose Base (Ancestor)",
+      threeWayLeft: "[3-Way] Choose Left (Ours)",
+      threeWayRight: "[3-Way] Choose Right (Theirs)",
+      commandPalette: "Open Quick Command Palette",
+      toggleNoise: "Toggle noise diffs (whitespace/comments) folding",
+      menuCategories: "Open menu bar categories",
+      showShortcuts: "Show keyboard shortcuts list",
+      save: "Save edits",
+      reload: "Reload latest state",
+      openFile: "Open file diff",
+      openDir: "Open directory diff",
+      restoreSession: "Restore previous session",
+      exitApp: "Exit Diffrex"
+    }
+  },
+  aboutModal: {
+    title: "About Diffrex",
+    appName: "Diffrex",
+    tagline: "AI-Friendly Diff & Merge Tool for Deno Desktop",
+    versionLabel: "Version:",
+    runtimeLabel: "Runtime:",
+    uiEngineLabel: "UI Engine:",
+    architectureLabel: "Architecture:",
+    architectureValue: "Pure TypeScript Observer Pattern (Zero external deps)",
+    description: "Diffrex is a desktop diff and merge tool designed to accelerate reviewing and safely merging AI-generated code. It features AI prompt and model metadata display, automatic folding of cosmetic noise, risk detection for secrets and signature changes, 3-way merge, image and CSV diffs, and Git Worktree integration.",
+    githubRepo: "GitHub Repository",
+    close: "Close"
+  },
+  openSessionModal: {
+    title: "Open Session",
+    tabFile: "\u{1F4C4} File Diff",
+    tabDir: "\u{1F4C1} Directory Diff",
+    tabGit: "\u{1F33F} Git Repository",
+    tab3Way: "\u{1F4A5} 3-Way Merge",
+    baseFile: "Base File (Left / Base)",
+    targetFile: "Target File (Right / Target)",
+    baseDir: "Base Directory (Left / Base)",
+    targetDir: "Target Directory (Right / Target)",
+    gitRepo: "Git Repository Directory",
+    branchOptional: "Branch Name (Default: HEAD)",
+    localFile: "Local File (Left / Local)",
+    ancestorFile: "Ancestor File (Center / Base)",
+    remoteFile: "Remote File (Right / Remote)",
+    browse: "Browse...",
+    readOnly: "Read-only mode (Editing and saving disabled)",
+    startSession: "Start Session",
+    cancel: "Cancel",
+    errors: {
+      specifyBothFiles: "Please specify both the base (Left) and target (Right) files.",
+      specifyBothDirs: "Please specify both the base and target directory folders.",
+      specifyGitRepo: "Please specify a Git repository folder.",
+      specifyThreeWayFiles: "Please specify all three files: Local, Base, and Remote."
+    }
+  },
+  tabCloseConfirmModal: {
+    title: "\u26A0\uFE0F Unsaved Changes",
+    message: 'Changes to "{title}" have not been saved.',
+    submessage: "Do you want to save your changes before closing?",
+    saveAndClose: "\u{1F4BE} Save and Close",
+    discardAndClose: "\u{1F5D1}\uFE0F Close Without Saving",
+    cancel: "Cancel"
+  },
+  structuredToolbar: {
+    rawDiff: "Raw Diff",
+    rawDiffTitle: "Show diff in original raw text format",
+    canonical: "Canonical (Normalized)",
+    canonicalTitle: "Normalize and sort keys alphabetically to show semantic differences",
+    semanticallyIdentical: "\u2713 Semantically Identical (No Value Changes)"
+  },
+  directoryTree: {
+    openInThisTab: "\u{1F4C4} Open in this tab",
+    openInNewTab: "\u{1F5C2}\uFE0F Open in new tab",
+    gitWorkingTreeMode: "Git Working Tree Diff Mode",
+    headVsWorkingTree: "HEAD vs Working Tree",
+    allRepos: "\u{1F4E6} All Repositories ({count})",
+    worktreeDiff: "Worktree Diff...",
+    uncommittedDiffs: "Uncommitted Changes",
+    submoduleTag: "Git Submodule",
+    repoTag: "Git Repository",
+    unsavedChanges: "Unsaved Changes",
+    filterAll: "Show All Files",
+    filterModified: "Modified Only (M)",
+    filterAdded: "Added Only (A)",
+    filterDeleted: "Deleted Only (D)",
+    subRepoFilterTitle: "Filter by Git repository",
+    totalCount: "Total {count}",
+    expandAllTitle: "Expand All",
+    collapseAllTitle: "Collapse All",
+    noFilesFound: "No files found"
+  },
+  common: {
+    ok: "OK",
+    cancel: "Cancel",
+    close: "Close",
+    save: "Save",
+    delete: "Delete",
+    all: "All"
+  }
+};
+
+// src/ui/i18n/i18n_model.ts
+var STORAGE_KEY = "diffrex:locale";
+var DICTIONARIES = {
+  ja,
+  en
+};
+function detectSystemLocale() {
+  try {
+    const lang = globalThis.navigator?.language?.toLowerCase();
+    if (lang && lang.startsWith("ja")) {
+      return "ja";
+    }
+  } catch {
+  }
+  return "en";
+}
+function loadPersistedLocale() {
+  try {
+    const stored = globalThis.localStorage?.getItem(STORAGE_KEY);
+    if (stored === "ja" || stored === "en") {
+      return stored;
+    }
+  } catch {
+  }
+  return null;
+}
+function persistLocale(locale) {
+  try {
+    globalThis.localStorage?.setItem(STORAGE_KEY, locale);
+  } catch {
+  }
+}
+var I18nModel = class extends Observable {
+  _locale;
+  constructor(initialLocale) {
+    super();
+    if (initialLocale) {
+      this._locale = initialLocale;
+    } else {
+      this._locale = loadPersistedLocale() ?? detectSystemLocale();
+    }
+  }
+  get locale() {
+    return this._locale;
+  }
+  /**
+   * 言語を切り替え、localStorage に永続化し、Observer に変更を通知する。
+   */
+  setLocale(locale) {
+    if (this._locale !== locale) {
+      this._locale = locale;
+      persistLocale(locale);
+      this.notify(this);
+    }
+  }
+  /**
+   * 指定キーの翻訳文字列を取得し、パラメータを補間する。
+   *
+   * @param key ドット区切りの辞書キー (例: "menu.items.save")
+   * @param params 補間パラメータ (例: { count: 3 })
+   */
+  t(key, params) {
+    const primaryDict = DICTIONARIES[this._locale];
+    const fallbackDict = this._locale === "ja" ? DICTIONARIES.en : DICTIONARIES.ja;
+    let value = this.resolveKey(primaryDict, key);
+    if (value === void 0) {
+      value = this.resolveKey(fallbackDict, key);
+    }
+    if (value === void 0) {
+      return key;
+    }
+    if (!params) {
+      return String(value);
+    }
+    return String(value).replace(
+      /\{([a-zA-Z0-9_-]+)\}/g,
+      (match, paramName) => {
+        if (params && paramName in params) {
+          return String(params[paramName]);
+        }
+        return match;
+      }
+    );
+  }
+  /**
+   * ドット区切りキーパスを再帰的に解決する。
+   */
+  // deno-lint-ignore no-explicit-any
+  resolveKey(obj, path) {
+    if (!obj || typeof obj !== "object") return void 0;
+    const parts = path.split(".");
+    let current = obj;
+    for (const part of parts) {
+      if (current && typeof current === "object" && part in current) {
+        current = current[part];
+      } else {
+        return void 0;
+      }
+    }
+    return typeof current === "string" ? current : void 0;
+  }
+};
+var i18n = new I18nModel();
+
 // src/ui/controller/menu_controller.ts
 var MenuController = class {
   _model;
@@ -20382,6 +20994,9 @@ var MenuController = class {
     this._threeWayModel = threeWayModel;
     this._threeWayController = threeWayController;
     this._tabController = tabController;
+    i18n.subscribe(() => {
+      this.rebuildMenu();
+    });
     this.rebuildMenu();
   }
   get model() {
@@ -20425,7 +21040,10 @@ var MenuController = class {
       { id: "sep_recent", label: "", separator: true },
       {
         id: "recent_clear",
-        label: "\u5C65\u6B74\u3092\u3059\u3079\u3066\u6D88\u53BB",
+        label: i18n.t("menu.items.clearHistory"),
+        searchAliases: [
+          i18n.locale === "ja" ? en.menu.items.clearHistory : ja.menu.items.clearHistory
+        ],
         action: () => {
           this._model.closeMenu();
           this._dirController.clearHistory();
@@ -20434,60 +21052,58 @@ var MenuController = class {
     ] : [
       {
         id: "recent_empty",
-        label: "(\u5C65\u6B74\u306F\u3042\u308A\u307E\u305B\u3093)",
+        label: i18n.t("menu.items.noHistory"),
         disabled: true
       }
     ];
+    const mi = (id2, key, opts) => {
+      const label = i18n.t(`menu.items.${key}`);
+      const other = i18n.locale === "ja" ? en.menu.items[key] : ja.menu.items[key];
+      return {
+        id: id2,
+        label,
+        searchAliases: other ? [other] : void 0,
+        ...opts
+      };
+    };
     const categories = [
       // 1. File (F)
       {
         id: "file",
-        label: "\u30D5\u30A1\u30A4\u30EB",
-        accessKey: "F",
+        label: i18n.t("menu.categories.file.label"),
+        accessKey: i18n.t("menu.categories.file.accessKey"),
         items: [
-          {
-            id: "file:open_file",
-            label: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F...",
+          mi("file:open_file", "openFile", {
             shortcut: "Ctrl+O",
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "file");
             }
-          },
-          {
-            id: "file:open_dir",
-            label: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F...",
+          }),
+          mi("file:open_dir", "openDir", {
             shortcut: "Ctrl+Shift+O",
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "dir");
             }
-          },
-          {
-            id: "file:open_git",
-            label: "\u5358\u4E00 Git \u30EA\u30DD\u30B8\u30C8\u30EA\u3092\u958B\u304F...",
+          }),
+          mi("file:open_git", "openGit", {
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "git");
             }
-          },
-          {
-            id: "file:open_3way",
-            label: "3-Way \u30DE\u30FC\u30B8\u3092\u958B\u304F...",
+          }),
+          mi("file:open_3way", "open3Way", {
             action: () => {
               this._model.closeMenu();
               this._model.setOpenSessionModalOpen(true, "3way");
             }
-          },
+          }),
           { id: "file:sep1", label: "", separator: true },
-          {
-            id: "file:recent",
-            label: "\u6700\u8FD1\u958B\u3044\u305F\u30BB\u30C3\u30B7\u30E7\u30F3",
+          mi("file:recent", "recentSessions", {
             children: recentItems
-          },
-          {
-            id: "file:restore",
-            label: "\u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143",
+          }),
+          mi("file:restore", "restoreSession", {
             shortcut: "Ctrl+Shift+T",
             disabled: !this._dirModel.workspaceState?.tabs.length && !this._dirModel.lastSession,
             action: () => {
@@ -20498,20 +21114,16 @@ var MenuController = class {
                 this._dirController.restoreLastSession();
               }
             }
-          },
-          {
-            id: "file:restore_on_startup",
-            label: "\u8D77\u52D5\u6642\u306B\u524D\u56DE\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143\u3059\u308B",
+          }),
+          mi("file:restore_on_startup", "restoreOnStartup", {
             checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
             action: () => {
               const current = this._dirModel.workspaceState?.restoreOnStartup !== false;
               this._dirController.setRestoreOnStartup(!current);
             }
-          },
+          }),
           { id: "file:sep2", label: "", separator: true },
-          {
-            id: "file:save",
-            label: "\u4FDD\u5B58",
+          mi("file:save", "save", {
             shortcut: "Ctrl+S",
             disabled: !canSave,
             action: () => {
@@ -20524,107 +21136,94 @@ var MenuController = class {
                 this._diffController.requestSave();
               }
             }
-          },
-          {
-            id: "file:reload",
-            label: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F",
+          }),
+          mi("file:reload", "reload", {
             shortcut: "F5 / Ctrl+Shift+R",
             disabled: !hasSession,
             action: () => {
               this._model.closeMenu();
               this.reloadCurrent();
             }
-          },
-          {
-            id: "file:close_tab",
-            label: "\u30BF\u30D6\u3092\u9589\u3058\u308B",
+          }),
+          mi("file:close_tab", "closeTab", {
             shortcut: "Ctrl+W",
             disabled: !this._tabController || this._tabController.model.tabs.length <= 1 && !this._tabController.model.activeTab?.closable,
             action: () => {
               this._model.closeMenu();
               this._tabController?.closeCurrentTab();
             }
-          },
+          }),
           { id: "file:sep3", label: "", separator: true },
-          {
-            id: "file:welcome",
-            label: "Welcome \u753B\u9762\u3092\u8868\u793A",
+          mi("file:welcome", "showWelcome", {
             disabled: !hasSession,
             action: () => {
               this._model.closeMenu();
               this._dirModel.setDirSession(null);
               this._diffModel.setSession(null);
             }
-          },
-          {
-            id: "file:exit",
-            label: "\u7D42\u4E86",
+          }),
+          mi("file:exit", "exit", {
             shortcut: "Ctrl+Q",
             action: () => {
               this._model.closeMenu();
               this._dirController.requestExit(0);
             }
-          }
+          })
         ]
       },
       // 2. Edit (E)
       {
         id: "edit",
-        label: "\u7DE8\u96C6",
-        accessKey: "E",
+        label: i18n.t("menu.categories.edit.label"),
+        accessKey: i18n.t("menu.categories.edit.accessKey"),
         items: [
           {
             id: "edit:toggle_mode",
-            label: this._diffModel.mode === "editing" ? "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B" : "\u30A8\u30C7\u30A3\u30BF\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B",
+            label: this._diffModel.mode === "editing" ? i18n.t("menu.items.backToNav") : i18n.t("menu.items.enterEdit"),
             shortcut: "E / Enter",
             disabled: !isTextDiff,
+            searchAliases: [
+              this._diffModel.mode === "editing" ? i18n.locale === "ja" ? en.menu.items.backToNav : ja.menu.items.backToNav : i18n.locale === "ja" ? en.menu.items.enterEdit : ja.menu.items.enterEdit
+            ],
             action: () => {
               this._model.closeMenu();
               this._diffController.toggleEditMode();
             }
           },
           { id: "edit:sep1", label: "", separator: true },
-          {
-            id: "edit:undo",
-            label: "\u5143\u306B\u623B\u3059",
+          mi("edit:undo", "undo", {
             shortcut: "Ctrl+Z",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.undo();
             }
-          },
-          {
-            id: "edit:redo",
-            label: "\u3084\u308A\u76F4\u3059",
+          }),
+          mi("edit:redo", "redo", {
             shortcut: "Ctrl+Y",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.redo();
             }
-          },
+          }),
           { id: "edit:sep2", label: "", separator: true },
-          {
-            id: "edit:palette",
-            label: "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8...",
+          mi("edit:palette", "commandPalette", {
             shortcut: "Ctrl+Shift+P",
             action: () => {
               this._model.closeMenu();
               this._model.setCommandPaletteOpen(true);
             }
-          }
+          })
         ]
       },
       // 3. Merge (M)
       {
         id: "merge",
-        label: "\u30DE\u30FC\u30B8",
-        accessKey: "M",
+        label: i18n.t("menu.categories.merge.label"),
+        accessKey: i18n.t("menu.categories.merge.accessKey"),
         items: [
-          {
-            id: "merge:next_hunk",
-            label: "\u6B21\u306E\u5DEE\u5206 (Hunk)",
+          mi("merge:next_hunk", "nextHunk", {
             shortcut: "Alt+Down / J",
             disabled: !isTextDiff && !is3Way,
             action: () => {
@@ -20635,10 +21234,8 @@ var MenuController = class {
                 this._diffController.nextHunk();
               }
             }
-          },
-          {
-            id: "merge:prev_hunk",
-            label: "\u524D\u306E\u5DEE\u5206 (Hunk)",
+          }),
+          mi("merge:prev_hunk", "prevHunk", {
             shortcut: "Alt+Up / K",
             disabled: !isTextDiff && !is3Way,
             action: () => {
@@ -20649,108 +21246,88 @@ var MenuController = class {
                 this._diffController.prevHunk();
               }
             }
-          },
+          }),
           { id: "merge:sep1", label: "", separator: true },
-          {
-            id: "merge:left_to_right",
-            label: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)",
+          mi("merge:left_to_right", "mergeLeftToRight", {
             shortcut: "Ctrl+R",
             disabled: !isTextDiff || this._diffModel.session?.files.right.readOnly,
             action: () => {
               this._model.closeMenu();
               this._diffController.mergeLeftToRight();
             }
-          },
-          {
-            id: "merge:right_to_left",
-            label: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)",
+          }),
+          mi("merge:right_to_left", "mergeRightToLeft", {
             shortcut: "Ctrl+L",
             disabled: !isTextDiff || this._diffModel.session?.files.left.readOnly,
             action: () => {
               this._model.closeMenu();
               this._diffController.mergeRightToLeft();
             }
-          },
+          }),
           { id: "merge:sep2", label: "", separator: true },
-          {
-            id: "merge:accept",
-            label: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D",
+          mi("merge:accept", "acceptHunk", {
             shortcut: "A",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.acceptHunk();
             }
-          },
-          {
-            id: "merge:reject",
-            label: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426",
+          }),
+          mi("merge:reject", "rejectHunk", {
             shortcut: "R",
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.rejectHunk();
             }
-          },
-          {
-            id: "merge:accept_all",
-            label: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u627F\u8A8D",
+          }),
+          mi("merge:accept_all", "acceptAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.acceptAllHunks();
             }
-          },
-          {
-            id: "merge:reject_all",
-            label: "\u3059\u3079\u3066\u306E Hunk \u3092\u4E00\u62EC\u62D2\u5426",
+          }),
+          mi("merge:reject_all", "rejectAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.rejectAllHunks();
             }
-          },
+          }),
           ...is3Way ? [
             { id: "merge:sep3", label: "", separator: true },
-            {
-              id: "merge:3way_base",
-              label: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528",
+            mi("merge:3way_base", "threeWayBase", {
               shortcut: "Alt+B",
               action: () => {
                 this._model.closeMenu();
                 this._threeWayController?.resolveActiveHunk("base");
               }
-            },
-            {
-              id: "merge:3way_left",
-              label: "[3-Way] Left (Ours) \u3092\u63A1\u7528",
+            }),
+            mi("merge:3way_left", "threeWayLeft", {
               shortcut: "Alt+L",
               action: () => {
                 this._model.closeMenu();
                 this._threeWayController?.resolveActiveHunk("local");
               }
-            },
-            {
-              id: "merge:3way_right",
-              label: "[3-Way] Right (Theirs) \u3092\u63A1\u7528",
+            }),
+            mi("merge:3way_right", "threeWayRight", {
               shortcut: "Alt+R",
               action: () => {
                 this._model.closeMenu();
                 this._threeWayController?.resolveActiveHunk("remote");
               }
-            }
+            })
           ] : []
         ]
       },
       // 4. View (V)
       {
         id: "view",
-        label: "\u8868\u793A",
-        accessKey: "V",
+        label: i18n.t("menu.categories.view.label"),
+        accessKey: i18n.t("menu.categories.view.accessKey"),
         items: [
-          {
-            id: "view:toggle_noise",
-            label: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u3092\u6298\u308A\u305F\u305F\u3080",
+          mi("view:toggle_noise", "toggleNoise", {
             shortcut: "Ctrl+N",
             checked: this._diffModel.noiseFolded,
             disabled: !isTextDiff,
@@ -20758,57 +21335,72 @@ var MenuController = class {
               this._model.closeMenu();
               this._diffController.toggleNoiseFolded();
             }
-          },
-          {
-            id: "view:expand_all",
-            label: "\u3059\u3079\u3066\u306E\u6298\u308A\u305F\u305F\u307F\u3092\u5C55\u958B",
+          }),
+          mi("view:expand_all", "expandAll", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
               this._diffController.expandAllHunks();
             }
-          },
+          }),
           { id: "view:sep_tabs", label: "", separator: true },
-          {
-            id: "view:next_tab",
-            label: "\u6B21\u306E\u30BF\u30D6",
+          mi("view:next_tab", "nextTab", {
             shortcut: "Ctrl+Tab",
             disabled: !this._tabController || this._tabController.model.tabs.length <= 1,
             action: () => {
               this._model.closeMenu();
               this._tabController?.nextTab();
             }
-          },
-          {
-            id: "view:prev_tab",
-            label: "\u524D\u306E\u30BF\u30D6",
+          }),
+          mi("view:prev_tab", "prevTab", {
             shortcut: "Ctrl+Shift+Tab",
             disabled: !this._tabController || this._tabController.model.tabs.length <= 1,
             action: () => {
               this._model.closeMenu();
               this._tabController?.prevTab();
             }
-          },
+          }),
           { id: "view:sep_conf", label: "", separator: true },
-          {
-            id: "view:confidence_thresholds",
-            label: "\u78BA\u4FE1\u5EA6\u3057\u304D\u3044\u5024\u8A2D\u5B9A (Confidence Thresholds)...",
+          mi("view:confidence_thresholds", "confidenceSettings", {
             action: () => {
               this._model.closeMenu();
               this._model.setConfidenceSettingsModalOpen(true);
             }
+          }),
+          { id: "view:sep_lang", label: "", separator: true },
+          {
+            id: "view:language",
+            label: i18n.t("menu.items.language"),
+            children: [
+              {
+                id: "view:lang_ja",
+                label: i18n.t("menu.items.languageJa"),
+                checked: i18n.locale === "ja",
+                action: () => {
+                  this._model.closeMenu();
+                  i18n.setLocale("ja");
+                }
+              },
+              {
+                id: "view:lang_en",
+                label: i18n.t("menu.items.languageEn"),
+                checked: i18n.locale === "en",
+                action: () => {
+                  this._model.closeMenu();
+                  i18n.setLocale("en");
+                }
+              }
+            ]
           }
         ]
       },
       // 5. Git (G)
       {
         id: "git",
-        label: "Git",
-        accessKey: "G",
+        label: i18n.t("menu.categories.git.label"),
+        accessKey: i18n.t("menu.categories.git.accessKey"),
         items: [
-          {
-            id: "git:rescan",
-            label: "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\u3092\u518D\u30B9\u30AD\u30E3\u30F3",
+          mi("git:rescan", "rescanGit", {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
@@ -20822,10 +21414,8 @@ var MenuController = class {
                 );
               }
             }
-          },
-          {
-            id: "git:worktrees",
-            label: "Worktree \u4E00\u89A7\u3092\u8868\u793A...",
+          }),
+          mi("git:worktrees", "worktreeList", {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
@@ -20836,33 +21426,29 @@ var MenuController = class {
                 });
               }
             }
-          }
+          })
         ]
       },
       // 6. Help (H)
       {
         id: "help",
-        label: "\u30D8\u30EB\u30D7",
-        accessKey: "H",
+        label: i18n.t("menu.categories.help.label"),
+        accessKey: i18n.t("menu.categories.help.accessKey"),
         items: [
-          {
-            id: "help:shortcuts",
-            label: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7",
+          mi("help:shortcuts", "shortcuts", {
             shortcut: "F1 / ?",
             action: () => {
               this._model.closeMenu();
               this._model.setShortcutsModalOpen(true);
             }
-          },
+          }),
           { id: "help:sep1", label: "", separator: true },
-          {
-            id: "help:about",
-            label: "Diffrex \u306B\u3064\u3044\u3066 (About)",
+          mi("help:about", "about", {
             action: () => {
               this._model.closeMenu();
               this._model.setAboutModalOpen(true);
             }
-          }
+          })
         ]
       }
     ];
@@ -20907,7 +21493,8 @@ var MenuController = class {
             label: item.label,
             shortcut: item.shortcut,
             action: item.action,
-            disabled: item.disabled
+            disabled: item.disabled,
+            searchAliases: item.searchAliases
           });
         }
       }
@@ -20919,6 +21506,10 @@ var MenuController = class {
   }
   /**
    * コマンドパレットの絞り込み検索。
+   *
+   * 現在のロケールのラベル・カテゴリ・ショートカットだけでなく、
+   * searchAliases（もう一方の言語の文言）も検索対象とするため、
+   * 日英どちらの言語で入力しても該当コマンドがヒットする。
    */
   filterCommands(query) {
     const all = this.getFlatCommandList();
@@ -20928,7 +21519,8 @@ var MenuController = class {
     const q2 = query.toLowerCase().trim();
     return all.filter((c3) => {
       if (c3.disabled) return false;
-      return c3.label.toLowerCase().includes(q2) || c3.category.toLowerCase().includes(q2) || c3.shortcut && c3.shortcut.toLowerCase().includes(q2);
+      const matchesAlias = c3.searchAliases && c3.searchAliases.some((alias) => alias.toLowerCase().includes(q2));
+      return c3.label.toLowerCase().includes(q2) || c3.category.toLowerCase().includes(q2) || c3.shortcut && c3.shortcut.toLowerCase().includes(q2) || Boolean(matchesAlias);
     });
   }
   /**
@@ -21215,6 +21807,7 @@ function MenuBar({ model, controller }) {
 // src/ui/components/Header.tsx
 function Header({ model, controller }) {
   useModel(model);
+  useModel(i18n);
   const [isPromptExpanded, setIsPromptExpanded] = d2(false);
   const session = model.session;
   const connectionStatus = model.connectionStatus;
@@ -21223,7 +21816,7 @@ function Header({ model, controller }) {
   const modelName = session?.aiContext?.model;
   const prompt = session?.aiContext?.prompt;
   const isConnected = connectionStatus === "connected";
-  const statusLabel = connectionStatus === "connected" ? "Connected" : connectionStatus === "connecting" ? "Connecting..." : "Disconnected";
+  const statusLabel = connectionStatus === "connected" ? i18n.t("header.connected") : connectionStatus === "connecting" ? i18n.t("header.connecting") : i18n.t("header.disconnected");
   const totalHunks = session?.hunks?.length ?? model.chunks.length;
   const unreviewed = model.unreviewedCount;
   const statusCounts = model.statusCounts;
@@ -21270,7 +21863,7 @@ function Header({ model, controller }) {
                 color: "#e551ba",
                 borderColor: "rgba(229, 81, 186, 0.3)"
               },
-              children: "\u26A1 Jev System One"
+              children: i18n.t("header.jevSystemOne")
             }
           )
         ] })
@@ -21282,44 +21875,21 @@ function Header({ model, controller }) {
             {
               class: `stat-item unreviewed ${isAllReviewed ? "completed" : ""}`,
               title: `Accepted: ${statusCounts.accepted}, Rejected: ${statusCounts.rejected}, Edited: ${statusCounts.edited}`,
-              children: isAllReviewed ? /* @__PURE__ */ u3("span", { children: [
-                "\u2713 All Reviewed (",
-                totalHunks,
-                "/",
-                totalHunks,
-                ")"
-              ] }) : /* @__PURE__ */ u3("span", { children: [
-                "Unreviewed: ",
-                /* @__PURE__ */ u3("strong", { children: [
-                  unreviewed,
-                  "/",
-                  totalHunks
-                ] })
-              ] })
+              children: isAllReviewed ? /* @__PURE__ */ u3("span", { children: i18n.t("header.allReviewed", { total: totalHunks }) }) : /* @__PURE__ */ u3("span", { children: i18n.t("header.unreviewed", {
+                unreviewed,
+                total: totalHunks
+              }) })
             }
           ),
-          statusCounts.accepted > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge accepted", title: "Accepted hunks", children: [
-            "\u2713 ",
-            statusCounts.accepted
-          ] }),
-          statusCounts.rejected > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge rejected", title: "Rejected hunks", children: [
-            "\u2717 ",
-            statusCounts.rejected
-          ] }),
-          statusCounts.edited > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge edited", title: "Edited hunks", children: [
-            "\u270E ",
-            statusCounts.edited
-          ] }),
-          riskCounts.danger > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge danger", title: "High Risk Changes", children: [
-            "\u26A0\uFE0F ",
-            riskCounts.danger,
-            " danger"
-          ] }),
-          riskCounts.warning > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge warning", title: "Warnings", children: [
-            "\u26A1 ",
-            riskCounts.warning,
-            " warn"
-          ] }),
+          statusCounts.accepted > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge accepted", title: "Accepted hunks", children: i18n.t("header.acceptedBadge", {
+            count: statusCounts.accepted
+          }) }),
+          statusCounts.rejected > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge rejected", title: "Rejected hunks", children: i18n.t("header.rejectedBadge", {
+            count: statusCounts.rejected
+          }) }),
+          statusCounts.edited > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge edited", title: "Edited hunks", children: i18n.t("header.editedBadge", { count: statusCounts.edited }) }),
+          riskCounts.danger > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge danger", title: "High Risk Changes", children: i18n.t("header.dangerBadge", { count: riskCounts.danger }) }),
+          riskCounts.warning > 0 && /* @__PURE__ */ u3("span", { class: "stat-badge warning", title: "Warnings", children: i18n.t("header.warningBadge", { count: riskCounts.warning }) }),
           safeCount > 0 && /* @__PURE__ */ u3(
             "span",
             {
@@ -21333,11 +21903,7 @@ function Header({ model, controller }) {
                 borderRadius: "4px",
                 fontSize: "12px"
               },
-              children: [
-                "\u{1F6E1}\uFE0F ",
-                safeCount,
-                " safe"
-              ]
+              children: i18n.t("header.safeBadge", { count: safeCount })
             }
           )
         ] }),
@@ -21347,10 +21913,10 @@ function Header({ model, controller }) {
             type: "button",
             class: `filter-toggle-btn ${isNoiseFolded ? "active" : ""}`,
             onClick: () => controller.toggleNoiseFolded(),
-            title: "Toggle noise hunks visibility (Ctrl+N)",
+            title: i18n.t("header.noiseFoldedTitle"),
             children: [
               /* @__PURE__ */ u3("span", { class: "toggle-icon", children: isNoiseFolded ? "\u25B6" : "\u25BC" }),
-              /* @__PURE__ */ u3("span", { children: isNoiseFolded ? `Noise folded (${noiseCount})` : `Noise visible (${noiseCount})` }),
+              /* @__PURE__ */ u3("span", { children: isNoiseFolded ? i18n.t("header.noiseFolded", { count: noiseCount }) : i18n.t("header.noiseVisible", { count: noiseCount }) }),
               /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" })
             ]
           }
@@ -21372,8 +21938,8 @@ function Header({ model, controller }) {
               class: "prompt-header",
               onClick: () => isPromptLong && setIsPromptExpanded(!isPromptExpanded),
               children: [
-                /* @__PURE__ */ u3("span", { class: "prompt-label", children: "Prompt" }),
-                isPromptLong && /* @__PURE__ */ u3("span", { class: "prompt-expand-hint", children: isPromptExpanded ? "\u25B2 Collapse" : "\u25BC Expand full prompt" })
+                /* @__PURE__ */ u3("span", { class: "prompt-label", children: i18n.t("header.prompt") }),
+                isPromptLong && /* @__PURE__ */ u3("span", { class: "prompt-expand-hint", children: isPromptExpanded ? i18n.t("header.collapsePrompt") : i18n.t("header.expandPrompt") })
               ]
             }
           ),
@@ -21394,6 +21960,7 @@ function Header({ model, controller }) {
 // src/ui/components/StatusBar.tsx
 function StatusBar({ model }) {
   useModel(model);
+  useModel(i18n);
   const totalHunks = model.chunks.length;
   const activeHunkIndex = model.activeChunkIndex;
   const session = model.session;
@@ -21402,58 +21969,70 @@ function StatusBar({ model }) {
   const isDirty = model.isDirty;
   const saveStatus = model.saveStatus.status;
   const isAllReviewed = model.isAllReviewed;
-  const hunkInfo = totalHunks > 0 ? `Hunk ${activeHunkIndex >= 0 ? activeHunkIndex + 1 : 0} / ${totalHunks}` : "No Diffs";
+  const hunkInfo = totalHunks > 0 ? i18n.t("statusBar.hunkInfo", {
+    current: activeHunkIndex >= 0 ? activeHunkIndex + 1 : 0,
+    total: totalHunks
+  }) : i18n.t("statusBar.noDiffs");
   return /* @__PURE__ */ u3("footer", { class: `app-footer ${isAllReviewed ? "all-reviewed" : ""}`, children: [
     /* @__PURE__ */ u3("div", { class: "footer-left", children: [
       /* @__PURE__ */ u3("span", { class: "footer-badge hunk-badge", children: hunkInfo }),
-      isAllReviewed && /* @__PURE__ */ u3("span", { class: "footer-badge review-complete-badge", children: "\u2728 ALL REVIEWED" }),
-      isReadOnly ? /* @__PURE__ */ u3("span", { class: "footer-badge readonly-badge", children: "READ-ONLY" }) : /* @__PURE__ */ u3(S, { children: [
-        saveStatus === "saving" && /* @__PURE__ */ u3("span", { class: "footer-badge saving-badge", children: "SAVING..." }),
-        saveStatus === "saved" && !isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge saved-badge", children: "SAVED" }),
-        isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge dirty-badge", children: "MODIFIED *" })
+      isAllReviewed && /* @__PURE__ */ u3("span", { class: "footer-badge review-complete-badge", children: i18n.t("statusBar.allReviewed") }),
+      isReadOnly ? /* @__PURE__ */ u3("span", { class: "footer-badge readonly-badge", children: i18n.t("statusBar.readOnly") }) : /* @__PURE__ */ u3(S, { children: [
+        saveStatus === "saving" && /* @__PURE__ */ u3("span", { class: "footer-badge saving-badge", children: i18n.t("statusBar.saving") }),
+        saveStatus === "saved" && !isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge saved-badge", children: i18n.t("statusBar.saved") }),
+        isDirty && /* @__PURE__ */ u3("span", { class: "footer-badge dirty-badge", children: i18n.t("statusBar.modified") })
       ] }),
       message && /* @__PURE__ */ u3("span", { class: "footer-message", children: message })
     ] }),
     /* @__PURE__ */ u3("div", { class: "footer-center key-guide", children: [
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "A" }),
-        " \u627F\u8A8D"
+        " ",
+        i18n.t("statusBar.keys.accept")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "R" }),
-        " \u62D2\u5426"
+        " ",
+        i18n.t("statusBar.keys.reject")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "E" }),
-        " \u7DE8\u96C6"
+        " ",
+        i18n.t("statusBar.keys.edit")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Alt+\u2193" }),
         "/",
         /* @__PURE__ */ u3("kbd", { children: "J" }),
-        " \u6B21"
+        " ",
+        i18n.t("statusBar.keys.next")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Alt+\u2191" }),
         "/",
         /* @__PURE__ */ u3("kbd", { children: "K" }),
-        " \u524D"
+        " ",
+        i18n.t("statusBar.keys.prev")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Ctrl+R" }),
-        " \u30DE\u30FC\u30B8(\u2192)"
+        " ",
+        i18n.t("statusBar.keys.merge")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Ctrl+N" }),
-        " \u30CE\u30A4\u30BA"
+        " ",
+        i18n.t("statusBar.keys.noise")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Ctrl+S" }),
-        " \u4FDD\u5B58"
+        " ",
+        i18n.t("statusBar.keys.save")
       ] }),
       /* @__PURE__ */ u3("span", { class: "key-item", children: [
         /* @__PURE__ */ u3("kbd", { children: "Ctrl+Enter" }),
-        " \u5B8C\u4E86"
+        " ",
+        i18n.t("statusBar.keys.finish")
       ] })
     ] }),
     /* @__PURE__ */ u3("div", { class: "footer-right", children: /* @__PURE__ */ u3("span", { children: session?.sessionId ? `ID: ${session.sessionId.slice(0, 8)}` : "" }) })
@@ -31050,6 +31629,7 @@ function StructuredToolbar({
   isSemanticallyEqual,
   onToggleCanonical
 }) {
+  useModel(i18n);
   const label = fileType === "json" ? "JSON" : "YAML";
   return /* @__PURE__ */ u3("div", { className: "structured-toolbar", children: [
     /* @__PURE__ */ u3("div", { className: "structured-toolbar-left", children: [
@@ -31061,8 +31641,8 @@ function StructuredToolbar({
             type: "button",
             className: `btn-toggle ${!isCanonical ? "active" : ""}`,
             onClick: () => onToggleCanonical(false),
-            title: "\u5143\u306E\u30C6\u30AD\u30B9\u30C8\u306E\u307E\u307E\u5DEE\u5206\u3092\u8868\u793A",
-            children: "Raw Diff"
+            title: i18n.t("structuredToolbar.rawDiffTitle"),
+            children: i18n.t("structuredToolbar.rawDiff")
           }
         ),
         /* @__PURE__ */ u3(
@@ -31071,13 +31651,13 @@ function StructuredToolbar({
             type: "button",
             className: `btn-toggle ${isCanonical ? "active" : ""}`,
             onClick: () => onToggleCanonical(true),
-            title: "\u30AD\u30FC\u9806\u5E8F\u3092\u8F9E\u66F8\u9806\u30BD\u30FC\u30C8\u30FB\u6B63\u898F\u5316\u3057\u3066\u5B9F\u8CEA\u5DEE\u5206\u3092\u8868\u793A",
-            children: "Canonical (Normalized)"
+            title: i18n.t("structuredToolbar.canonicalTitle"),
+            children: i18n.t("structuredToolbar.canonical")
           }
         )
       ] })
     ] }),
-    /* @__PURE__ */ u3("div", { className: "structured-toolbar-right", children: isSemanticallyEqual && /* @__PURE__ */ u3("span", { className: "semantic-equal-tag", children: "\u2713 Semantically Identical (No Value Changes)" }) })
+    /* @__PURE__ */ u3("div", { className: "structured-toolbar-right", children: isSemanticallyEqual && /* @__PURE__ */ u3("span", { className: "semantic-equal-tag", children: i18n.t("structuredToolbar.semanticallyIdentical") }) })
   ] });
 }
 
@@ -35393,6 +35973,7 @@ function DirectoryTreeView({
   model,
   controller
 }) {
+  useModel(i18n);
   const session = model.dirSession;
   if (!session) return null;
   const { tree, summary } = session;
@@ -35404,7 +35985,7 @@ function DirectoryTreeView({
           "span",
           {
             class: "git-branch-badge",
-            title: "Git \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC\u5DEE\u5206\u30E2\u30FC\u30C9",
+            title: i18n.t("directoryTree.gitWorkingTreeMode"),
             children: [
               "\u{1F33F} ",
               session.git?.branch ?? "HEAD"
@@ -35418,17 +35999,15 @@ function DirectoryTreeView({
         {
           class: "subrepo-selector",
           value: model.selectedSubRepo,
-          title: "\u8868\u793A\u3059\u308B Git \u30EA\u30DD\u30B8\u30C8\u30EA\u306E\u7D5E\u308A\u8FBC\u307F",
+          title: i18n.t("directoryTree.subRepoFilterTitle"),
           onChange: (e3) => {
             const val = e3.target.value;
             model.setSelectedSubRepo(val);
           },
           children: [
-            /* @__PURE__ */ u3("option", { value: "all", children: [
-              "\u{1F4E6} \u3059\u3079\u3066\u306E\u30EA\u30DD\u30B8\u30C8\u30EA (",
-              model.subRepos.length,
-              ")"
-            ] }),
+            /* @__PURE__ */ u3("option", { value: "all", children: i18n.t("directoryTree.allRepos", {
+              count: model.subRepos.length
+            }) }),
             model.subRepos.map((sr) => /* @__PURE__ */ u3("option", { value: sr.relativePath, children: [
               sr.isSubmodule ? "\u{1F517} " : "\u{1F4C1} ",
               sr.name || "(root)",
@@ -35442,7 +36021,7 @@ function DirectoryTreeView({
         "select",
         {
           class: "worktree-selector",
-          title: "Worktree \u6BD4\u8F03",
+          title: i18n.t("directoryTree.worktreeDiff"),
           onChange: (e3) => {
             const targetWt = e3.target.value;
             if (targetWt && targetWt !== session.targetDir) {
@@ -35452,7 +36031,7 @@ function DirectoryTreeView({
             }
           },
           children: [
-            /* @__PURE__ */ u3("option", { value: "", children: "Worktree \u6BD4\u8F03..." }),
+            /* @__PURE__ */ u3("option", { value: "", children: i18n.t("directoryTree.worktreeDiff") }),
             session.git.worktrees.map((wt) => /* @__PURE__ */ u3("option", { value: wt.path, children: wt.branch ? `${wt.branch} (${wt.path})` : wt.path }, wt.path))
           ]
         }
@@ -35472,10 +36051,7 @@ function DirectoryTreeView({
           summary.deleted,
           " D"
         ] }),
-        /* @__PURE__ */ u3("span", { class: "badge-count badge-total", children: [
-          "\u8A08 ",
-          summary.total
-        ] })
+        /* @__PURE__ */ u3("span", { class: "badge-count badge-total", children: i18n.t("directoryTree.totalCount", { count: summary.total }) })
       ] }),
       /* @__PURE__ */ u3("div", { class: "dir-tree-actions", children: [
         /* @__PURE__ */ u3(
@@ -35487,10 +36063,10 @@ function DirectoryTreeView({
               e3.target.value
             ),
             children: [
-              /* @__PURE__ */ u3("option", { value: "all", children: "\u5168\u30D5\u30A1\u30A4\u30EB\u8868\u793A" }),
-              /* @__PURE__ */ u3("option", { value: "modified", children: "\u5909\u66F4\u306E\u307F (M)" }),
-              /* @__PURE__ */ u3("option", { value: "added", children: "\u8FFD\u52A0\u306E\u307F (A)" }),
-              /* @__PURE__ */ u3("option", { value: "deleted", children: "\u524A\u9664\u306E\u307F (D)" })
+              /* @__PURE__ */ u3("option", { value: "all", children: i18n.t("directoryTree.filterAll") }),
+              /* @__PURE__ */ u3("option", { value: "modified", children: i18n.t("directoryTree.filterModified") }),
+              /* @__PURE__ */ u3("option", { value: "added", children: i18n.t("directoryTree.filterAdded") }),
+              /* @__PURE__ */ u3("option", { value: "deleted", children: i18n.t("directoryTree.filterDeleted") })
             ]
           }
         ),
@@ -35499,7 +36075,7 @@ function DirectoryTreeView({
           {
             type: "button",
             class: "tree-action-btn",
-            title: "\u3059\u3079\u3066\u5C55\u958B",
+            title: i18n.t("directoryTree.expandAllTitle"),
             onClick: () => model.expandAll(),
             children: "\u229E"
           }
@@ -35509,7 +36085,7 @@ function DirectoryTreeView({
           {
             type: "button",
             class: "tree-action-btn",
-            title: "\u3059\u3079\u3066\u6298\u308A\u305F\u305F\u3080",
+            title: i18n.t("directoryTree.collapseAllTitle"),
             onClick: () => model.collapseAll(),
             children: "\u229F"
           }
@@ -35525,7 +36101,7 @@ function DirectoryTreeView({
         depth: 0
       },
       child.relativePath
-    )) }) : /* @__PURE__ */ u3("div", { class: "tree-empty", children: "\u30D5\u30A1\u30A4\u30EB\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093" }) })
+    )) }) : /* @__PURE__ */ u3("div", { class: "tree-empty", children: i18n.t("directoryTree.noFilesFound") }) })
   ] });
 }
 function TreeNodeItem({
@@ -35651,11 +36227,18 @@ function TreeNodeItem({
             "span",
             {
               class: `tree-subrepo-tag ${subRepoInfo.isSubmodule ? "submodule" : "repo"}`,
-              title: subRepoInfo.isSubmodule ? "Git \u30B5\u30D6\u30E2\u30B8\u30E5\u30FC\u30EB" : "Git \u30EA\u30DD\u30B8\u30C8\u30EA",
+              title: subRepoInfo.isSubmodule ? i18n.t("directoryTree.submoduleTag") : i18n.t("directoryTree.repoTag"),
               children: subRepoInfo.isSubmodule ? "submodule" : "repo"
             }
           ),
-          isDirty && /* @__PURE__ */ u3("span", { class: "tree-dirty-dot", title: "\u672A\u4FDD\u5B58\u306E\u5909\u66F4", children: "\u25CF" }),
+          isDirty && /* @__PURE__ */ u3(
+            "span",
+            {
+              class: "tree-dirty-dot",
+              title: i18n.t("directoryTree.unsavedChanges"),
+              children: "\u25CF"
+            }
+          ),
           /* @__PURE__ */ u3("span", { class: "tree-badge-container", children: getStatusBadge(node) })
         ]
       }
@@ -35675,7 +36258,7 @@ function TreeNodeItem({
                 setContextMenu(null);
                 controller.selectFile(node.relativePath, false);
               },
-              children: "\u{1F4C4} \u3053\u306E\u30BF\u30D6\u3067\u958B\u304F"
+              children: i18n.t("directoryTree.openInThisTab")
             }
           ),
           /* @__PURE__ */ u3(
@@ -35687,7 +36270,7 @@ function TreeNodeItem({
                 setContextMenu(null);
                 controller.selectFile(node.relativePath, true);
               },
-              children: "\u{1F5C2}\uFE0F \u65B0\u898F\u30BF\u30D6\u3067\u958B\u304F"
+              children: i18n.t("directoryTree.openInNewTab")
             }
           )
         ]
@@ -36466,6 +37049,7 @@ function CsvDiffView({ model, controller }) {
 
 // src/ui/components/WelcomeView.tsx
 function WelcomeView({ controller }) {
+  useModel(i18n);
   const [tab2, setTab] = d2("dir");
   const [basePath, setBasePath] = d2("");
   const [targetPath, setTargetPath] = d2("");
@@ -36479,7 +37063,7 @@ function WelcomeView({ controller }) {
   const handleStart = () => {
     if (tab2 === "git") {
       if (!gitRepoPath.trim()) {
-        setErrorMsg("Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+        setErrorMsg(i18n.t("welcome.errors.specifyGit"));
         return;
       }
       setErrorMsg("");
@@ -36490,7 +37074,7 @@ function WelcomeView({ controller }) {
       return;
     }
     if (!basePath.trim() || !targetPath.trim()) {
-      setErrorMsg("\u4E21\u65B9\u306E\u30D1\u30B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+      setErrorMsg(i18n.t("welcome.errors.specifyBoth"));
       return;
     }
     setErrorMsg("");
@@ -36634,11 +37218,14 @@ function WelcomeView({ controller }) {
                   ),
                   /* @__PURE__ */ u3("span", { children: "Diffrex" })
                 ] }),
-                /* @__PURE__ */ u3("p", { class: "welcome-subtitle", children: "AI-Friendly Diff & Merge Tool" })
+                /* @__PURE__ */ u3("p", { class: "welcome-subtitle", children: i18n.t("welcome.tagline") })
               ] }),
               lastSession && /* @__PURE__ */ u3("div", { class: "welcome-restore-banner", children: [
                 /* @__PURE__ */ u3("div", { class: "welcome-restore-info", children: [
-                  /* @__PURE__ */ u3("span", { class: "welcome-restore-title", children: "\u23EE\uFE0F \u524D\u56DE\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u5FA9\u5143" }),
+                  /* @__PURE__ */ u3("span", { class: "welcome-restore-title", children: [
+                    "\u23EE\uFE0F ",
+                    i18n.t("welcome.restoreLastSession")
+                  ] }),
                   /* @__PURE__ */ u3("span", { class: "welcome-restore-desc", children: [
                     lastSession.leftPath,
                     " \u21C4 ",
@@ -36651,7 +37238,7 @@ function WelcomeView({ controller }) {
                     type: "button",
                     class: "welcome-restore-btn",
                     onClick: () => controller.restoreLastSession(),
-                    children: "\u5FA9\u5143\u3057\u3066\u518D\u958B"
+                    children: i18n.t("welcome.restoreLastSession")
                   }
                 )
               ] }),
@@ -36665,7 +37252,7 @@ function WelcomeView({ controller }) {
                       setTab("dir");
                       setErrorMsg("");
                     },
-                    children: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03"
+                    children: i18n.t("welcome.tabDir")
                   }
                 ),
                 /* @__PURE__ */ u3(
@@ -36677,7 +37264,7 @@ function WelcomeView({ controller }) {
                       setTab("file");
                       setErrorMsg("");
                     },
-                    children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
+                    children: i18n.t("welcome.tabFile")
                   }
                 ),
                 /* @__PURE__ */ u3(
@@ -36689,7 +37276,7 @@ function WelcomeView({ controller }) {
                       setTab("git");
                       setErrorMsg("");
                     },
-                    children: "\u{1F33F} Git \u5DEE\u5206"
+                    children: i18n.t("welcome.tabGit")
                   }
                 )
               ] }),
@@ -36717,8 +37304,8 @@ function WelcomeView({ controller }) {
                       },
                       children: [
                         /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
-                          "Git \u30EA\u30DD\u30B8\u30C8\u30EA / \u30EF\u30FC\u30AD\u30F3\u30B0\u30C4\u30EA\u30FC \u30D5\u30A9\u30EB\u30C0",
-                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                          i18n.t("welcome.gitRepo"),
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: ` (${i18n.t("welcome.dragDropHint")})` })
                         ] }),
                         /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
                           /* @__PURE__ */ u3(
@@ -36737,7 +37324,10 @@ function WelcomeView({ controller }) {
                               type: "button",
                               class: "welcome-browse-btn",
                               onClick: () => handleBrowse("base"),
-                              children: "\u{1F4C1} \u53C2\u7167..."
+                              children: [
+                                "\u{1F4C1} ",
+                                i18n.t("welcome.browse")
+                              ]
                             }
                           )
                         ] })
@@ -36745,7 +37335,7 @@ function WelcomeView({ controller }) {
                     }
                   ),
                   /* @__PURE__ */ u3("div", { class: "welcome-form-group", children: [
-                    /* @__PURE__ */ u3("label", { class: "welcome-label", children: "\u6BD4\u8F03\u30D6\u30E9\u30F3\u30C1\uFF08\u4EFB\u610F\u3002\u7701\u7565\u6642\u306F HEAD \u3068\u306E\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\uFF09" }),
+                    /* @__PURE__ */ u3("label", { class: "welcome-label", children: i18n.t("welcome.branchOptional") }),
                     /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: /* @__PURE__ */ u3(
                       "input",
                       {
@@ -36771,8 +37361,8 @@ function WelcomeView({ controller }) {
                       onDrop: (e3) => handleDropFiles(e3, "base"),
                       children: [
                         /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
-                          tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u524D / \u65E7\uFF09" : "Base \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u524D / \u65E7\uFF09",
-                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                          tab2 === "dir" ? i18n.t("welcome.baseFolder") : i18n.t("welcome.baseFile"),
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: ` (${i18n.t("welcome.dragDropHint")})` })
                         ] }),
                         /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
                           /* @__PURE__ */ u3(
@@ -36791,7 +37381,7 @@ function WelcomeView({ controller }) {
                               type: "button",
                               class: "welcome-browse-btn",
                               onClick: () => handleBrowse("base"),
-                              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                              children: tab2 === "dir" ? `\u{1F4C1} ${i18n.t("welcome.browse")}` : `\u{1F4C4} ${i18n.t("welcome.browse")}`
                             }
                           )
                         ] })
@@ -36811,8 +37401,8 @@ function WelcomeView({ controller }) {
                       onDrop: (e3) => handleDropFiles(e3, "target"),
                       children: [
                         /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
-                          tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09" : "Target \u30D5\u30A1\u30A4\u30EB\uFF08\u5909\u66F4\u5F8C / \u65B0\u30FB\u7DE8\u96C6\u5148\uFF09",
-                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: "\uFF08\u307E\u305F\u306F\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\uFF09" })
+                          tab2 === "dir" ? i18n.t("welcome.targetFolder") : i18n.t("welcome.targetFile"),
+                          /* @__PURE__ */ u3("span", { class: "welcome-drop-hint", children: ` (${i18n.t("welcome.dragDropHint")})` })
                         ] }),
                         /* @__PURE__ */ u3("div", { class: "welcome-input-row", children: [
                           /* @__PURE__ */ u3(
@@ -36831,7 +37421,7 @@ function WelcomeView({ controller }) {
                               type: "button",
                               class: "welcome-browse-btn",
                               onClick: () => handleBrowse("target"),
-                              children: tab2 === "dir" ? "\u{1F4C1} \u53C2\u7167..." : "\u{1F4C4} \u53C2\u7167..."
+                              children: tab2 === "dir" ? `\u{1F4C1} ${i18n.t("welcome.browse")}` : `\u{1F4C4} ${i18n.t("welcome.browse")}`
                             }
                           )
                         ] })
@@ -36848,7 +37438,7 @@ function WelcomeView({ controller }) {
                       onChange: (e3) => setReadOnly(e3.target.checked)
                     }
                   ),
-                  /* @__PURE__ */ u3("span", { children: "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\uFF08\u4FDD\u5B58\u7121\u52B9\uFF09" })
+                  /* @__PURE__ */ u3("span", { children: i18n.t("welcome.readOnlyMode") })
                 ] }) }),
                 errorMsg && /* @__PURE__ */ u3("div", { class: "welcome-error", children: errorMsg }),
                 /* @__PURE__ */ u3(
@@ -36857,25 +37447,31 @@ function WelcomeView({ controller }) {
                     type: "button",
                     class: "welcome-submit-btn",
                     onClick: handleStart,
-                    children: tab2 === "git" ? "\u672A\u30B3\u30DF\u30C3\u30C8\u5DEE\u5206\u3092\u958B\u304F" : "\u6BD4\u8F03\u3092\u958B\u59CB"
+                    children: i18n.t("welcome.startDiff")
                   }
                 ),
-                /* @__PURE__ */ u3("div", { class: "welcome-dropzone-notice", children: /* @__PURE__ */ u3("span", { children: "\u{1F4A1} 2\u3064\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u307E\u3068\u3081\u3066\u3053\u3053\u306B\u30C9\u30ED\u30C3\u30D7\u3057\u3066\u3082\u6BD4\u8F03\u3092\u958B\u59CB\u3067\u304D\u307E\u3059" }) })
+                /* @__PURE__ */ u3("div", { class: "welcome-dropzone-notice", children: /* @__PURE__ */ u3("span", { children: [
+                  "\u{1F4A1} ",
+                  i18n.t("welcome.dragDropHint")
+                ] }) })
               ] })
             ]
           }
         ),
         history2.length > 0 && /* @__PURE__ */ u3("div", { class: "welcome-history-card", children: [
           /* @__PURE__ */ u3("div", { class: "welcome-history-header", children: [
-            /* @__PURE__ */ u3("h3", { children: "\u{1F552} \u6BD4\u8F03\u5C65\u6B74" }),
+            /* @__PURE__ */ u3("h3", { children: [
+              "\u{1F552} ",
+              i18n.t("welcome.recentSessions")
+            ] }),
             /* @__PURE__ */ u3(
               "button",
               {
                 type: "button",
                 class: "welcome-clear-history-btn",
-                title: "\u5C65\u6B74\u3092\u3059\u3079\u3066\u524A\u9664",
+                title: i18n.t("welcome.clearAll"),
                 onClick: () => controller.clearHistory(),
-                children: "\u5168\u6D88\u53BB"
+                children: i18n.t("welcome.clearAll")
               }
             )
           ] }),
@@ -36935,65 +37531,120 @@ function WelcomeView({ controller }) {
 }
 
 // src/ui/components/ShortcutsModal.tsx
-var SHORTCUT_SECTIONS = [
-  {
-    title: "\u5DEE\u5206\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3",
-    shortcuts: [
-      { keys: ["Alt + \u2193", "J"], description: "\u6B21\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5" },
-      { keys: ["Alt + \u2191", "K"], description: "\u524D\u306E\u5DEE\u5206 (Hunk) \u306B\u79FB\u52D5" }
-    ]
-  },
-  {
-    title: "\u30DE\u30FC\u30B8 & \u30EC\u30D3\u30E5\u30FC\u64CD\u4F5C",
-    shortcuts: [
-      { keys: ["Ctrl + R"], description: "\u5DE6\u306E\u5185\u5BB9\u3092\u53F3\u5074\u3078\u9069\u7528 (\u30DE\u30FC\u30B8)" },
-      { keys: ["Ctrl + L"], description: "\u53F3\u306E\u5185\u5BB9\u3092\u5DE6\u5074\u3078\u9069\u7528 (\u30EA\u30D0\u30FC\u30C8)" },
-      { keys: ["A"], description: "\u73FE\u5728\u306E Hunk \u3092\u627F\u8A8D (Accepted)" },
-      { keys: ["R"], description: "\u73FE\u5728\u306E Hunk \u3092\u62D2\u5426 (Rejected)" },
-      { keys: ["E", "Enter"], description: "\u30A8\u30C7\u30A3\u30BF\u76F4\u63A5\u7DE8\u96C6\u30E2\u30FC\u30C9\u306B\u5165\u308B" },
-      { keys: ["Escape"], description: "\u30CA\u30D3\u30B2\u30FC\u30B7\u30E7\u30F3\u30E2\u30FC\u30C9\u306B\u623B\u308B" },
-      { keys: ["Alt + B"], description: "[3-Way] Base (\u5171\u901A\u7956\u5148) \u3092\u63A1\u7528" },
-      { keys: ["Alt + L"], description: "[3-Way] Left (Ours) \u3092\u63A1\u7528" },
-      { keys: ["Alt + R"], description: "[3-Way] Right (Theirs) \u3092\u63A1\u7528" }
-    ]
-  },
-  {
-    title: "\u8868\u793A & \u30B3\u30DE\u30F3\u30C9",
-    shortcuts: [
-      {
-        keys: ["Ctrl + Shift + P"],
-        description: "\u30AF\u30A4\u30C3\u30AF\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8\u3092\u958B\u304F"
-      },
-      {
-        keys: ["Ctrl + N"],
-        description: "\u30CE\u30A4\u30BA\u5DEE\u5206\uFF08\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\uFF09\u306E\u6298\u308A\u305F\u305F\u307F\u5207\u66FF"
-      },
-      {
-        keys: ["Alt + F/E/M/V/G/H"],
-        description: "\u30E1\u30CB\u30E5\u30FC\u30D0\u30FC\u306E\u5404\u30AB\u30C6\u30B4\u30EA\u3092\u958B\u304F"
-      },
-      { keys: ["F1", "?"], description: "\u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7\u3092\u8868\u793A" }
-    ]
-  },
-  {
-    title: "\u30D5\u30A1\u30A4\u30EB & \u30BB\u30C3\u30B7\u30E7\u30F3",
-    shortcuts: [
-      { keys: ["Ctrl + S"], description: "\u7DE8\u96C6\u5185\u5BB9\u3092\u4FDD\u5B58" },
-      {
-        keys: ["F5", "Ctrl + Shift + R"],
-        description: "\u6700\u65B0\u306E\u72B6\u614B\u306B\u518D\u8AAD\u307F\u8FBC\u307F"
-      },
-      { keys: ["Ctrl + O"], description: "\u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03\u3092\u958B\u304F" },
-      { keys: ["Ctrl + Shift + O"], description: "\u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03\u3092\u958B\u304F" },
-      { keys: ["Ctrl + Shift + T"], description: "\u76F4\u524D\u306E\u30BB\u30C3\u30B7\u30E7\u30F3\u3092\u81EA\u52D5\u5FA9\u5143" },
-      { keys: ["Ctrl + Q"], description: "Diffrex \u3092\u7D42\u4E86" }
-    ]
-  }
-];
+function getShortcutSections() {
+  return [
+    {
+      title: i18n.t("shortcutsModal.sections.navigation"),
+      shortcuts: [
+        {
+          keys: ["Alt + \u2193", "J"],
+          description: i18n.t("shortcutsModal.items.nextHunk")
+        },
+        {
+          keys: ["Alt + \u2191", "K"],
+          description: i18n.t("shortcutsModal.items.prevHunk")
+        }
+      ]
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.mergeReview"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + R"],
+          description: i18n.t("shortcutsModal.items.mergeLeftToRight")
+        },
+        {
+          keys: ["Ctrl + L"],
+          description: i18n.t("shortcutsModal.items.mergeRightToLeft")
+        },
+        {
+          keys: ["A"],
+          description: i18n.t("shortcutsModal.items.acceptHunk")
+        },
+        {
+          keys: ["R"],
+          description: i18n.t("shortcutsModal.items.rejectHunk")
+        },
+        {
+          keys: ["E", "Enter"],
+          description: i18n.t("shortcutsModal.items.enterEdit")
+        },
+        {
+          keys: ["Escape"],
+          description: i18n.t("shortcutsModal.items.exitEdit")
+        },
+        {
+          keys: ["Alt + B"],
+          description: i18n.t("shortcutsModal.items.threeWayBase")
+        },
+        {
+          keys: ["Alt + L"],
+          description: i18n.t("shortcutsModal.items.threeWayLeft")
+        },
+        {
+          keys: ["Alt + R"],
+          description: i18n.t("shortcutsModal.items.threeWayRight")
+        }
+      ]
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.viewCommand"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + Shift + P"],
+          description: i18n.t("shortcutsModal.items.commandPalette")
+        },
+        {
+          keys: ["Ctrl + N"],
+          description: i18n.t("shortcutsModal.items.toggleNoise")
+        },
+        {
+          keys: ["Alt + F/E/M/V/G/H"],
+          description: i18n.t("shortcutsModal.items.menuCategories")
+        },
+        {
+          keys: ["F1", "?"],
+          description: i18n.t("shortcutsModal.items.showShortcuts")
+        }
+      ]
+    },
+    {
+      title: i18n.t("shortcutsModal.sections.fileSession"),
+      shortcuts: [
+        {
+          keys: ["Ctrl + S"],
+          description: i18n.t("shortcutsModal.items.save")
+        },
+        {
+          keys: ["F5", "Ctrl + Shift + R"],
+          description: i18n.t("shortcutsModal.items.reload")
+        },
+        {
+          keys: ["Ctrl + O"],
+          description: i18n.t("shortcutsModal.items.openFile")
+        },
+        {
+          keys: ["Ctrl + Shift + O"],
+          description: i18n.t("shortcutsModal.items.openDir")
+        },
+        {
+          keys: ["Ctrl + Shift + T"],
+          description: i18n.t("shortcutsModal.items.restoreSession")
+        },
+        {
+          keys: ["Ctrl + Q"],
+          description: i18n.t("shortcutsModal.items.exitApp")
+        }
+      ]
+    }
+  ];
+}
 function ShortcutsModal({ model }) {
+  useModel(i18n);
   const handleClose = () => {
     model.setShortcutsModalOpen(false);
   };
+  const sections = getShortcutSections();
   return /* @__PURE__ */ u3("div", { class: "modal-overlay", onClick: handleClose, children: /* @__PURE__ */ u3(
     "div",
     {
@@ -37004,19 +37655,19 @@ function ShortcutsModal({ model }) {
       "aria-labelledby": "shortcuts-title",
       children: [
         /* @__PURE__ */ u3("div", { class: "modal-header", children: [
-          /* @__PURE__ */ u3("h2", { id: "shortcuts-title", class: "modal-title", children: "\u2328\uFE0F \u30AD\u30FC\u30DC\u30FC\u30C9\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u4E00\u89A7" }),
+          /* @__PURE__ */ u3("h2", { id: "shortcuts-title", class: "modal-title", children: i18n.t("shortcutsModal.title") }),
           /* @__PURE__ */ u3(
             "button",
             {
               type: "button",
               class: "modal-close-button",
               onClick: handleClose,
-              "aria-label": "\u9589\u3058\u308B",
+              "aria-label": i18n.t("shortcutsModal.close"),
               children: "\xD7"
             }
           )
         ] }),
-        /* @__PURE__ */ u3("div", { class: "modal-body shortcuts-modal-body", children: SHORTCUT_SECTIONS.map((section) => /* @__PURE__ */ u3("div", { class: "shortcuts-section", children: [
+        /* @__PURE__ */ u3("div", { class: "modal-body shortcuts-modal-body", children: sections.map((section) => /* @__PURE__ */ u3("div", { class: "shortcuts-section", children: [
           /* @__PURE__ */ u3("h3", { class: "shortcuts-section-title", children: section.title }),
           /* @__PURE__ */ u3("div", { class: "shortcuts-table", children: section.shortcuts.map((sc, idx) => /* @__PURE__ */ u3("div", { class: "shortcuts-row", children: [
             /* @__PURE__ */ u3("div", { class: "shortcuts-keys", children: sc.keys.map((k3, kIdx) => /* @__PURE__ */ u3("span", { children: [
@@ -37032,7 +37683,10 @@ function ShortcutsModal({ model }) {
             type: "button",
             class: "button primary",
             onClick: handleClose,
-            children: "\u9589\u3058\u308B (Esc)"
+            children: [
+              i18n.t("shortcutsModal.close"),
+              " (Esc)"
+            ]
           }
         ) })
       ]
@@ -37042,6 +37696,7 @@ function ShortcutsModal({ model }) {
 
 // src/ui/components/AboutModal.tsx
 function AboutModal({ model }) {
+  useModel(i18n);
   const handleClose = () => {
     model.setAboutModalOpen(false);
   };
@@ -37055,14 +37710,14 @@ function AboutModal({ model }) {
       "aria-labelledby": "about-title",
       children: [
         /* @__PURE__ */ u3("div", { class: "modal-header", children: [
-          /* @__PURE__ */ u3("h2", { id: "about-title", class: "modal-title", children: "Diffrex \u306B\u3064\u3044\u3066" }),
+          /* @__PURE__ */ u3("h2", { id: "about-title", class: "modal-title", children: i18n.t("aboutModal.title") }),
           /* @__PURE__ */ u3(
             "button",
             {
               type: "button",
               class: "modal-close-button",
               onClick: handleClose,
-              "aria-label": "\u9589\u3058\u308B",
+              "aria-label": i18n.t("aboutModal.close"),
               children: "\xD7"
             }
           )
@@ -37081,19 +37736,19 @@ function AboutModal({ model }) {
             ),
             /* @__PURE__ */ u3("div", { class: "about-logo-badge", children: "\u26A1 DIFFREX" })
           ] }),
-          /* @__PURE__ */ u3("h3", { class: "about-app-name", children: "Diffrex (\u30C7\u30A3\u30D5\u30EC\u30AF\u30B9)" }),
-          /* @__PURE__ */ u3("p", { class: "about-tagline", children: "AI-Friendly Diff & Merge Tool for Deno Desktop" }),
+          /* @__PURE__ */ u3("h3", { class: "about-app-name", children: i18n.t("aboutModal.appName") }),
+          /* @__PURE__ */ u3("p", { class: "about-tagline", children: i18n.t("aboutModal.tagline") }),
           /* @__PURE__ */ u3("div", { class: "about-info-grid", children: [
-            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30D0\u30FC\u30B8\u30E7\u30F3:" }),
-            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "v0.1.0 (MVP + B-14 + B-8)" }),
-            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30E9\u30F3\u30BF\u30A4\u30E0:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: i18n.t("aboutModal.versionLabel") }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "v0.1.0 (MVP + B-14 + B-8 + B-18)" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: i18n.t("aboutModal.runtimeLabel") }),
             /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Deno v2.9+ / Deno Desktop" }),
-            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "UI \u30A8\u30F3\u30B8\u30F3:" }),
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: i18n.t("aboutModal.uiEngineLabel") }),
             /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Preact + CodeMirror 6 + Smalltalk-80 MVC" }),
-            /* @__PURE__ */ u3("div", { class: "about-info-label", children: "\u30A2\u30FC\u30AD\u30C6\u30AF\u30C1\u30E3:" }),
-            /* @__PURE__ */ u3("div", { class: "about-info-value", children: "Pure TypeScript Observer Pattern (\u5916\u90E8\u30E9\u30A4\u30D6\u30E9\u30EA\u4E0D\u4F7F\u7528)" })
+            /* @__PURE__ */ u3("div", { class: "about-info-label", children: i18n.t("aboutModal.architectureLabel") }),
+            /* @__PURE__ */ u3("div", { class: "about-info-value", children: i18n.t("aboutModal.architectureValue") })
           ] }),
-          /* @__PURE__ */ u3("p", { class: "about-description", children: "Diffrex \u306F\u3001AI \u751F\u6210\u30B3\u30FC\u30C9\u306E\u9AD8\u901F\u30EC\u30D3\u30E5\u30FC\u3068\u5B89\u5168\u306A\u30DE\u30FC\u30B8\u3092\u652F\u63F4\u3059\u308B\u30C7\u30B9\u30AF\u30C8\u30C3\u30D7\u5DEE\u5206\u30C4\u30FC\u30EB\u3067\u3059\u3002 \u30D7\u30ED\u30F3\u30D7\u30C8\u3084\u30E2\u30C7\u30EB\u30E1\u30BF\u30C7\u30FC\u30BF\u306E\u53EF\u8996\u5316\u3001\u7A7A\u767D\u30FB\u30B3\u30E1\u30F3\u30C8\u306A\u3069\u306E\u30CE\u30A4\u30BA\u5DEE\u5206\u306E\u81EA\u52D5\u6298\u308A\u305F\u305F\u307F\u3001 \u79D8\u5BC6\u60C5\u5831\u3084\u30B7\u30B0\u30CD\u30C1\u30E3\u5909\u66F4\u306A\u3069\u306E\u30EA\u30B9\u30AF\u691C\u77E5\u30013-Way \u30DE\u30FC\u30B8\u3001\u753B\u50CF\u30FBCSV\u6BD4\u8F03\u3001Git Worktree \u9023\u643A\u3092\u5F37\u529B\u306B\u30B5\u30DD\u30FC\u30C8\u3057\u307E\u3059\u3002" }),
+          /* @__PURE__ */ u3("p", { class: "about-description", children: i18n.t("aboutModal.description") }),
           /* @__PURE__ */ u3("div", { class: "about-links", children: /* @__PURE__ */ u3(
             "a",
             {
@@ -37101,7 +37756,7 @@ function AboutModal({ model }) {
               target: "_blank",
               rel: "noopener noreferrer",
               class: "about-link",
-              children: "GitHub \u30EA\u30DD\u30B8\u30C8\u30EA"
+              children: i18n.t("aboutModal.githubRepo")
             }
           ) })
         ] }),
@@ -37111,7 +37766,10 @@ function AboutModal({ model }) {
             type: "button",
             class: "button primary",
             onClick: handleClose,
-            children: "\u9589\u3058\u308B (Esc)"
+            children: [
+              i18n.t("aboutModal.close"),
+              " (Esc)"
+            ]
           }
         ) })
       ]
@@ -37400,6 +38058,7 @@ function ConfidenceSettingsModal({
 // src/ui/components/CommandPalette.tsx
 function CommandPalette({ model, controller }) {
   useModel(model);
+  useModel(i18n);
   const inputRef = A2(null);
   const listRef = A2(null);
   h2(() => {
@@ -37433,7 +38092,7 @@ function CommandPalette({ model, controller }) {
       onClick: (e3) => e3.stopPropagation(),
       role: "dialog",
       "aria-modal": "true",
-      "aria-label": "\u30B3\u30DE\u30F3\u30C9\u30D1\u30EC\u30C3\u30C8",
+      "aria-label": i18n.t("commandPalette.ariaLabel"),
       children: [
         /* @__PURE__ */ u3("div", { class: "command-palette-input-wrapper", children: [
           /* @__PURE__ */ u3("span", { class: "command-palette-icon", children: "\u{1F50D}" }),
@@ -37443,7 +38102,7 @@ function CommandPalette({ model, controller }) {
               ref: inputRef,
               type: "text",
               class: "command-palette-input",
-              placeholder: "\u5B9F\u884C\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u3092\u5165\u529B... (\u4F8B: \u30DE\u30FC\u30B8, \u4FDD\u5B58, \u6B21\u306E\u5DEE\u5206)",
+              placeholder: i18n.t("commandPalette.placeholder"),
               value: model.commandPaletteQuery,
               onInput: (e3) => model.setCommandPaletteQuery(
                 e3.target.value
@@ -37452,7 +38111,7 @@ function CommandPalette({ model, controller }) {
             }
           )
         ] }),
-        /* @__PURE__ */ u3("div", { class: "command-palette-list", ref: listRef, role: "listbox", children: filteredCommands.length === 0 ? /* @__PURE__ */ u3("div", { class: "command-palette-empty", children: "\u4E00\u81F4\u3059\u308B\u30B3\u30DE\u30F3\u30C9\u304C\u898B\u3064\u304B\u308A\u307E\u305B\u3093" }) : filteredCommands.map((cmd2, idx) => {
+        /* @__PURE__ */ u3("div", { class: "command-palette-list", ref: listRef, role: "listbox", children: filteredCommands.length === 0 ? /* @__PURE__ */ u3("div", { class: "command-palette-empty", children: i18n.t("commandPalette.empty") }) : filteredCommands.map((cmd2, idx) => {
           const isSelected = idx === selectedIndex;
           return /* @__PURE__ */ u3(
             "div",
@@ -37486,6 +38145,7 @@ function OpenSessionModal({
   model,
   controller
 }) {
+  useModel(i18n);
   const [tab2, setTab] = d2(
     model.openSessionInitialTab
   );
@@ -37515,9 +38175,7 @@ function OpenSessionModal({
     setErrorMsg("");
     if (tab2 === "file") {
       if (!leftPath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "\u6BD4\u8F03\u5143 (Left) \u3068\u6BD4\u8F03\u5148 (Right) \u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyBothFiles"));
         return;
       }
       handleClose();
@@ -37528,9 +38186,7 @@ function OpenSessionModal({
       );
     } else if (tab2 === "dir") {
       if (!leftPath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "Base \u30D5\u30A9\u30EB\u30C0\u3068 Target \u30D5\u30A9\u30EB\u30C0\u306E\u4E21\u65B9\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyBothDirs"));
         return;
       }
       handleClose();
@@ -37541,7 +38197,7 @@ function OpenSessionModal({
       );
     } else if (tab2 === "git") {
       if (!gitRepoPath.trim()) {
-        setErrorMsg("Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002");
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyGitRepo"));
         return;
       }
       handleClose();
@@ -37551,9 +38207,7 @@ function OpenSessionModal({
       });
     } else if (tab2 === "3way") {
       if (!leftPath.trim() || !basePath.trim() || !rightPath.trim()) {
-        setErrorMsg(
-          "Local, Base, Remote \u306E 3 \u3064\u3059\u3079\u3066\u306E\u30D5\u30A1\u30A4\u30EB\u3092\u6307\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002"
-        );
+        setErrorMsg(i18n.t("openSessionModal.errors.specifyThreeWayFiles"));
         return;
       }
       handleClose();
@@ -37574,14 +38228,17 @@ function OpenSessionModal({
       "aria-labelledby": "open-session-title",
       children: [
         /* @__PURE__ */ u3("div", { class: "modal-header", children: [
-          /* @__PURE__ */ u3("h2", { id: "open-session-title", class: "modal-title", children: "\u{1F4C2} \u6BD4\u8F03\u30FB\u30DE\u30FC\u30B8\u5BFE\u8C61\u3092\u958B\u304F" }),
+          /* @__PURE__ */ u3("h2", { id: "open-session-title", class: "modal-title", children: [
+            "\u{1F4C2} ",
+            i18n.t("openSessionModal.title")
+          ] }),
           /* @__PURE__ */ u3(
             "button",
             {
               type: "button",
               class: "modal-close-button",
               onClick: handleClose,
-              "aria-label": "\u9589\u3058\u308B",
+              "aria-label": i18n.t("openSessionModal.cancel"),
               children: "\xD7"
             }
           )
@@ -37597,7 +38254,7 @@ function OpenSessionModal({
                   setTab("file");
                   setErrorMsg("");
                 },
-                children: "\u{1F4C4} \u30D5\u30A1\u30A4\u30EB\u6BD4\u8F03"
+                children: i18n.t("openSessionModal.tabFile")
               }
             ),
             /* @__PURE__ */ u3(
@@ -37609,7 +38266,7 @@ function OpenSessionModal({
                   setTab("dir");
                   setErrorMsg("");
                 },
-                children: "\u{1F4C1} \u30D5\u30A9\u30EB\u30C0\u6BD4\u8F03"
+                children: i18n.t("openSessionModal.tabDir")
               }
             ),
             /* @__PURE__ */ u3(
@@ -37621,7 +38278,7 @@ function OpenSessionModal({
                   setTab("git");
                   setErrorMsg("");
                 },
-                children: "\u{1F33F} Git \u5DEE\u5206"
+                children: i18n.t("openSessionModal.tabGit")
               }
             ),
             /* @__PURE__ */ u3(
@@ -37633,7 +38290,7 @@ function OpenSessionModal({
                   setTab("3way");
                   setErrorMsg("");
                 },
-                children: "\u{1F4A5} 3-Way \u30DE\u30FC\u30B8"
+                children: i18n.t("openSessionModal.tab3Way")
               }
             )
           ] }),
@@ -37644,7 +38301,10 @@ function OpenSessionModal({
           /* @__PURE__ */ u3("div", { class: "open-session-form", children: [
             tab2 === "git" ? /* @__PURE__ */ u3(S, { children: [
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Git \u30EA\u30DD\u30B8\u30C8\u30EA\u30D5\u30A9\u30EB\u30C0:" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                  i18n.t("openSessionModal.gitRepo"),
+                  ":"
+                ] }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37662,19 +38322,22 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse("dir", "git"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
               ] }),
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "\u6BD4\u8F03\u30D6\u30E9\u30F3\u30C1 / \u30B3\u30DF\u30C3\u30C8 (\u7701\u7565\u6642\u306F HEAD):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                  i18n.t("openSessionModal.branchOptional"),
+                  ":"
+                ] }),
                 /* @__PURE__ */ u3(
                   "input",
                   {
                     type: "text",
                     class: "welcome-input",
-                    placeholder: "main, HEAD~1, feature \u306A\u3069",
+                    placeholder: "main, HEAD~1, feature...",
                     value: gitBranch,
                     onInput: (e3) => setGitBranch(e3.target.value)
                   }
@@ -37682,7 +38345,10 @@ function OpenSessionModal({
               ] })
             ] }) : tab2 === "3way" ? /* @__PURE__ */ u3(S, { children: [
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Local (\u5909\u66F4\u4E2D\u30D5\u30A1\u30A4\u30EB):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                  i18n.t("openSessionModal.localFile"),
+                  ":"
+                ] }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37700,13 +38366,16 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse("file", "left"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
               ] }),
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Base (\u5171\u901A\u7956\u5148):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                  i18n.t("openSessionModal.ancestorFile"),
+                  ":"
+                ] }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37724,13 +38393,16 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse("file", "base"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
               ] }),
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: "Remote (\u30DE\u30FC\u30B8\u5BFE\u8C61):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: [
+                  i18n.t("openSessionModal.remoteFile"),
+                  ":"
+                ] }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37748,14 +38420,14 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse("file", "right"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
               ] })
             ] }) : /* @__PURE__ */ u3(S, { children: [
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Base \u30D5\u30A9\u30EB\u30C0 (\u6BD4\u8F03\u5143):" : "Left \u30D5\u30A1\u30A4\u30EB (\u6BD4\u8F03\u5143):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? `${i18n.t("openSessionModal.baseDir")}:` : `${i18n.t("openSessionModal.baseFile")}:` }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37773,13 +38445,13 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse(tab2 === "dir" ? "dir" : "file", "left"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
               ] }),
               /* @__PURE__ */ u3("div", { class: "welcome-field", children: [
-                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? "Target \u30D5\u30A9\u30EB\u30C0 (\u6BD4\u8F03\u5148):" : "Right \u30D5\u30A1\u30A4\u30EB (\u6BD4\u8F03\u5148):" }),
+                /* @__PURE__ */ u3("label", { class: "welcome-label", children: tab2 === "dir" ? `${i18n.t("openSessionModal.targetDir")}:` : `${i18n.t("openSessionModal.targetFile")}:` }),
                 /* @__PURE__ */ u3("div", { class: "welcome-input-group", children: [
                   /* @__PURE__ */ u3(
                     "input",
@@ -37797,7 +38469,7 @@ function OpenSessionModal({
                       type: "button",
                       class: "button secondary",
                       onClick: () => handleBrowse(tab2 === "dir" ? "dir" : "file", "right"),
-                      children: "\u53C2\u7167..."
+                      children: i18n.t("openSessionModal.browse")
                     }
                   )
                 ] })
@@ -37812,7 +38484,7 @@ function OpenSessionModal({
                   onChange: (e3) => setReadOnly(e3.target.checked)
                 }
               ),
-              "\u8AAD\u307F\u53D6\u308A\u5C02\u7528\u30E2\u30FC\u30C9 (\u7DE8\u96C6\u30FB\u4FDD\u5B58\u3092\u7121\u52B9\u5316)"
+              i18n.t("openSessionModal.readOnly")
             ] }) })
           ] })
         ] }),
@@ -37823,7 +38495,10 @@ function OpenSessionModal({
               type: "button",
               class: "button secondary",
               onClick: handleClose,
-              children: "\u30AD\u30E3\u30F3\u30BB\u30EB (Esc)"
+              children: [
+                i18n.t("openSessionModal.cancel"),
+                " (Esc)"
+              ]
             }
           ),
           /* @__PURE__ */ u3(
@@ -37832,7 +38507,7 @@ function OpenSessionModal({
               type: "button",
               class: "button primary",
               onClick: handleStart,
-              children: "\u6BD4\u8F03\u3092\u958B\u59CB"
+              children: i18n.t("openSessionModal.startSession")
             }
           )
         ] })
@@ -38640,6 +39315,7 @@ function TabCloseConfirmModal({
   tab: tab2,
   controller
 }) {
+  useModel(i18n);
   h2(() => {
     const handleKeyDown = (e3) => {
       if (e3.key === "Escape") {
@@ -38667,28 +39343,21 @@ function TabCloseConfirmModal({
           "aria-labelledby": "tab-confirm-title",
           children: [
             /* @__PURE__ */ u3("div", { class: "modal-header", children: [
-              /* @__PURE__ */ u3("h3", { id: "tab-confirm-title", class: "modal-title", children: "\u26A0\uFE0F \u672A\u4FDD\u5B58\u306E\u5909\u66F4\u304C\u3042\u308A\u307E\u3059" }),
+              /* @__PURE__ */ u3("h3", { id: "tab-confirm-title", class: "modal-title", children: i18n.t("tabCloseConfirmModal.title") }),
               /* @__PURE__ */ u3(
                 "button",
                 {
                   type: "button",
                   class: "modal-close-btn",
                   onClick: () => controller.cancelCloseTab(),
-                  title: "\u30AD\u30E3\u30F3\u30BB\u30EB (Escape)",
+                  title: `${i18n.t("tabCloseConfirmModal.cancel")} (Escape)`,
                   children: "\xD7"
                 }
               )
             ] }),
             /* @__PURE__ */ u3("div", { class: "modal-body", children: [
-              /* @__PURE__ */ u3("p", { class: "tab-confirm-message", children: [
-                /* @__PURE__ */ u3("strong", { children: [
-                  '"',
-                  tab2.title,
-                  '"'
-                ] }),
-                " \u3078\u306E\u5909\u66F4\u304C\u4FDD\u5B58\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002"
-              ] }),
-              /* @__PURE__ */ u3("p", { class: "tab-confirm-submessage", children: "\u9589\u3058\u308B\u524D\u306B\u5909\u66F4\u3092\u4FDD\u5B58\u3057\u307E\u3059\u304B\uFF1F" })
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-message", children: i18n.t("tabCloseConfirmModal.message", { title: tab2.title }) }),
+              /* @__PURE__ */ u3("p", { class: "tab-confirm-submessage", children: i18n.t("tabCloseConfirmModal.submessage") })
             ] }),
             /* @__PURE__ */ u3("div", { class: "modal-footer tab-confirm-footer", children: [
               /* @__PURE__ */ u3(
@@ -38697,7 +39366,7 @@ function TabCloseConfirmModal({
                   type: "button",
                   class: "btn btn-primary",
                   onClick: () => controller.confirmCloseTab(true),
-                  children: "\u{1F4BE} \u4FDD\u5B58\u3057\u3066\u9589\u3058\u308B"
+                  children: i18n.t("tabCloseConfirmModal.saveAndClose")
                 }
               ),
               /* @__PURE__ */ u3(
@@ -38706,7 +39375,7 @@ function TabCloseConfirmModal({
                   type: "button",
                   class: "btn btn-danger",
                   onClick: () => controller.confirmCloseTab(false),
-                  children: "\u{1F5D1}\uFE0F \u4FDD\u5B58\u305B\u305A\u306B\u9589\u3058\u308B"
+                  children: i18n.t("tabCloseConfirmModal.discardAndClose")
                 }
               ),
               /* @__PURE__ */ u3(
@@ -38715,7 +39384,7 @@ function TabCloseConfirmModal({
                   type: "button",
                   class: "btn btn-secondary",
                   onClick: () => controller.cancelCloseTab(),
-                  children: "\u30AD\u30E3\u30F3\u30BB\u30EB"
+                  children: i18n.t("tabCloseConfirmModal.cancel")
                 }
               )
             ] })
@@ -38977,6 +39646,7 @@ function App({
   useModel(threeWayModel);
   useModel(menuModel);
   useModel(tabModel);
+  useModel(i18n);
   const [isGlobalDragging, setIsGlobalDragging] = d2(false);
   h2(() => {
     const cleanup = dirController.connectWebSocket();
