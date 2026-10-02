@@ -1,8 +1,13 @@
 import { assertEquals } from "@std/assert";
 import { DiffSessionModel } from "../src/ui/model/diff_session_model.ts";
 import { DiffController } from "../src/ui/controller/diff_controller.ts";
+import { DirectoryDiffModel } from "../src/ui/model/dir_diff_model.ts";
+import { DirectoryController } from "../src/ui/controller/dir_controller.ts";
 import type { Chunk } from "@codemirror/merge";
-import type { DiffSessionData } from "../src/core/types.ts";
+import type {
+  DiffSessionData,
+  DirectoryDiffSessionData,
+} from "../src/core/types.ts";
 
 Deno.test("DiffController: Hunk ナビゲーション指示が Model に反映される", () => {
   const model = new DiffSessionModel();
@@ -228,4 +233,69 @@ Deno.test("DiffController: handleDocumentChanged による isDirty 状態更新"
   assertEquals(model.isDirty, false);
   controller.handleDocumentChanged();
   assertEquals(model.isDirty, true);
+});
+
+Deno.test("DirectoryController: session:init と dir:tree_data による相互セッションクリア (FIX-03)", () => {
+  const dirModel = new DirectoryDiffModel();
+  const diffModel = new DiffSessionModel();
+  const dirController = new DirectoryController(dirModel, diffModel);
+
+  // 1. まずディレクトリセッションが到着
+  const dirSession: DirectoryDiffSessionData = {
+    sessionId: "dir-1",
+    timestamp: new Date().toISOString(),
+    mode: "directory",
+    baseDir: "/repo/base",
+    targetDir: "/repo/target",
+    summary: {
+      total: 1,
+      identical: 0,
+      modified: 1,
+      added: 0,
+      deleted: 0,
+      binary: 0,
+      image: 0,
+    },
+    tree: {
+      name: "target",
+      relativePath: "",
+      isDir: true,
+      status: "modified",
+    },
+    readOnly: false,
+  };
+  dirController.handleBackendMessage({
+    type: "dir:tree_data",
+    data: dirSession,
+  });
+  assertEquals(dirModel.dirSession !== null, true);
+  assertEquals(diffModel.session, null);
+
+  // 2. その後、ファイル比較 session:init が到着 -> dirSession はクリアされ diffModel.session がセットされる
+  const fileSession: DiffSessionData = {
+    sessionId: "file-1",
+    timestamp: new Date().toISOString(),
+    mode: "2way",
+    files: {
+      left: { path: "a.ts", content: "a", readOnly: false },
+      right: { path: "b.ts", content: "b", readOnly: false },
+    },
+    options: { ignoreSpace: false, ignoreComments: false },
+    hunks: [],
+  };
+  dirController.handleBackendMessage({
+    type: "session:init",
+    data: fileSession,
+  });
+  assertEquals(dirModel.dirSession, null);
+  assertEquals(diffModel.session !== null, true);
+  assertEquals(diffModel.session?.sessionId, "file-1");
+
+  // 3. 再度 dir:tree_data が到着 -> diffModel.session はクリアされ dirSession がセットされる
+  dirController.handleBackendMessage({
+    type: "dir:tree_data",
+    data: dirSession,
+  });
+  assertEquals(diffModel.session, null);
+  assertEquals(dirModel.dirSession !== null, true);
 });

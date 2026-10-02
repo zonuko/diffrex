@@ -179,6 +179,10 @@ export class DirectoryDiffModel extends Observable<DirectoryDiffModel> {
     this.setDirSession(null);
   }
 
+  clearDirSession(): void {
+    this.setDirSession(null);
+  }
+
   toggleDir(relPath: string): void {
     if (this._expandedDirs.has(relPath)) {
       this._expandedDirs.delete(relPath);

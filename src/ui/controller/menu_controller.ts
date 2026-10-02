@@ -98,21 +98,48 @@ export class MenuController {
    * 現在のセッション状態・モデル状態からメニュー定義を再生成する。
    */
   rebuildMenu(): void {
-    const is3Way = this._diffModel.session?.mode === "3way";
-    const isDir = Boolean(this._dirModel.dirSession);
-    const isTextDiff = Boolean(
-      this._diffModel.session && !is3Way &&
-        this._diffModel.session.mode !== "image" &&
-        this._diffModel.session.mode !== "csv",
-    );
-    const hasSession = Boolean(this._diffModel.session || isDir);
-    const isGit = Boolean(isDir && this._dirModel.dirSession?.isGitRepo);
-    const canSave =
-      (isTextDiff && !this._diffModel.session?.files.right.readOnly) ||
-      (is3Way && !this._diffModel.session?.files.right.readOnly) ||
-      (isDir && Boolean(this._dirModel.selectedPath));
+    const activeTab = this._tabController?.model.activeTab;
 
-    const history = this._dirModel.history || [];
+    const is3Way = activeTab
+      ? activeTab.sessionType === "3way"
+      : this._diffModel.session?.mode === "3way";
+
+    const isDir = activeTab
+      ? activeTab.sessionType === "directory"
+      : Boolean(this._dirModel.dirSession);
+
+    const activeDiffModel = activeTab?.diffModel ?? this._diffModel;
+    const activeDiffController = activeTab?.diffController ??
+      this._diffController;
+    const activeThreeWayModel = activeTab?.threeWayModel ?? this._threeWayModel;
+    const activeThreeWayController = activeTab?.threeWayController ??
+      this._threeWayController;
+    const activeDirModel = activeTab?.dirModel ?? this._dirModel;
+    const activeDirController = activeTab?.dirController ??
+      this._dirController;
+
+    const currentSession = is3Way
+      ? (activeThreeWayModel?.session ?? activeDiffModel.session)
+      : activeDiffModel.session;
+
+    const isTextDiff = Boolean(
+      currentSession && !is3Way &&
+        currentSession.mode !== "image" &&
+        currentSession.mode !== "csv",
+    );
+    const hasSession = Boolean(
+      currentSession || (isDir && activeDirModel.dirSession),
+    );
+    const isGit = Boolean(
+      isDir &&
+        (activeDirModel.dirSession?.isGitRepo ||
+          activeDirModel.dirSession?.git?.isGitRepo),
+    );
+    const canSave = (isTextDiff && !currentSession?.files.right.readOnly) ||
+      (is3Way && !currentSession?.files.right.readOnly) ||
+      (isDir && Boolean(activeDirModel.selectedPath));
+
+    const history = activeDirModel.history || [];
     const recentItems: MenuItemDef[] = history.length > 0
       ? [
         ...history.slice(0, 10).map((h, i) => ({
@@ -138,7 +165,7 @@ export class MenuController {
           ],
           action: () => {
             this._model.closeMenu();
-            this._dirController.clearHistory();
+            activeDirController.clearHistory();
           },
         },
       ]
@@ -206,23 +233,23 @@ export class MenuController {
           }),
           mi("file:restore", "restoreSession", {
             shortcut: "Ctrl+Shift+T",
-            disabled: !this._dirModel.workspaceState?.tabs.length &&
-              !this._dirModel.lastSession,
+            disabled: !activeDirModel.workspaceState?.tabs.length &&
+              !activeDirModel.lastSession,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.workspaceState?.tabs.length) {
-                this._dirController.restoreWorkspace();
+              if (activeDirModel.workspaceState?.tabs.length) {
+                activeDirController.restoreWorkspace();
               } else {
-                this._dirController.restoreLastSession();
+                activeDirController.restoreLastSession();
               }
             },
           }),
           mi("file:restore_on_startup", "restoreOnStartup", {
-            checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
+            checked: activeDirModel.workspaceState?.restoreOnStartup !== false,
             action: () => {
               const current =
-                this._dirModel.workspaceState?.restoreOnStartup !== false;
-              this._dirController.setRestoreOnStartup(!current);
+                activeDirModel.workspaceState?.restoreOnStartup !== false;
+              activeDirController.setRestoreOnStartup(!current);
             },
           }),
           { id: "file:sep2", label: "", separator: true },
@@ -232,11 +259,11 @@ export class MenuController {
             action: () => {
               this._model.closeMenu();
               if (isDir) {
-                this._dirController.saveCurrentFile();
-              } else if (is3Way && this._threeWayController) {
-                this._threeWayController.save();
+                activeDirController.saveCurrentFile();
+              } else if (is3Way && activeThreeWayController) {
+                activeThreeWayController.save();
               } else {
-                this._diffController.requestSave();
+                activeDiffController.requestSave();
               }
             },
           }),
@@ -265,13 +292,15 @@ export class MenuController {
               this._model.closeMenu();
               this._dirModel.setDirSession(null);
               this._diffModel.setSession(null);
+              if (activeTab?.dirModel) activeTab.dirModel.setDirSession(null);
+              if (activeTab?.diffModel) activeTab.diffModel.setSession(null);
             },
           }),
           mi("file:exit", "exit", {
             shortcut: "Ctrl+Q",
             action: () => {
               this._model.closeMenu();
-              this._dirController.requestExit(0);
+              activeDirController.requestExit(0);
             },
           }),
         ],
@@ -285,13 +314,13 @@ export class MenuController {
         items: [
           {
             id: "edit:toggle_mode",
-            label: this._diffModel.mode === "editing"
+            label: activeDiffModel.mode === "editing"
               ? i18n.t("menu.items.backToNav")
               : i18n.t("menu.items.enterEdit"),
             shortcut: "E / Enter",
             disabled: !isTextDiff,
             searchAliases: [
-              this._diffModel.mode === "editing"
+              activeDiffModel.mode === "editing"
                 ? (i18n.locale === "ja"
                   ? en.menu.items.backToNav
                   : ja.menu.items.backToNav)
@@ -301,7 +330,7 @@ export class MenuController {
             ],
             action: () => {
               this._model.closeMenu();
-              this._diffController.toggleEditMode();
+              activeDiffController.toggleEditMode();
             },
           },
           { id: "edit:sep1", label: "", separator: true },
@@ -310,7 +339,7 @@ export class MenuController {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.undo();
+              activeDiffController.undo();
             },
           }),
           mi("edit:redo", "redo", {
@@ -318,7 +347,7 @@ export class MenuController {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.redo();
+              activeDiffController.redo();
             },
           }),
           { id: "edit:sep2", label: "", separator: true },
@@ -343,10 +372,10 @@ export class MenuController {
             disabled: !isTextDiff && !is3Way,
             action: () => {
               this._model.closeMenu();
-              if (is3Way && this._threeWayController) {
-                this._threeWayController.nextConflict();
+              if (is3Way && activeThreeWayController) {
+                activeThreeWayController.nextConflict();
               } else {
-                this._diffController.nextHunk();
+                activeDiffController.nextHunk();
               }
             },
           }),
@@ -355,10 +384,10 @@ export class MenuController {
             disabled: !isTextDiff && !is3Way,
             action: () => {
               this._model.closeMenu();
-              if (is3Way && this._threeWayController) {
-                this._threeWayController.prevConflict();
+              if (is3Way && activeThreeWayController) {
+                activeThreeWayController.prevConflict();
               } else {
-                this._diffController.prevHunk();
+                activeDiffController.prevHunk();
               }
             },
           }),
@@ -366,19 +395,19 @@ export class MenuController {
           mi("merge:left_to_right", "mergeLeftToRight", {
             shortcut: "Ctrl+R",
             disabled: !isTextDiff ||
-              this._diffModel.session?.files.right.readOnly,
+              currentSession?.files.right.readOnly,
             action: () => {
               this._model.closeMenu();
-              this._diffController.mergeLeftToRight();
+              activeDiffController.mergeLeftToRight();
             },
           }),
           mi("merge:right_to_left", "mergeRightToLeft", {
             shortcut: "Ctrl+L",
             disabled: !isTextDiff ||
-              this._diffModel.session?.files.left.readOnly,
+              currentSession?.files.left.readOnly,
             action: () => {
               this._model.closeMenu();
-              this._diffController.mergeRightToLeft();
+              activeDiffController.mergeRightToLeft();
             },
           }),
           { id: "merge:sep2", label: "", separator: true },
@@ -387,7 +416,7 @@ export class MenuController {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.acceptHunk();
+              activeDiffController.acceptHunk();
             },
           }),
           mi("merge:reject", "rejectHunk", {
@@ -395,21 +424,21 @@ export class MenuController {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.rejectHunk();
+              activeDiffController.rejectHunk();
             },
           }),
           mi("merge:accept_all", "acceptAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.acceptAllHunks();
+              activeDiffController.acceptAllHunks();
             },
           }),
           mi("merge:reject_all", "rejectAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.rejectAllHunks();
+              activeDiffController.rejectAllHunks();
             },
           }),
           ...(is3Way
@@ -419,21 +448,21 @@ export class MenuController {
                 shortcut: "Alt+B",
                 action: () => {
                   this._model.closeMenu();
-                  this._threeWayController?.resolveActiveHunk("base");
+                  activeThreeWayController?.resolveActiveHunk("base");
                 },
               }),
               mi("merge:3way_left", "threeWayLeft", {
                 shortcut: "Alt+L",
                 action: () => {
                   this._model.closeMenu();
-                  this._threeWayController?.resolveActiveHunk("local");
+                  activeThreeWayController?.resolveActiveHunk("local");
                 },
               }),
               mi("merge:3way_right", "threeWayRight", {
                 shortcut: "Alt+R",
                 action: () => {
                   this._model.closeMenu();
-                  this._threeWayController?.resolveActiveHunk("remote");
+                  activeThreeWayController?.resolveActiveHunk("remote");
                 },
               }),
             ]
@@ -449,18 +478,18 @@ export class MenuController {
         items: [
           mi("view:toggle_noise", "toggleNoise", {
             shortcut: "Ctrl+N",
-            checked: this._diffModel.noiseFolded,
+            checked: activeDiffModel.noiseFolded,
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.toggleNoiseFolded();
+              activeDiffController.toggleNoiseFolded();
             },
           }),
           mi("view:expand_all", "expandAll", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.expandAllHunks();
+              activeDiffController.expandAllHunks();
             },
           }),
           { id: "view:sep_tabs", label: "", separator: true },
@@ -527,12 +556,12 @@ export class MenuController {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.dirSession?.targetDir) {
-                this._dirController.startGitSession(
-                  this._dirModel.dirSession.targetDir,
+              if (activeDirModel.dirSession?.targetDir) {
+                activeDirController.startGitSession(
+                  activeDirModel.dirSession.targetDir,
                   {
-                    branch: this._dirModel.dirSession.git?.branch,
-                    readOnly: this._dirModel.dirSession.readOnly,
+                    branch: activeDirModel.dirSession.git?.branch,
+                    readOnly: activeDirModel.dirSession.readOnly,
                   },
                 );
               }
@@ -542,10 +571,10 @@ export class MenuController {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.dirSession?.targetDir) {
-                this._dirController.sendMessage({
+              if (activeDirModel.dirSession?.targetDir) {
+                activeDirController.sendMessage({
                   type: "git:list_worktrees",
-                  repoPath: this._dirModel.dirSession.targetDir,
+                  repoPath: activeDirModel.dirSession.targetDir,
                 });
               }
             },

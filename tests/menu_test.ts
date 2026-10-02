@@ -11,6 +11,8 @@ import { DirectoryDiffModel } from "../src/ui/model/dir_diff_model.ts";
 import { DirectoryController } from "../src/ui/controller/dir_controller.ts";
 import { ThreeWaySessionModel } from "../src/ui/model/three_way_session_model.ts";
 import { ThreeWayController } from "../src/ui/controller/three_way_controller.ts";
+import { TabContainerModel } from "../src/ui/model/tab_model.ts";
+import { TabController } from "../src/ui/controller/tab_controller.ts";
 import type { DiffSessionData } from "../src/core/types.ts";
 
 function createMock2WaySession(): DiffSessionData {
@@ -378,4 +380,52 @@ Deno.test("MenuController - キーボードナビゲーション (handleGlobalKe
   const handledF1 = controller.handleGlobalKeyDown(f1Event);
   assertEquals(handledF1, true);
   assertEquals(menuModel.isShortcutsModalOpen, true);
+});
+
+Deno.test("MenuController - 3-Way マージタブがアクティブな場合の保存アクション判定と実行 (FIX-05)", () => {
+  const menuModel = new MenuModel();
+  const diffModel = new DiffSessionModel(); // グローバルは未初期化
+  const diffController = new DiffController(diffModel);
+  const dirModel = new DirectoryDiffModel();
+  const dirController = new DirectoryController(
+    dirModel,
+    diffModel,
+    diffController,
+  );
+
+  const tabModel = new TabContainerModel();
+  const tabController = new TabController(tabModel);
+
+  const controller = new MenuController(
+    menuModel,
+    diffModel,
+    diffController,
+    dirModel,
+    dirController,
+  );
+  controller.setTabController(tabController);
+
+  // 3-Way セッションタブを追加
+  const threeWaySession = createMock3WaySession();
+  const tabItem = tabController.openDiffSession(threeWaySession, true);
+  assertEquals(tabItem.sessionType, "3way");
+
+  let savedCalled = false;
+  if (tabItem.threeWayController) {
+    tabItem.threeWayController.save = () => {
+      savedCalled = true;
+    };
+  }
+
+  controller.rebuildMenu();
+
+  // File カテゴリの save コマンドを取得
+  const fileCategory = menuModel.categories.find((c) => c.id === "file");
+  const saveItem = fileCategory?.items.find((item) => item.id === "file:save");
+  assertEquals(saveItem !== undefined, true);
+  assertEquals(saveItem?.disabled, false);
+
+  // 保存アクションを実行
+  saveItem?.action?.();
+  assertEquals(savedCalled, true);
 });

@@ -289,6 +289,13 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
   }
 
   /**
+   * セッションデータをクリアする。
+   */
+  clearSession(): void {
+    this.setSession(null);
+  }
+
+  /**
    * Jev セマンティック解析等の外部更新により HunkAnnotation[] を動的に更新する (B-19, B-20)。
    * 既存のユーザーレビュー進捗（status）を保持しつつ、解析結果をマージする。
    */

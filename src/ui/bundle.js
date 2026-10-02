@@ -631,6 +631,12 @@ var DiffSessionModel = class extends Observable {
     this.notify(this);
   }
   /**
+   * セッションデータをクリアする。
+   */
+  clearSession() {
+    this.setSession(null);
+  }
+  /**
    * Jev セマンティック解析等の外部更新により HunkAnnotation[] を動的に更新する (B-19, B-20)。
    * 既存のユーザーレビュー進捗（status）を保持しつつ、解析結果をマージする。
    */
@@ -19181,6 +19187,9 @@ var DirectoryDiffModel = class extends Observable {
   clearSession() {
     this.setDirSession(null);
   }
+  clearDirSession() {
+    this.setDirSession(null);
+  }
   toggleDir(relPath) {
     if (this._expandedDirs.has(relPath)) {
       this._expandedDirs.delete(relPath);
@@ -19320,10 +19329,12 @@ var DirectoryController = class {
   handleBackendMessage(msg) {
     switch (msg.type) {
       case "session:init": {
+        this._model.clearDirSession();
         this._diffModel.setSession(msg.data);
         break;
       }
       case "dir:tree_data": {
+        this._diffModel.clearSession();
         this._model.setDirSession(msg.data);
         if (this._model.selectedPath) {
           this.selectFile(this._model.selectedPath);
@@ -21019,15 +21030,27 @@ var MenuController = class {
    * 現在のセッション状態・モデル状態からメニュー定義を再生成する。
    */
   rebuildMenu() {
-    const is3Way = this._diffModel.session?.mode === "3way";
-    const isDir = Boolean(this._dirModel.dirSession);
+    const activeTab = this._tabController?.model.activeTab;
+    const is3Way = activeTab ? activeTab.sessionType === "3way" : this._diffModel.session?.mode === "3way";
+    const isDir = activeTab ? activeTab.sessionType === "directory" : Boolean(this._dirModel.dirSession);
+    const activeDiffModel = activeTab?.diffModel ?? this._diffModel;
+    const activeDiffController = activeTab?.diffController ?? this._diffController;
+    const activeThreeWayModel = activeTab?.threeWayModel ?? this._threeWayModel;
+    const activeThreeWayController = activeTab?.threeWayController ?? this._threeWayController;
+    const activeDirModel = activeTab?.dirModel ?? this._dirModel;
+    const activeDirController = activeTab?.dirController ?? this._dirController;
+    const currentSession = is3Way ? activeThreeWayModel?.session ?? activeDiffModel.session : activeDiffModel.session;
     const isTextDiff = Boolean(
-      this._diffModel.session && !is3Way && this._diffModel.session.mode !== "image" && this._diffModel.session.mode !== "csv"
+      currentSession && !is3Way && currentSession.mode !== "image" && currentSession.mode !== "csv"
     );
-    const hasSession = Boolean(this._diffModel.session || isDir);
-    const isGit = Boolean(isDir && this._dirModel.dirSession?.isGitRepo);
-    const canSave = isTextDiff && !this._diffModel.session?.files.right.readOnly || is3Way && !this._diffModel.session?.files.right.readOnly || isDir && Boolean(this._dirModel.selectedPath);
-    const history2 = this._dirModel.history || [];
+    const hasSession = Boolean(
+      currentSession || isDir && activeDirModel.dirSession
+    );
+    const isGit = Boolean(
+      isDir && (activeDirModel.dirSession?.isGitRepo || activeDirModel.dirSession?.git?.isGitRepo)
+    );
+    const canSave = isTextDiff && !currentSession?.files.right.readOnly || is3Way && !currentSession?.files.right.readOnly || isDir && Boolean(activeDirModel.selectedPath);
+    const history2 = activeDirModel.history || [];
     const recentItems = history2.length > 0 ? [
       ...history2.slice(0, 10).map((h3, i3) => ({
         id: `recent_${i3}_${h3.id}`,
@@ -21046,7 +21069,7 @@ var MenuController = class {
         ],
         action: () => {
           this._model.closeMenu();
-          this._dirController.clearHistory();
+          activeDirController.clearHistory();
         }
       }
     ] : [
@@ -21105,21 +21128,21 @@ var MenuController = class {
           }),
           mi("file:restore", "restoreSession", {
             shortcut: "Ctrl+Shift+T",
-            disabled: !this._dirModel.workspaceState?.tabs.length && !this._dirModel.lastSession,
+            disabled: !activeDirModel.workspaceState?.tabs.length && !activeDirModel.lastSession,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.workspaceState?.tabs.length) {
-                this._dirController.restoreWorkspace();
+              if (activeDirModel.workspaceState?.tabs.length) {
+                activeDirController.restoreWorkspace();
               } else {
-                this._dirController.restoreLastSession();
+                activeDirController.restoreLastSession();
               }
             }
           }),
           mi("file:restore_on_startup", "restoreOnStartup", {
-            checked: this._dirModel.workspaceState?.restoreOnStartup !== false,
+            checked: activeDirModel.workspaceState?.restoreOnStartup !== false,
             action: () => {
-              const current = this._dirModel.workspaceState?.restoreOnStartup !== false;
-              this._dirController.setRestoreOnStartup(!current);
+              const current = activeDirModel.workspaceState?.restoreOnStartup !== false;
+              activeDirController.setRestoreOnStartup(!current);
             }
           }),
           { id: "file:sep2", label: "", separator: true },
@@ -21129,11 +21152,11 @@ var MenuController = class {
             action: () => {
               this._model.closeMenu();
               if (isDir) {
-                this._dirController.saveCurrentFile();
-              } else if (is3Way && this._threeWayController) {
-                this._threeWayController.save();
+                activeDirController.saveCurrentFile();
+              } else if (is3Way && activeThreeWayController) {
+                activeThreeWayController.save();
               } else {
-                this._diffController.requestSave();
+                activeDiffController.requestSave();
               }
             }
           }),
@@ -21160,13 +21183,15 @@ var MenuController = class {
               this._model.closeMenu();
               this._dirModel.setDirSession(null);
               this._diffModel.setSession(null);
+              if (activeTab?.dirModel) activeTab.dirModel.setDirSession(null);
+              if (activeTab?.diffModel) activeTab.diffModel.setSession(null);
             }
           }),
           mi("file:exit", "exit", {
             shortcut: "Ctrl+Q",
             action: () => {
               this._model.closeMenu();
-              this._dirController.requestExit(0);
+              activeDirController.requestExit(0);
             }
           })
         ]
@@ -21179,15 +21204,15 @@ var MenuController = class {
         items: [
           {
             id: "edit:toggle_mode",
-            label: this._diffModel.mode === "editing" ? i18n.t("menu.items.backToNav") : i18n.t("menu.items.enterEdit"),
+            label: activeDiffModel.mode === "editing" ? i18n.t("menu.items.backToNav") : i18n.t("menu.items.enterEdit"),
             shortcut: "E / Enter",
             disabled: !isTextDiff,
             searchAliases: [
-              this._diffModel.mode === "editing" ? i18n.locale === "ja" ? en.menu.items.backToNav : ja.menu.items.backToNav : i18n.locale === "ja" ? en.menu.items.enterEdit : ja.menu.items.enterEdit
+              activeDiffModel.mode === "editing" ? i18n.locale === "ja" ? en.menu.items.backToNav : ja.menu.items.backToNav : i18n.locale === "ja" ? en.menu.items.enterEdit : ja.menu.items.enterEdit
             ],
             action: () => {
               this._model.closeMenu();
-              this._diffController.toggleEditMode();
+              activeDiffController.toggleEditMode();
             }
           },
           { id: "edit:sep1", label: "", separator: true },
@@ -21196,7 +21221,7 @@ var MenuController = class {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.undo();
+              activeDiffController.undo();
             }
           }),
           mi("edit:redo", "redo", {
@@ -21204,7 +21229,7 @@ var MenuController = class {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.redo();
+              activeDiffController.redo();
             }
           }),
           { id: "edit:sep2", label: "", separator: true },
@@ -21228,10 +21253,10 @@ var MenuController = class {
             disabled: !isTextDiff && !is3Way,
             action: () => {
               this._model.closeMenu();
-              if (is3Way && this._threeWayController) {
-                this._threeWayController.nextConflict();
+              if (is3Way && activeThreeWayController) {
+                activeThreeWayController.nextConflict();
               } else {
-                this._diffController.nextHunk();
+                activeDiffController.nextHunk();
               }
             }
           }),
@@ -21240,28 +21265,28 @@ var MenuController = class {
             disabled: !isTextDiff && !is3Way,
             action: () => {
               this._model.closeMenu();
-              if (is3Way && this._threeWayController) {
-                this._threeWayController.prevConflict();
+              if (is3Way && activeThreeWayController) {
+                activeThreeWayController.prevConflict();
               } else {
-                this._diffController.prevHunk();
+                activeDiffController.prevHunk();
               }
             }
           }),
           { id: "merge:sep1", label: "", separator: true },
           mi("merge:left_to_right", "mergeLeftToRight", {
             shortcut: "Ctrl+R",
-            disabled: !isTextDiff || this._diffModel.session?.files.right.readOnly,
+            disabled: !isTextDiff || currentSession?.files.right.readOnly,
             action: () => {
               this._model.closeMenu();
-              this._diffController.mergeLeftToRight();
+              activeDiffController.mergeLeftToRight();
             }
           }),
           mi("merge:right_to_left", "mergeRightToLeft", {
             shortcut: "Ctrl+L",
-            disabled: !isTextDiff || this._diffModel.session?.files.left.readOnly,
+            disabled: !isTextDiff || currentSession?.files.left.readOnly,
             action: () => {
               this._model.closeMenu();
-              this._diffController.mergeRightToLeft();
+              activeDiffController.mergeRightToLeft();
             }
           }),
           { id: "merge:sep2", label: "", separator: true },
@@ -21270,7 +21295,7 @@ var MenuController = class {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.acceptHunk();
+              activeDiffController.acceptHunk();
             }
           }),
           mi("merge:reject", "rejectHunk", {
@@ -21278,21 +21303,21 @@ var MenuController = class {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.rejectHunk();
+              activeDiffController.rejectHunk();
             }
           }),
           mi("merge:accept_all", "acceptAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.acceptAllHunks();
+              activeDiffController.acceptAllHunks();
             }
           }),
           mi("merge:reject_all", "rejectAllHunks", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.rejectAllHunks();
+              activeDiffController.rejectAllHunks();
             }
           }),
           ...is3Way ? [
@@ -21301,21 +21326,21 @@ var MenuController = class {
               shortcut: "Alt+B",
               action: () => {
                 this._model.closeMenu();
-                this._threeWayController?.resolveActiveHunk("base");
+                activeThreeWayController?.resolveActiveHunk("base");
               }
             }),
             mi("merge:3way_left", "threeWayLeft", {
               shortcut: "Alt+L",
               action: () => {
                 this._model.closeMenu();
-                this._threeWayController?.resolveActiveHunk("local");
+                activeThreeWayController?.resolveActiveHunk("local");
               }
             }),
             mi("merge:3way_right", "threeWayRight", {
               shortcut: "Alt+R",
               action: () => {
                 this._model.closeMenu();
-                this._threeWayController?.resolveActiveHunk("remote");
+                activeThreeWayController?.resolveActiveHunk("remote");
               }
             })
           ] : []
@@ -21329,18 +21354,18 @@ var MenuController = class {
         items: [
           mi("view:toggle_noise", "toggleNoise", {
             shortcut: "Ctrl+N",
-            checked: this._diffModel.noiseFolded,
+            checked: activeDiffModel.noiseFolded,
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.toggleNoiseFolded();
+              activeDiffController.toggleNoiseFolded();
             }
           }),
           mi("view:expand_all", "expandAll", {
             disabled: !isTextDiff,
             action: () => {
               this._model.closeMenu();
-              this._diffController.expandAllHunks();
+              activeDiffController.expandAllHunks();
             }
           }),
           { id: "view:sep_tabs", label: "", separator: true },
@@ -21404,12 +21429,12 @@ var MenuController = class {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.dirSession?.targetDir) {
-                this._dirController.startGitSession(
-                  this._dirModel.dirSession.targetDir,
+              if (activeDirModel.dirSession?.targetDir) {
+                activeDirController.startGitSession(
+                  activeDirModel.dirSession.targetDir,
                   {
-                    branch: this._dirModel.dirSession.git?.branch,
-                    readOnly: this._dirModel.dirSession.readOnly
+                    branch: activeDirModel.dirSession.git?.branch,
+                    readOnly: activeDirModel.dirSession.readOnly
                   }
                 );
               }
@@ -21419,10 +21444,10 @@ var MenuController = class {
             disabled: !isGit,
             action: () => {
               this._model.closeMenu();
-              if (this._dirModel.dirSession?.targetDir) {
-                this._dirController.sendMessage({
+              if (activeDirModel.dirSession?.targetDir) {
+                activeDirController.sendMessage({
                   type: "git:list_worktrees",
-                  repoPath: this._dirModel.dirSession.targetDir
+                  repoPath: activeDirModel.dirSession.targetDir
                 });
               }
             }
@@ -38740,10 +38765,23 @@ var TabController = class {
    * DiffSessionData からファイル比較タブを開く。
    */
   openDiffSession(session, makeActive = true, relPath) {
-    const existing = relPath ? this._model.findTabByPath(relPath) : void 0;
+    let existing = relPath ? this._model.findTabByPath(relPath) : void 0;
+    if (!existing) {
+      existing = this._model.tabs.find((t4) => {
+        if (t4.sessionType === "directory" || t4.sessionType === "welcome") {
+          return false;
+        }
+        const s3 = t4.diffModel?.session;
+        if (!s3) return false;
+        return s3.files.left.path === session.files.left.path && s3.files.right.path === session.files.right.path && s3.files.base?.path === session.files.base?.path;
+      });
+    }
     if (existing) {
       if (existing.diffModel) {
         existing.diffModel.setSession(session);
+      }
+      if (existing.threeWayModel && session.mode === "3way") {
+        existing.threeWayModel.setSession(session);
       }
       if (makeActive) {
         this._model.setActiveTab(existing.id);
@@ -38797,13 +38835,17 @@ var TabController = class {
   openDirectorySession(dirSession, dirModel, dirController, makeActive = true) {
     const id2 = "dir-root";
     const existing = this._model.findTabById(id2);
+    const title = dirSession.git?.isGitRepo ? `\u{1F33F} ${dirSession.git.branch ?? "Git"} (Working Tree)` : `${this._extractBaseName(dirSession.targetDir)} (Dir)`;
     if (existing) {
+      existing.title = title;
+      existing.dirModel = dirModel;
+      existing.dirController = dirController;
       if (makeActive) {
         this._model.setActiveTab(id2);
       }
+      this._model.notify(this._model);
       return existing;
     }
-    const title = dirSession.git?.isGitRepo ? `\u{1F33F} ${dirSession.git.branch ?? "Git"} (Working Tree)` : `${this._extractBaseName(dirSession.targetDir)} (Dir)`;
     const tab2 = {
       id: id2,
       title,
@@ -39652,25 +39694,41 @@ function App({
     const cleanup = dirController.connectWebSocket();
     return cleanup;
   }, [dirController]);
+  const lastSyncedDiffRef = A2(null);
+  const lastSyncedDirRef = A2(null);
   h2(() => {
     if (dirModel.dirSession) {
-      tabController.openDirectorySession(
-        dirModel.dirSession,
-        dirModel,
-        dirController,
-        true
-      );
-      const welcome = tabModel.findTabById("welcome");
-      if (welcome && tabModel.tabs.length > 1) {
-        tabController.closeTabDirectly("welcome");
+      if (dirModel.dirSession !== lastSyncedDirRef.current) {
+        lastSyncedDirRef.current = dirModel.dirSession;
+        tabController.openDirectorySession(
+          dirModel.dirSession,
+          dirModel,
+          dirController,
+          true
+        );
+        const welcome = tabModel.findTabById("welcome");
+        if (welcome && tabModel.tabs.length > 1) {
+          tabController.closeTabDirectly("welcome");
+        }
       }
-    } else if (diffModel.session) {
-      const tab2 = tabController.openDiffSession(diffModel.session, true);
-      const welcome = tabModel.findTabById("welcome");
-      if (welcome && tabModel.tabs.length > 1 && tab2.id !== "welcome") {
-        tabController.closeTabDirectly("welcome");
+    } else {
+      lastSyncedDirRef.current = null;
+    }
+    if (diffModel.session) {
+      if (!dirModel.dirSession) {
+        if (diffModel.session !== lastSyncedDiffRef.current) {
+          lastSyncedDiffRef.current = diffModel.session;
+          const tab2 = tabController.openDiffSession(diffModel.session, true);
+          const welcome = tabModel.findTabById("welcome");
+          if (welcome && tabModel.tabs.length > 1 && tab2.id !== "welcome") {
+            tabController.closeTabDirectly("welcome");
+          }
+        }
       }
-    } else if (tabModel.tabs.length === 0) {
+    } else {
+      lastSyncedDiffRef.current = null;
+    }
+    if (!dirModel.dirSession && !diffModel.session && tabModel.tabs.length === 0) {
       tabController.openWelcomeTab(dirController, true);
     }
   }, [diffModel.session, dirModel.dirSession]);
@@ -39696,6 +39754,7 @@ function App({
     threeWayModel.session,
     tabModel.tabs,
     tabModel.activeTabId,
+    tabModel.activeTab,
     menuController,
     threeWayModel,
     threeWayController,
@@ -39722,21 +39781,27 @@ function App({
       if (handled) return;
     };
     globalThis.addEventListener("keydown", handleKeyDown, true);
-    let unbindKeymap;
-    if (diffModel.session?.mode === "3way") {
-      unbindKeymap = setupGlobalKeybindings(threeWayController);
-    } else {
-      unbindKeymap = setupGlobalKeybindings(diffController);
+    const active = tabModel.activeTab;
+    let targetController = diffController;
+    if (active?.sessionType === "3way") {
+      targetController = active.threeWayController ?? threeWayController;
+    } else if (active?.diffController) {
+      targetController = active.diffController;
+    } else if (diffModel.session?.mode === "3way") {
+      targetController = threeWayController;
     }
+    const unbindKeymap = setupGlobalKeybindings(targetController);
     return () => {
       globalThis.removeEventListener("keydown", handleKeyDown, true);
-      if (unbindKeymap) unbindKeymap();
+      unbindKeymap();
     };
   }, [
     diffController,
     threeWayController,
     menuController,
-    diffModel.session?.mode
+    diffModel.session?.mode,
+    tabModel.activeTabId,
+    tabModel.activeTab
   ]);
   h2(() => {
     if (diffModel.session) {

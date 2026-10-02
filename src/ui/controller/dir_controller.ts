@@ -97,10 +97,12 @@ export class DirectoryController {
   handleBackendMessage(msg: BackendToUiMessage): void {
     switch (msg.type) {
       case "session:init": {
+        this._model.clearDirSession();
         this._diffModel.setSession(msg.data);
         break;
       }
       case "dir:tree_data": {
+        this._diffModel.clearSession();
         this._model.setDirSession(msg.data);
         if (this._model.selectedPath) {
           this.selectFile(this._model.selectedPath);

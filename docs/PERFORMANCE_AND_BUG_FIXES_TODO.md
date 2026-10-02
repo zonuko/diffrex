@@ -54,7 +54,7 @@
 
 ### Phase 2: タブ・セッション・履歴オープンの排他正常化
 
-- [ ] **FIX-03: UI セッション状態の排他管理とクリア処理**
+- [x] **FIX-03: UI セッション状態の排他管理とクリア処理**
   - **対象**: `src/ui/controller/dir_controller.ts`, `src/ui/model/dir_diff_model.ts`, `src/ui/model/diff_session_model.ts`
   - **内容**:
     - バックエンドから `session:init`（ファイル比較）が届いた際、古いディレクトリセッション `dirModel.dirSession` を `null` にクリア。
@@ -62,7 +62,7 @@
   - **受入条件 (AC)**:
     - ディレクトリ比較を開いた後でも、メニューや Welcome 画面からファイル比較が問題なく開ける。
 
-- [ ] **FIX-04: App.tsx のタブ同期ディスパッチ修正**
+- [x] **FIX-04: App.tsx のタブ同期ディスパッチ修正**
   - **対象**: `src/ui/App.tsx`, `src/ui/controller/tab_controller.ts`
   - **内容**:
     - `useEffect([diffModel.session, dirModel.dirSession])` の安易な `if (dirModel.dirSession)` 優先ロジックを是正。
@@ -72,7 +72,7 @@
     - ディレクトリ比較を開いている最中に、「最近使ったもの」から別のファイルやディレクトリをクリックすると、確実に新しいタブとして開く。
     - タブの「＋」ボタンからの新規オープンが正常に動作する。
 
-- [ ] **FIX-05: 3-Way マージタブおよび各種タブでの保存・メニュー判定修正**
+- [x] **FIX-05: 3-Way マージタブおよび各種タブでの保存・メニュー判定修正**
   - **対象**: `src/ui/controller/menu_controller.ts`, `src/ui/App.tsx`
   - **内容**:
     - `rebuildMenu` や `Ctrl+S` のハンドラにおいて、グローバルモデルではなく `activeTab` のセッションタイプとモデル（`activeTab.threeWayModel`, `activeTab.diffModel`）を参照するように修正。

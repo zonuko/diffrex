@@ -1,7 +1,13 @@
 import { assertEquals } from "@std/assert";
 import { TabContainerModel } from "../src/ui/model/tab_model.ts";
 import { TabController } from "../src/ui/controller/tab_controller.ts";
-import type { DiffSessionData } from "../src/core/types.ts";
+import { DirectoryDiffModel } from "../src/ui/model/dir_diff_model.ts";
+import { DiffSessionModel } from "../src/ui/model/diff_session_model.ts";
+import { DirectoryController } from "../src/ui/controller/dir_controller.ts";
+import type {
+  DiffSessionData,
+  DirectoryDiffSessionData,
+} from "../src/core/types.ts";
 
 function createMockSession(id: string, name: string): DiffSessionData {
   return {
@@ -185,4 +191,106 @@ Deno.test("TabController: キーボードショートカット解釈", () => {
   assertEquals(handled, true);
   assertEquals(prevented, true);
   assertEquals(model.tabs.length, 2);
+});
+
+Deno.test("TabController: 別のディレクトリを開いた際に既存の dir-root タブの内容とタイトルが更新される (FIX-04)", () => {
+  const model = new TabContainerModel();
+  const controller = new TabController(model);
+  const dirModel = new DirectoryDiffModel();
+  const diffModel = new DiffSessionModel();
+  const dirController = new DirectoryController(dirModel, diffModel);
+
+  const dirSession1: DirectoryDiffSessionData = {
+    sessionId: "dir-1",
+    timestamp: new Date().toISOString(),
+    mode: "directory",
+    baseDir: "/repo/base1",
+    targetDir: "/repo/target1",
+    summary: {
+      total: 1,
+      identical: 0,
+      modified: 1,
+      added: 0,
+      deleted: 0,
+      binary: 0,
+      image: 0,
+    },
+    tree: {
+      name: "target1",
+      relativePath: "",
+      isDir: true,
+      status: "modified",
+    },
+    readOnly: false,
+  };
+
+  const tab1 = controller.openDirectorySession(
+    dirSession1,
+    dirModel,
+    dirController,
+  );
+  assertEquals(model.tabs.length, 1);
+  assertEquals(tab1.id, "dir-root");
+  assertEquals(tab1.title, "target1 (Dir)");
+
+  // 別のディレクトリセッションを開く
+  const dirSession2: DirectoryDiffSessionData = {
+    sessionId: "dir-2",
+    timestamp: new Date().toISOString(),
+    mode: "directory",
+    baseDir: "/repo/base2",
+    targetDir: "/repo/project2",
+    summary: {
+      total: 1,
+      identical: 0,
+      modified: 1,
+      added: 0,
+      deleted: 0,
+      binary: 0,
+      image: 0,
+    },
+    tree: {
+      name: "project2",
+      relativePath: "",
+      isDir: true,
+      status: "modified",
+    },
+    git: {
+      isGitRepo: true,
+      branch: "feature/fix-04",
+    },
+    readOnly: false,
+  };
+
+  const tab2 = controller.openDirectorySession(
+    dirSession2,
+    dirModel,
+    dirController,
+  );
+  // タブ数は増えず1つのまま
+  assertEquals(model.tabs.length, 1);
+  assertEquals(tab2.id, "dir-root");
+  // タイトルとモデルが最新情報で更新されている
+  assertEquals(tab2.title, "🌿 feature/fix-04 (Working Tree)");
+});
+
+Deno.test("TabController: relPath がない場合でも同一ファイルパスのセッションならタブを再利用する (FIX-04)", () => {
+  const model = new TabContainerModel();
+  const controller = new TabController(model);
+
+  const session1 = createMockSession("s1", "app.ts");
+  const tab1 = controller.openDiffSession(session1);
+  assertEquals(model.tabs.length, 1);
+
+  // 同じパスの別セッションオブジェクト
+  const session1Dup = createMockSession("s1-dup", "app.ts");
+  const tab1Reused = controller.openDiffSession(session1Dup);
+  assertEquals(model.tabs.length, 1);
+  assertEquals(tab1Reused.id, tab1.id);
+
+  // 異なるパスのセッション
+  const session2 = createMockSession("s2", "other.ts");
+  const tab2 = controller.openDiffSession(session2);
+  assertEquals(model.tabs.length, 2);
+  assertEquals(tab2.id !== tab1.id, true);
 });

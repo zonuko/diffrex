@@ -61,10 +61,28 @@ export class TabController {
     makeActive = true,
     relPath?: string,
   ): TabItem {
-    const existing = relPath ? this._model.findTabByPath(relPath) : undefined;
+    let existing = relPath ? this._model.findTabByPath(relPath) : undefined;
+    if (!existing) {
+      existing = this._model.tabs.find((t) => {
+        if (t.sessionType === "directory" || t.sessionType === "welcome") {
+          return false;
+        }
+        const s = t.diffModel?.session;
+        if (!s) return false;
+        return (
+          s.files.left.path === session.files.left.path &&
+          s.files.right.path === session.files.right.path &&
+          s.files.base?.path === session.files.base?.path
+        );
+      });
+    }
+
     if (existing) {
       if (existing.diffModel) {
         existing.diffModel.setSession(session);
+      }
+      if (existing.threeWayModel && session.mode === "3way") {
+        existing.threeWayModel.setSession(session);
       }
       if (makeActive) {
         this._model.setActiveTab(existing.id);
@@ -134,16 +152,21 @@ export class TabController {
   ): TabItem {
     const id = "dir-root";
     const existing = this._model.findTabById(id);
-    if (existing) {
-      if (makeActive) {
-        this._model.setActiveTab(id);
-      }
-      return existing;
-    }
 
     const title = dirSession.git?.isGitRepo
       ? `🌿 ${dirSession.git.branch ?? "Git"} (Working Tree)`
       : `${this._extractBaseName(dirSession.targetDir)} (Dir)`;
+
+    if (existing) {
+      existing.title = title;
+      existing.dirModel = dirModel;
+      existing.dirController = dirController;
+      if (makeActive) {
+        this._model.setActiveTab(id);
+      }
+      this._model.notify(this._model);
+      return existing;
+    }
 
     const tab: TabItem = {
       id,

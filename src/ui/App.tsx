@@ -4,7 +4,7 @@
  * Single File Diff (2-Way), Directory Diff (2-pane), 3-Way Merge, Welcome 画面のディスパッチを行う。
  */
 
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { DiffSessionModel } from "./model/diff_session_model.ts";
 import { DiffController } from "./controller/diff_controller.ts";
 import { DirectoryDiffModel } from "./model/dir_diff_model.ts";
@@ -202,27 +202,51 @@ export function App(
     return cleanup;
   }, [dirController]);
 
-  // 初期タブ設定またはセッション到着時のタブ同期
+  const lastSyncedDiffRef = useRef<DiffSessionData | null>(null);
+  const lastSyncedDirRef = useRef<
+    import("../core/types.ts").DirectoryDiffSessionData | null
+  >(null);
+
+  // 初期タブ設定またはセッション到着時のタブ同期 (FIX-04)
   useEffect(() => {
     if (dirModel.dirSession) {
-      tabController.openDirectorySession(
-        dirModel.dirSession,
-        dirModel,
-        dirController,
-        true,
-      );
-      // Welcome タブが残っていれば閉じる
-      const welcome = tabModel.findTabById("welcome");
-      if (welcome && tabModel.tabs.length > 1) {
-        tabController.closeTabDirectly("welcome");
+      if (dirModel.dirSession !== lastSyncedDirRef.current) {
+        lastSyncedDirRef.current = dirModel.dirSession;
+        tabController.openDirectorySession(
+          dirModel.dirSession,
+          dirModel,
+          dirController,
+          true,
+        );
+        // Welcome タブが残っていれば閉じる
+        const welcome = tabModel.findTabById("welcome");
+        if (welcome && tabModel.tabs.length > 1) {
+          tabController.closeTabDirectly("welcome");
+        }
       }
-    } else if (diffModel.session) {
-      const tab = tabController.openDiffSession(diffModel.session, true);
-      const welcome = tabModel.findTabById("welcome");
-      if (welcome && tabModel.tabs.length > 1 && tab.id !== "welcome") {
-        tabController.closeTabDirectly("welcome");
+    } else {
+      lastSyncedDirRef.current = null;
+    }
+
+    if (diffModel.session) {
+      // ディレクトリ比較ツリーでのプレビュー選択でなければ、スタンドアロンファイル比較としてタブを開く
+      if (!dirModel.dirSession) {
+        if (diffModel.session !== lastSyncedDiffRef.current) {
+          lastSyncedDiffRef.current = diffModel.session;
+          const tab = tabController.openDiffSession(diffModel.session, true);
+          const welcome = tabModel.findTabById("welcome");
+          if (welcome && tabModel.tabs.length > 1 && tab.id !== "welcome") {
+            tabController.closeTabDirectly("welcome");
+          }
+        }
       }
-    } else if (tabModel.tabs.length === 0) {
+    } else {
+      lastSyncedDiffRef.current = null;
+    }
+
+    if (
+      !dirModel.dirSession && !diffModel.session && tabModel.tabs.length === 0
+    ) {
       tabController.openWelcomeTab(dirController, true);
     }
   }, [diffModel.session, dirModel.dirSession]);
@@ -252,6 +276,7 @@ export function App(
     threeWayModel.session,
     tabModel.tabs,
     tabModel.activeTabId,
+    tabModel.activeTab,
     menuController,
     threeWayModel,
     threeWayController,
@@ -278,7 +303,7 @@ export function App(
     dirController,
   ]);
 
-  // グローバルキーバインド (Keymap & MenuController)
+  // グローバルキーバインド (Keymap & MenuController - FIX-05)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const handled = menuController.handleGlobalKeyDown(e);
@@ -287,22 +312,30 @@ export function App(
 
     globalThis.addEventListener("keydown", handleKeyDown, true);
 
-    let unbindKeymap: (() => void) | undefined;
-    if (diffModel.session?.mode === "3way") {
-      unbindKeymap = setupGlobalKeybindings(threeWayController);
-    } else {
-      unbindKeymap = setupGlobalKeybindings(diffController);
+    const active = tabModel.activeTab;
+    let targetController:
+      import("./controller/keymap.ts").KeyHandlerController = diffController;
+    if (active?.sessionType === "3way") {
+      targetController = active.threeWayController ?? threeWayController;
+    } else if (active?.diffController) {
+      targetController = active.diffController;
+    } else if (diffModel.session?.mode === "3way") {
+      targetController = threeWayController;
     }
+
+    const unbindKeymap = setupGlobalKeybindings(targetController);
 
     return () => {
       globalThis.removeEventListener("keydown", handleKeyDown, true);
-      if (unbindKeymap) unbindKeymap();
+      unbindKeymap();
     };
   }, [
     diffController,
     threeWayController,
     menuController,
     diffModel.session?.mode,
+    tabModel.activeTabId,
+    tabModel.activeTab,
   ]);
 
   // 自動セッションスナップショット保存 (B6-03) & ワークスペース自動保存 (B17-03: 300ms デバウンス)
