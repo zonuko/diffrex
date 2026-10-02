@@ -6,7 +6,7 @@
   },
   "tasks": {
     "dev": "deno run -A main.ts",
-    "dev:desktop": "deno desktop --icon ./assets/icon.ico -A --hmr main.ts",
+    "dev:desktop": "deno desktop --icon ./assets/icon.icns -A --hmr main.ts",
     "demo:welcome": "deno run -A main.ts -w",
     "demo:dir": "deno run -A main.ts tests/fixtures/dir_base tests/fixtures/dir_target -w",
     "demo:sample": "deno run -A main.ts tests/fixtures/sample_base.ts tests/fixtures/sample_target.ts --prompt \"テスト\" -w",
