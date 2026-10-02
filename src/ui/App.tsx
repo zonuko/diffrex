@@ -338,47 +338,48 @@ export function App(
     tabModel.activeTab,
   ]);
 
-  // 自動セッションスナップショット保存 (B6-03) & ワークスペース自動保存 (B17-03: 300ms デバウンス)
+  // 自動セッションスナップショット保存 (B6-03) & ワークスペース自動保存 (B17-03: 300ms デバウンス, FIX-10)
   useEffect(() => {
-    if (diffModel.session) {
-      const s = diffModel.session;
-      const hunkStatuses: Record<
-        string,
-        import("../core/types.ts").HunkStatus
-      > = {};
-      for (const hunk of s.hunks) {
-        hunkStatuses[hunk.id] = hunk.status;
-      }
-      dirController.saveSnapshot({
-        timestamp: new Date().toISOString(),
-        mode: s.mode,
-        leftPath: s.files.left.path,
-        rightPath: s.files.right.path,
-        basePath: s.files.base?.path,
-        outputPath: s.outputPath,
-        readOnly: s.files.right.readOnly,
-        prompt: s.aiContext?.prompt,
-        agent: s.aiContext?.agent,
-        model: s.aiContext?.model,
-        hunkStatuses,
-      });
-    } else if (dirModel.dirSession) {
-      const ds = dirModel.dirSession;
-      dirController.saveSnapshot({
-        timestamp: new Date().toISOString(),
-        mode: "directory",
-        leftPath: ds.baseDir,
-        rightPath: ds.targetDir,
-        readOnly: ds.readOnly,
-        prompt: ds.aiContext?.prompt,
-        agent: ds.aiContext?.agent,
-        model: ds.aiContext?.model,
-      });
-    }
-
-    // ワークスペース状態の 300ms デバウンス自動保存 (B17-03)
-    const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
     const timer = setTimeout(() => {
+      if (diffModel.session) {
+        const s = diffModel.session;
+        const hunkStatuses: Record<
+          string,
+          import("../core/types.ts").HunkStatus
+        > = {};
+        for (const hunk of s.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        dirController.saveSnapshot({
+          timestamp: new Date().toISOString(),
+          mode: s.mode,
+          leftPath: s.files.left.path,
+          rightPath: s.files.right.path,
+          basePath: s.files.base?.path,
+          outputPath: s.outputPath,
+          readOnly: s.files.right.readOnly,
+          prompt: s.aiContext?.prompt,
+          agent: s.aiContext?.agent,
+          model: s.aiContext?.model,
+          hunkStatuses,
+        });
+      } else if (dirModel.dirSession) {
+        const ds = dirModel.dirSession;
+        dirController.saveSnapshot({
+          timestamp: new Date().toISOString(),
+          mode: "directory",
+          leftPath: ds.baseDir,
+          rightPath: ds.targetDir,
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model,
+        });
+      }
+
+      // ワークスペース状態の 300ms デバウンス自動保存 (B17-03)
+      const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ??
+        true;
       const state = tabController.snapshotWorkspace(restoreOnStartup);
       dirController.saveWorkspaceState(state);
     }, 300);
@@ -397,9 +398,45 @@ export function App(
     tabController,
   ]);
 
-  // アプリ終了時 / ページ離脱時の即時保存 (B17-03)
+  // アプリ終了時 / ページ離脱時の即時保存 (B17-03, FIX-10)
   useEffect(() => {
     const handleBeforeUnload = () => {
+      if (diffModel.session) {
+        const s = diffModel.session;
+        const hunkStatuses: Record<
+          string,
+          import("../core/types.ts").HunkStatus
+        > = {};
+        for (const hunk of s.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        dirController.saveSnapshot({
+          timestamp: new Date().toISOString(),
+          mode: s.mode,
+          leftPath: s.files.left.path,
+          rightPath: s.files.right.path,
+          basePath: s.files.base?.path,
+          outputPath: s.outputPath,
+          readOnly: s.files.right.readOnly,
+          prompt: s.aiContext?.prompt,
+          agent: s.aiContext?.agent,
+          model: s.aiContext?.model,
+          hunkStatuses,
+        });
+      } else if (dirModel.dirSession) {
+        const ds = dirModel.dirSession;
+        dirController.saveSnapshot({
+          timestamp: new Date().toISOString(),
+          mode: "directory",
+          leftPath: ds.baseDir,
+          rightPath: ds.targetDir,
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model,
+        });
+      }
+
       const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ??
         true;
       const state = tabController.snapshotWorkspace(restoreOnStartup);
@@ -410,7 +447,13 @@ export function App(
     return () => {
       globalThis.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [dirController, tabController, dirModel.workspaceState?.restoreOnStartup]);
+  }, [
+    dirController,
+    tabController,
+    diffModel.session,
+    dirModel.dirSession,
+    dirModel.workspaceState?.restoreOnStartup,
+  ]);
 
   // グローバルドラッグ＆ドロップ (B6-02)
   useEffect(() => {

@@ -65,21 +65,100 @@ export function computeLineDiff(
     }));
   }
 
-  // Myers diff
-  const max = n + m;
-  const v = new Map<number, number>();
-  v.set(1, 0);
+  // 1. 先頭一致行（Common Prefix）のスキップ (FIX-08)
+  let prefix = 0;
+  while (prefix < n && prefix < m && aLines[prefix] === bLines[prefix]) {
+    prefix++;
+  }
 
-  const trace: Map<number, number>[] = [];
+  // 2. 末尾一致行（Common Suffix）のスキップ (FIX-08)
+  let suffix = 0;
+  while (
+    suffix < n - prefix &&
+    suffix < m - prefix &&
+    aLines[n - 1 - suffix] === bLines[m - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  const prefixItems: DiffItem[] = [];
+  for (let i = 0; i < prefix; i++) {
+    prefixItems.push({
+      op: "equal",
+      line: aLines[i],
+      leftLineNo: i + 1,
+      rightLineNo: i + 1,
+    });
+  }
+
+  const suffixItems: DiffItem[] = [];
+  for (let i = 0; i < suffix; i++) {
+    const leftIdx = n - suffix + i;
+    const rightIdx = m - suffix + i;
+    suffixItems.push({
+      op: "equal",
+      line: aLines[leftIdx],
+      leftLineNo: leftIdx + 1,
+      rightLineNo: rightIdx + 1,
+    });
+  }
+
+  const midA = aLines.slice(prefix, n - suffix);
+  const midB = bLines.slice(prefix, m - suffix);
+
+  let middleItems: DiffItem[] = [];
+  if (midA.length === 0 && midB.length === 0) {
+    // 差分なし（全行一致）
+    return [...prefixItems, ...suffixItems];
+  } else if (midA.length === 0) {
+    middleItems = midB.map((line, idx) => ({
+      op: "insert",
+      line,
+      rightLineNo: prefix + idx + 1,
+    }));
+  } else if (midB.length === 0) {
+    middleItems = midA.map((line, idx) => ({
+      op: "delete",
+      line,
+      leftLineNo: prefix + idx + 1,
+    }));
+  } else {
+    middleItems = computeMyersDiffCore(midA, midB, prefix);
+  }
+
+  return [...prefixItems, ...middleItems, ...suffixItems];
+}
+
+/**
+ * Myers Diff コア探索（TypedArray による高速化 & Map 生成削減）
+ */
+function computeMyersDiffCore(
+  aLines: string[],
+  bLines: string[],
+  lineOffset: number,
+): DiffItem[] {
+  const n = aLines.length;
+  const m = bLines.length;
+  const max = n + m;
+  const offset = max + 1;
+
+  // v 配列のサイズ: 2 * max + 3
+  const v = new Int32Array(2 * max + 3);
+  v.fill(-1);
+  v[1 + offset] = 0;
+
+  const trace: Int32Array[] = [];
 
   for (let d = 0; d <= max; d++) {
-    const vCopy = new Map(v);
-    trace.push(vCopy);
+    // 直前ステップまでの v の有効範囲 [-d-1, d+1] (長さ 2d + 3) をスライス保存
+    const snapshot = new Int32Array(2 * d + 3);
+    snapshot.set(v.subarray(-d - 1 + offset, d + 2 + offset));
+    trace.push(snapshot);
 
     for (let k = -d; k <= d; k += 2) {
       let x: number;
-      const vKMinus = v.get(k - 1) ?? -1;
-      const vKPlus = v.get(k + 1) ?? -1;
+      const vKMinus = v[k - 1 + offset];
+      const vKPlus = v[k + 1 + offset];
 
       if (k === -d || (k !== d && vKMinus < vKPlus)) {
         x = vKPlus; // 下への移動（insert）
@@ -95,11 +174,11 @@ export function computeLineDiff(
         y++;
       }
 
-      v.set(k, x);
+      v[k + offset] = x;
 
       if (x >= n && y >= m) {
         // バックトラックして操作列を構築
-        return backtrack(trace, aLines, bLines, d, k);
+        return backtrackTyped(trace, aLines, bLines, d, lineOffset);
       }
     }
   }
@@ -110,23 +189,31 @@ export function computeLineDiff(
 /**
  * Myers diff の探索トレースをバックトラックして DiffItem[] を生成する。
  */
-function backtrack(
-  trace: Map<number, number>[],
+function backtrackTyped(
+  trace: Int32Array[],
   aLines: string[],
   bLines: string[],
   d: number,
-  _k: number,
+  lineOffset: number,
 ): DiffItem[] {
   const items: DiffItem[] = [];
   let x = aLines.length;
   let y = bLines.length;
 
   for (let step = d; step > 0; step--) {
-    const v = trace[step];
+    const vSnapshot = trace[step];
     const k = x - y;
 
-    const vKMinus = v.get(k - 1) ?? -1;
-    const vKPlus = v.get(k + 1) ?? -1;
+    // snapshot では k' のインデックスは k' + step + 1
+    const idxKMinus = (k - 1) + step + 1;
+    const idxKPlus = (k + 1) + step + 1;
+
+    const vKMinus = (idxKMinus >= 0 && idxKMinus < vSnapshot.length)
+      ? vSnapshot[idxKMinus]
+      : -1;
+    const vKPlus = (idxKPlus >= 0 && idxKPlus < vSnapshot.length)
+      ? vSnapshot[idxKPlus]
+      : -1;
 
     let prevK: number;
     if (k === -step || (k !== step && vKMinus < vKPlus)) {
@@ -135,7 +222,10 @@ function backtrack(
       prevK = k - 1;
     }
 
-    const prevX = v.get(prevK) ?? 0;
+    const idxPrevK = prevK + step + 1;
+    const prevX = (idxPrevK >= 0 && idxPrevK < vSnapshot.length)
+      ? vSnapshot[idxPrevK]
+      : 0;
     const prevY = prevX - prevK;
 
     // 対角線部分の回収（equal）
@@ -143,8 +233,8 @@ function backtrack(
       items.push({
         op: "equal",
         line: aLines[x - 1],
-        leftLineNo: x,
-        rightLineNo: y,
+        leftLineNo: x + lineOffset,
+        rightLineNo: y + lineOffset,
       });
       x--;
       y--;
@@ -156,7 +246,7 @@ function backtrack(
         items.push({
           op: "insert",
           line: bLines[y - 1],
-          rightLineNo: y,
+          rightLineNo: y + lineOffset,
         });
         y--;
       }
@@ -166,7 +256,7 @@ function backtrack(
         items.push({
           op: "delete",
           line: aLines[x - 1],
-          leftLineNo: x,
+          leftLineNo: x + lineOffset,
         });
         x--;
       }
@@ -178,8 +268,8 @@ function backtrack(
     items.push({
       op: "equal",
       line: aLines[x - 1],
-      leftLineNo: x,
-      rightLineNo: y,
+      leftLineNo: x + lineOffset,
+      rightLineNo: y + lineOffset,
     });
     x--;
     y--;
@@ -189,7 +279,7 @@ function backtrack(
     items.push({
       op: "delete",
       line: aLines[x - 1],
-      leftLineNo: x,
+      leftLineNo: x + lineOffset,
     });
     x--;
   }
@@ -198,7 +288,7 @@ function backtrack(
     items.push({
       op: "insert",
       line: bLines[y - 1],
-      rightLineNo: y,
+      rightLineNo: y + lineOffset,
     });
     y--;
   }

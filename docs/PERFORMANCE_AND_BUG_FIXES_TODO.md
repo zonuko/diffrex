@@ -102,7 +102,7 @@
 
 ### Phase 4: パフォーマンス最適化 & 堅牢化
 
-- [ ] **FIX-08: Myers Diff の高速化（共通行スキップ & Map生成削減）**
+- [x] **FIX-08: Myers Diff の高速化（共通行スキップ & Map生成削減）**
   - **対象**: `src/core/diff.ts`
   - **内容**:
     - `computeLineDiff` の前処理として、先頭および末尾の完全一致行を高速スキップする Common Prefix / Suffix Stripping を導入。
@@ -110,7 +110,7 @@
   - **受入条件 (AC)**:
     - 数千行の差分比較でもメモリが跳ね上がらず、GC ストールが発生しない。
 
-- [ ] **FIX-09: ディレクトリ比較（compareDirectories）の最適化**
+- [x] **FIX-09: ディレクトリ比較（compareDirectories）の最適化**
   - **対象**: `src/core/dir_diff.ts`
   - **内容**:
     - `mtime`（更新日時）と `size`（ファイルサイズ）が完全に一致している通常ファイルは、SHA-256 ハッシュ計算をスキップして `identical` と判定するクイック比較を導入。
@@ -118,7 +118,7 @@
   - **受入条件 (AC)**:
     - 変更のないファイルの比較が瞬時に完了し、I/O 負荷が激減する。
 
-- [ ] **FIX-10: saveSnapshot のデバウンス統合とパス正規化**
+- [x] **FIX-10: saveSnapshot のデバウンス統合とパス正規化**
   - **対象**: `src/ui/App.tsx`, `src/desktop/window.ts`
   - **内容**:
     - `dirController.saveSnapshot` を 300ms デバウンスタイマー内に統合し、ツリー開閉や文字入力ごとの過剰なファイル書き込みを防止。

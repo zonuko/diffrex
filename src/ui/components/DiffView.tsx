@@ -100,6 +100,23 @@ const noiseFoldField = StateField.define<DecorationSet>({
   provide: (f) => Prec.highest(EditorView.decorations.from(f)),
 });
 
+// 1.5. ノイズ展開中バナー専用 (Widget, クリックで再折りたたみ)
+export const setNoiseExpandedEffect = StateEffect.define<DecorationSet>();
+const noiseExpandedField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setNoiseExpandedEffect)) {
+        return effect.value;
+      }
+    }
+    return decorations.map(tr.changes);
+  },
+  provide: (f) => Prec.high(EditorView.decorations.from(f)),
+});
+
 // 2. リスク警告バナー専用 (Widget)
 export const setRiskBannerEffect = StateEffect.define<DecorationSet>();
 const riskBannerField = StateField.define<DecorationSet>({
@@ -244,6 +261,69 @@ class NoiseFoldWidget extends WidgetType {
   }
 }
 
+// Noise 展開中用 Widget (クリックで再折りたたみ)
+class NoiseExpandedWidget extends WidgetType {
+  constructor(
+    readonly hunkId: string,
+    readonly linesCount: number,
+    readonly summaryTag: string,
+    readonly onToggle: () => void,
+  ) {
+    super();
+  }
+
+  override eq(other: NoiseExpandedWidget): boolean {
+    return (
+      other.hunkId === this.hunkId &&
+      other.linesCount === this.linesCount &&
+      other.summaryTag === this.summaryTag
+    );
+  }
+
+  override toDOM(): HTMLElement {
+    const wrap = document.createElement("div");
+    wrap.className = "cm-noise-expanded-widget";
+    wrap.title = "Click to collapse noise hunk";
+
+    const icon = document.createElement("span");
+    icon.className = "fold-icon";
+    icon.textContent = "▼";
+
+    const label = document.createElement("span");
+    label.className = "fold-label";
+    label.textContent = `${this.linesCount} line${
+      this.linesCount !== 1 ? "s" : ""
+    } of formatting changes (expanded)`;
+
+    wrap.appendChild(icon);
+
+    if (this.summaryTag) {
+      const tag = document.createElement("span");
+      tag.className = "fold-tag";
+      tag.textContent = this.summaryTag;
+      wrap.appendChild(tag);
+    }
+
+    wrap.appendChild(label);
+
+    const hint = document.createElement("span");
+    hint.className = "fold-action-hint";
+    hint.textContent = "Click to collapse";
+    wrap.appendChild(hint);
+
+    wrap.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.onToggle();
+    });
+
+    return wrap;
+  }
+
+  override ignoreEvent(): boolean {
+    return false;
+  }
+}
+
 // Risk 警告バッジ用 Widget (P4-10, B20-04)
 class RiskBannerWidget extends WidgetType {
   constructor(
@@ -369,12 +449,18 @@ function buildDecorationsForEditor(
   controller: DiffController,
 ): {
   foldDecos: DecorationSet;
+  noiseExpandedDecos: DecorationSet;
   bannerDecos: DecorationSet;
   lineDecos: DecorationSet;
   reviewMarkers: RangeSet<GutterMarker>;
 } {
   const docLines = doc.lines;
   const foldRanges: Array<{ from: number; to: number; value: Decoration }> = [];
+  const noiseExpandedRanges: Array<{
+    from: number;
+    to: number;
+    value: Decoration;
+  }> = [];
   const bannerRanges: Array<{ from: number; to: number; value: Decoration }> =
     [];
   const lineRanges: Array<{ from: number; to: number; value: Decoration }> = [];
@@ -382,6 +468,7 @@ function buildDecorationsForEditor(
     [];
 
   const processedFoldPos = new Set<number>();
+  const processedNoiseExpandedPos = new Set<number>();
   const processedBannerPos = new Set<number>();
   const processedLinePos = new Set<number>();
   const processedReviewPos = new Set<number>();
@@ -449,6 +536,24 @@ function buildDecorationsForEditor(
         }
       }
     } else {
+      // 展開中のノイズ Hunk の場合、上部にクリックで再折りたたみ可能なバーを表示
+      if (h.isNoise && !isZeroLines) {
+        if (!processedNoiseExpandedPos.has(from)) {
+          processedNoiseExpandedPos.add(from);
+          noiseExpandedRanges.push(
+            Decoration.widget({
+              widget: new NoiseExpandedWidget(
+                h.id,
+                linesCount,
+                h.summaryTag || "",
+                () => controller.toggleHunkFold(h.id),
+              ),
+              side: -1,
+              block: true,
+            }).range(from),
+          );
+        }
+      }
       // Risk バナー & 行ボーダー (P4-10)
       if (h.riskLevel === "danger" || h.riskLevel === "warning") {
         // バナー Widget (先頭位置に配置)
@@ -501,11 +606,13 @@ function buildDecorationsForEditor(
     }
   }
 
+  noiseExpandedRanges.sort((a, b) => a.from - b.from);
   bannerRanges.sort((a, b) => a.from - b.from);
   lineRanges.sort((a, b) => a.from - b.from);
   reviewPositions.sort((a, b) => a.pos - b.pos);
 
   let foldDecos = Decoration.none;
+  let noiseExpandedDecos = Decoration.none;
   let bannerDecos = Decoration.none;
   let lineDecos = Decoration.none;
   const reviewBuilder = new RangeSetBuilder<GutterMarker>();
@@ -525,6 +632,16 @@ function buildDecorationsForEditor(
   }
 
   try {
+    noiseExpandedDecos = Decoration.set(noiseExpandedRanges, true);
+  } catch (err) {
+    console.error(
+      "Failed to set noiseExpandedDecos:",
+      err,
+      noiseExpandedRanges,
+    );
+  }
+
+  try {
     bannerDecos = Decoration.set(bannerRanges, true);
   } catch (err) {
     console.error("Failed to set bannerDecos:", err, bannerRanges);
@@ -536,7 +653,13 @@ function buildDecorationsForEditor(
     console.error("Failed to set lineDecos:", err, lineRanges);
   }
 
-  return { foldDecos, bannerDecos, lineDecos, reviewMarkers };
+  return {
+    foldDecos,
+    noiseExpandedDecos,
+    bannerDecos,
+    lineDecos,
+    reviewMarkers,
+  };
 }
 
 export function DiffView({ model, controller }: DiffViewProps) {
@@ -602,6 +725,7 @@ export function DiffView({ model, controller }: DiffViewProps) {
       oneDark,
       activeHunkField,
       noiseFoldField,
+      noiseExpandedField,
       riskBannerField,
       riskLineField,
       keymap.of([...defaultKeymap, ...historyKeymap]),
@@ -680,6 +804,7 @@ export function DiffView({ model, controller }: DiffViewProps) {
       mergeView.a.dispatch({
         effects: [
           setNoiseFoldEffect.of(initialLeft.foldDecos),
+          setNoiseExpandedEffect.of(initialLeft.noiseExpandedDecos),
           setRiskBannerEffect.of(initialLeft.bannerDecos),
           setRiskLineEffect.of(initialLeft.lineDecos),
           setReviewGutterEffect.of(initialLeft.reviewMarkers),
@@ -688,6 +813,7 @@ export function DiffView({ model, controller }: DiffViewProps) {
       mergeView.b.dispatch({
         effects: [
           setNoiseFoldEffect.of(initialRight.foldDecos),
+          setNoiseExpandedEffect.of(initialRight.noiseExpandedDecos),
           setRiskBannerEffect.of(initialRight.bannerDecos),
           setRiskLineEffect.of(initialRight.lineDecos),
           setReviewGutterEffect.of(initialRight.reviewMarkers),
@@ -777,6 +903,7 @@ export function DiffView({ model, controller }: DiffViewProps) {
     mergeView.a.dispatch({
       effects: [
         setNoiseFoldEffect.of(left.foldDecos),
+        setNoiseExpandedEffect.of(left.noiseExpandedDecos),
         setRiskBannerEffect.of(left.bannerDecos),
         setRiskLineEffect.of(left.lineDecos),
         setReviewGutterEffect.of(left.reviewMarkers),
@@ -786,6 +913,7 @@ export function DiffView({ model, controller }: DiffViewProps) {
     mergeView.b.dispatch({
       effects: [
         setNoiseFoldEffect.of(right.foldDecos),
+        setNoiseExpandedEffect.of(right.noiseExpandedDecos),
         setRiskBannerEffect.of(right.bannerDecos),
         setRiskLineEffect.of(right.lineDecos),
         setReviewGutterEffect.of(right.reviewMarkers),

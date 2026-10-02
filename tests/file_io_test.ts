@@ -122,3 +122,32 @@ Deno.test("readStdinTarget: ターミナル時はエラーを投げる", async (
     );
   }
 });
+
+Deno.test("NormalizedMetadataMap: Windows パス区切り・大文字小文字の違いを正規化して検索できる (FIX-10)", async () => {
+  const { NormalizedMetadataMap } = await import("../src/core/file_io.ts");
+  const map = new NormalizedMetadataMap();
+
+  const meta = {
+    lineEnding: "crlf" as const,
+    hasTrailingNewline: true,
+    hasBom: false,
+  };
+
+  map.set("C:\\Users\\Test\\File.txt", meta);
+
+  // 小文字化 / スラッシュ区切りでの取得
+  assertEquals(map.get("c:/users/test/file.txt"), meta);
+  // 元の形式での取得
+  assertEquals(map.get("C:\\Users\\Test\\File.txt"), meta);
+  // has の判定
+  assertEquals(map.has("c:/users/test/file.txt"), true);
+
+  // <stdin> はそのまま保持されること
+  const stdinMeta = {
+    lineEnding: "lf" as const,
+    hasTrailingNewline: false,
+    hasBom: false,
+  };
+  map.set("<stdin>", stdinMeta);
+  assertEquals(map.get("<stdin>"), stdinMeta);
+});

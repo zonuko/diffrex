@@ -46,6 +46,7 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
   private _isDirty: boolean = false;
   private _noiseFolded: boolean = true;
   private _expandedHunkIds: Set<string> = new Set();
+  private _collapsedHunkIds: Set<string> = new Set();
   private _hunkExplanations: Map<string, string> = new Map();
   private _explainStatus: Map<string, "idle" | "loading" | "done" | "error"> =
     new Map();
@@ -285,6 +286,7 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
     this._session = session;
     this._isDirty = false;
     this._expandedHunkIds.clear();
+    this._collapsedHunkIds.clear();
     this.notify(this);
   }
 
@@ -322,30 +324,46 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
 
   /**
    * ノイズ hunk の一括折りたたみ状態を設定する。
+   * 個別に展開・折りたたみオーバーライドされていた状態もリセットし、全体を一括同期する。
    */
   setNoiseFolded(folded: boolean): void {
-    if (this._noiseFolded !== folded) {
+    if (
+      this._noiseFolded !== folded ||
+      this._expandedHunkIds.size > 0 ||
+      this._collapsedHunkIds.size > 0
+    ) {
       this._noiseFolded = folded;
+      this._expandedHunkIds.clear();
+      this._collapsedHunkIds.clear();
       this.notify(this);
     }
   }
 
   /**
    * ノイズ hunk の一括折りたたみ状態を反転する。
+   * 個別に展開・折りたたみオーバーライドされていた状態もリセットし、全体を一括同期する。
    */
   toggleNoiseFolded(): void {
-    this._noiseFolded = !this._noiseFolded;
-    this.notify(this);
+    this.setNoiseFolded(!this._noiseFolded);
   }
 
   /**
    * 個別 hunk の展開/折りたたみ状態を切り替える。
    */
   toggleHunkFold(hunkId: string): void {
-    if (this._expandedHunkIds.has(hunkId)) {
-      this._expandedHunkIds.delete(hunkId);
+    const currentlyFolded = this.isHunkFolded(hunkId, true);
+    if (this._noiseFolded) {
+      if (currentlyFolded) {
+        this._expandedHunkIds.add(hunkId);
+      } else {
+        this._expandedHunkIds.delete(hunkId);
+      }
     } else {
-      this._expandedHunkIds.add(hunkId);
+      if (currentlyFolded) {
+        this._collapsedHunkIds.delete(hunkId);
+      } else {
+        this._collapsedHunkIds.add(hunkId);
+      }
     }
     this.notify(this);
   }
@@ -355,11 +373,11 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
    */
   isHunkFolded(hunkId: string, isNoise: boolean): boolean {
     if (!isNoise) return false;
-    if (!this._noiseFolded) {
-      // 一括展開時でも個別に折りたたまれているか（必要に応じて拡張可能だが基本は noiseFolded を基点とする）
-      return false;
+    if (this._noiseFolded) {
+      return !this._expandedHunkIds.has(hunkId);
+    } else {
+      return this._collapsedHunkIds.has(hunkId);
     }
-    return !this._expandedHunkIds.has(hunkId);
   }
 
   /**
@@ -638,6 +656,7 @@ export class DiffSessionModel extends Observable<DiffSessionModel> {
   expandAllHunks(): void {
     this._noiseFolded = false;
     this._expandedHunkIds.clear();
+    this._collapsedHunkIds.clear();
     this.setStatusMessage("すべての差分ブロックを展開しました");
     this.notify(this);
   }

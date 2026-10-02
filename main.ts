@@ -8,7 +8,7 @@ import { printUsage, printVersion } from "./src/cli/usage.ts";
 import { validateCliArgs } from "./src/cli/validate.ts";
 import { compareDirectories } from "./src/core/dir_diff.ts";
 import {
-  type FileMetadata,
+  NormalizedMetadataMap,
   readFileTarget,
   readStdinTarget,
 } from "./src/core/file_io.ts";
@@ -412,7 +412,7 @@ export async function runMain(
     }
 
     let session: AnySessionData;
-    const metadataMap = new Map<string, FileMetadata>();
+    const metadataMap = new NormalizedMetadataMap();
 
     if (parsed.mode === "welcome") {
       session = { mode: "welcome" };

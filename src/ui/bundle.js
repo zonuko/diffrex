@@ -446,6 +446,7 @@ var DiffSessionModel = class extends Observable {
   _isDirty = false;
   _noiseFolded = true;
   _expandedHunkIds = /* @__PURE__ */ new Set();
+  _collapsedHunkIds = /* @__PURE__ */ new Set();
   _hunkExplanations = /* @__PURE__ */ new Map();
   _explainStatus = /* @__PURE__ */ new Map();
   _confidenceThresholds = {
@@ -628,6 +629,7 @@ var DiffSessionModel = class extends Observable {
     this._session = session;
     this._isDirty = false;
     this._expandedHunkIds.clear();
+    this._collapsedHunkIds.clear();
     this.notify(this);
   }
   /**
@@ -661,28 +663,40 @@ var DiffSessionModel = class extends Observable {
   }
   /**
    * ノイズ hunk の一括折りたたみ状態を設定する。
+   * 個別に展開・折りたたみオーバーライドされていた状態もリセットし、全体を一括同期する。
    */
   setNoiseFolded(folded) {
-    if (this._noiseFolded !== folded) {
+    if (this._noiseFolded !== folded || this._expandedHunkIds.size > 0 || this._collapsedHunkIds.size > 0) {
       this._noiseFolded = folded;
+      this._expandedHunkIds.clear();
+      this._collapsedHunkIds.clear();
       this.notify(this);
     }
   }
   /**
    * ノイズ hunk の一括折りたたみ状態を反転する。
+   * 個別に展開・折りたたみオーバーライドされていた状態もリセットし、全体を一括同期する。
    */
   toggleNoiseFolded() {
-    this._noiseFolded = !this._noiseFolded;
-    this.notify(this);
+    this.setNoiseFolded(!this._noiseFolded);
   }
   /**
    * 個別 hunk の展開/折りたたみ状態を切り替える。
    */
   toggleHunkFold(hunkId) {
-    if (this._expandedHunkIds.has(hunkId)) {
-      this._expandedHunkIds.delete(hunkId);
+    const currentlyFolded = this.isHunkFolded(hunkId, true);
+    if (this._noiseFolded) {
+      if (currentlyFolded) {
+        this._expandedHunkIds.add(hunkId);
+      } else {
+        this._expandedHunkIds.delete(hunkId);
+      }
     } else {
-      this._expandedHunkIds.add(hunkId);
+      if (currentlyFolded) {
+        this._collapsedHunkIds.delete(hunkId);
+      } else {
+        this._collapsedHunkIds.add(hunkId);
+      }
     }
     this.notify(this);
   }
@@ -691,10 +705,11 @@ var DiffSessionModel = class extends Observable {
    */
   isHunkFolded(hunkId, isNoise) {
     if (!isNoise) return false;
-    if (!this._noiseFolded) {
-      return false;
+    if (this._noiseFolded) {
+      return !this._expandedHunkIds.has(hunkId);
+    } else {
+      return this._collapsedHunkIds.has(hunkId);
     }
-    return !this._expandedHunkIds.has(hunkId);
   }
   /**
    * 通信接続状態を設定する。
@@ -938,6 +953,7 @@ var DiffSessionModel = class extends Observable {
   expandAllHunks() {
     this._noiseFolded = false;
     this._expandedHunkIds.clear();
+    this._collapsedHunkIds.clear();
     this.setStatusMessage("\u3059\u3079\u3066\u306E\u5DEE\u5206\u30D6\u30ED\u30C3\u30AF\u3092\u5C55\u958B\u3057\u307E\u3057\u305F");
     this.notify(this);
   }
@@ -34457,6 +34473,21 @@ var noiseFoldField = StateField.define({
   },
   provide: (f4) => Prec.highest(EditorView.decorations.from(f4))
 });
+var setNoiseExpandedEffect = StateEffect.define();
+var noiseExpandedField = StateField.define({
+  create() {
+    return Decoration.none;
+  },
+  update(decorations2, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setNoiseExpandedEffect)) {
+        return effect.value;
+      }
+    }
+    return decorations2.map(tr.changes);
+  },
+  provide: (f4) => Prec.high(EditorView.decorations.from(f4))
+});
 var setRiskBannerEffect = StateEffect.define();
 var riskBannerField = StateField.define({
   create() {
@@ -34572,6 +34603,49 @@ var NoiseFoldWidget = class extends WidgetType {
     return false;
   }
 };
+var NoiseExpandedWidget = class extends WidgetType {
+  constructor(hunkId, linesCount, summaryTag, onToggle) {
+    super();
+    this.hunkId = hunkId;
+    this.linesCount = linesCount;
+    this.summaryTag = summaryTag;
+    this.onToggle = onToggle;
+  }
+  eq(other) {
+    return other.hunkId === this.hunkId && other.linesCount === this.linesCount && other.summaryTag === this.summaryTag;
+  }
+  toDOM() {
+    const wrap = document.createElement("div");
+    wrap.className = "cm-noise-expanded-widget";
+    wrap.title = "Click to collapse noise hunk";
+    const icon = document.createElement("span");
+    icon.className = "fold-icon";
+    icon.textContent = "\u25BC";
+    const label = document.createElement("span");
+    label.className = "fold-label";
+    label.textContent = `${this.linesCount} line${this.linesCount !== 1 ? "s" : ""} of formatting changes (expanded)`;
+    wrap.appendChild(icon);
+    if (this.summaryTag) {
+      const tag = document.createElement("span");
+      tag.className = "fold-tag";
+      tag.textContent = this.summaryTag;
+      wrap.appendChild(tag);
+    }
+    wrap.appendChild(label);
+    const hint = document.createElement("span");
+    hint.className = "fold-action-hint";
+    hint.textContent = "Click to collapse";
+    wrap.appendChild(hint);
+    wrap.addEventListener("click", (e3) => {
+      e3.stopPropagation();
+      this.onToggle();
+    });
+    return wrap;
+  }
+  ignoreEvent() {
+    return false;
+  }
+};
 var RiskBannerWidget = class extends WidgetType {
   constructor(hunkId, riskLevel, summaryTag, confidence, intentAlignment, explainStatus, explanation, onExplainClick) {
     super();
@@ -34658,10 +34732,12 @@ var RiskBannerWidget = class extends WidgetType {
 function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
   const docLines = doc2.lines;
   const foldRanges = [];
+  const noiseExpandedRanges = [];
   const bannerRanges = [];
   const lineRanges = [];
   const reviewPositions = [];
   const processedFoldPos = /* @__PURE__ */ new Set();
+  const processedNoiseExpandedPos = /* @__PURE__ */ new Set();
   const processedBannerPos = /* @__PURE__ */ new Set();
   const processedLinePos = /* @__PURE__ */ new Set();
   const processedReviewPos = /* @__PURE__ */ new Set();
@@ -34712,6 +34788,23 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
         }
       }
     } else {
+      if (h3.isNoise && !isZeroLines) {
+        if (!processedNoiseExpandedPos.has(from)) {
+          processedNoiseExpandedPos.add(from);
+          noiseExpandedRanges.push(
+            Decoration.widget({
+              widget: new NoiseExpandedWidget(
+                h3.id,
+                linesCount,
+                h3.summaryTag || "",
+                () => controller.toggleHunkFold(h3.id)
+              ),
+              side: -1,
+              block: true
+            }).range(from)
+          );
+        }
+      }
       if (h3.riskLevel === "danger" || h3.riskLevel === "warning") {
         if (!processedBannerPos.has(from)) {
           processedBannerPos.add(from);
@@ -34755,10 +34848,12 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
       lastFoldTo = r3.to;
     }
   }
+  noiseExpandedRanges.sort((a3, b2) => a3.from - b2.from);
   bannerRanges.sort((a3, b2) => a3.from - b2.from);
   lineRanges.sort((a3, b2) => a3.from - b2.from);
   reviewPositions.sort((a3, b2) => a3.pos - b2.pos);
   let foldDecos = Decoration.none;
+  let noiseExpandedDecos = Decoration.none;
   let bannerDecos = Decoration.none;
   let lineDecos = Decoration.none;
   const reviewBuilder = new RangeSetBuilder();
@@ -34775,6 +34870,15 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
     console.error("Failed to set foldDecos:", err, cleanFoldRanges);
   }
   try {
+    noiseExpandedDecos = Decoration.set(noiseExpandedRanges, true);
+  } catch (err) {
+    console.error(
+      "Failed to set noiseExpandedDecos:",
+      err,
+      noiseExpandedRanges
+    );
+  }
+  try {
     bannerDecos = Decoration.set(bannerRanges, true);
   } catch (err) {
     console.error("Failed to set bannerDecos:", err, bannerRanges);
@@ -34784,7 +34888,13 @@ function buildDecorationsForEditor(doc2, hunks, isLeft, model, controller) {
   } catch (err) {
     console.error("Failed to set lineDecos:", err, lineRanges);
   }
-  return { foldDecos, bannerDecos, lineDecos, reviewMarkers };
+  return {
+    foldDecos,
+    noiseExpandedDecos,
+    bannerDecos,
+    lineDecos,
+    reviewMarkers
+  };
 }
 function DiffView({ model, controller }) {
   useModel(model);
@@ -34831,6 +34941,7 @@ function DiffView({ model, controller }) {
       oneDark,
       activeHunkField,
       noiseFoldField,
+      noiseExpandedField,
       riskBannerField,
       riskLineField,
       keymap.of([...defaultKeymap, ...historyKeymap])
@@ -34896,6 +35007,7 @@ function DiffView({ model, controller }) {
       mergeView.a.dispatch({
         effects: [
           setNoiseFoldEffect.of(initialLeft.foldDecos),
+          setNoiseExpandedEffect.of(initialLeft.noiseExpandedDecos),
           setRiskBannerEffect.of(initialLeft.bannerDecos),
           setRiskLineEffect.of(initialLeft.lineDecos),
           setReviewGutterEffect.of(initialLeft.reviewMarkers)
@@ -34904,6 +35016,7 @@ function DiffView({ model, controller }) {
       mergeView.b.dispatch({
         effects: [
           setNoiseFoldEffect.of(initialRight.foldDecos),
+          setNoiseExpandedEffect.of(initialRight.noiseExpandedDecos),
           setRiskBannerEffect.of(initialRight.bannerDecos),
           setRiskLineEffect.of(initialRight.lineDecos),
           setReviewGutterEffect.of(initialRight.reviewMarkers)
@@ -34974,6 +35087,7 @@ function DiffView({ model, controller }) {
     mergeView.a.dispatch({
       effects: [
         setNoiseFoldEffect.of(left.foldDecos),
+        setNoiseExpandedEffect.of(left.noiseExpandedDecos),
         setRiskBannerEffect.of(left.bannerDecos),
         setRiskLineEffect.of(left.lineDecos),
         setReviewGutterEffect.of(left.reviewMarkers)
@@ -34982,6 +35096,7 @@ function DiffView({ model, controller }) {
     mergeView.b.dispatch({
       effects: [
         setNoiseFoldEffect.of(right.foldDecos),
+        setNoiseExpandedEffect.of(right.noiseExpandedDecos),
         setRiskBannerEffect.of(right.bannerDecos),
         setRiskLineEffect.of(right.lineDecos),
         setReviewGutterEffect.of(right.reviewMarkers)
@@ -39807,40 +39922,40 @@ function App({
     tabModel.activeTab
   ]);
   h2(() => {
-    if (diffModel.session) {
-      const s3 = diffModel.session;
-      const hunkStatuses = {};
-      for (const hunk of s3.hunks) {
-        hunkStatuses[hunk.id] = hunk.status;
-      }
-      dirController.saveSnapshot({
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        mode: s3.mode,
-        leftPath: s3.files.left.path,
-        rightPath: s3.files.right.path,
-        basePath: s3.files.base?.path,
-        outputPath: s3.outputPath,
-        readOnly: s3.files.right.readOnly,
-        prompt: s3.aiContext?.prompt,
-        agent: s3.aiContext?.agent,
-        model: s3.aiContext?.model,
-        hunkStatuses
-      });
-    } else if (dirModel.dirSession) {
-      const ds = dirModel.dirSession;
-      dirController.saveSnapshot({
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-        mode: "directory",
-        leftPath: ds.baseDir,
-        rightPath: ds.targetDir,
-        readOnly: ds.readOnly,
-        prompt: ds.aiContext?.prompt,
-        agent: ds.aiContext?.agent,
-        model: ds.aiContext?.model
-      });
-    }
-    const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
     const timer = setTimeout(() => {
+      if (diffModel.session) {
+        const s3 = diffModel.session;
+        const hunkStatuses = {};
+        for (const hunk of s3.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        dirController.saveSnapshot({
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          mode: s3.mode,
+          leftPath: s3.files.left.path,
+          rightPath: s3.files.right.path,
+          basePath: s3.files.base?.path,
+          outputPath: s3.outputPath,
+          readOnly: s3.files.right.readOnly,
+          prompt: s3.aiContext?.prompt,
+          agent: s3.aiContext?.agent,
+          model: s3.aiContext?.model,
+          hunkStatuses
+        });
+      } else if (dirModel.dirSession) {
+        const ds = dirModel.dirSession;
+        dirController.saveSnapshot({
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          mode: "directory",
+          leftPath: ds.baseDir,
+          rightPath: ds.targetDir,
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model
+        });
+      }
+      const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
       const state = tabController.snapshotWorkspace(restoreOnStartup);
       dirController.saveWorkspaceState(state);
     }, 300);
@@ -39859,6 +39974,38 @@ function App({
   ]);
   h2(() => {
     const handleBeforeUnload = () => {
+      if (diffModel.session) {
+        const s3 = diffModel.session;
+        const hunkStatuses = {};
+        for (const hunk of s3.hunks) {
+          hunkStatuses[hunk.id] = hunk.status;
+        }
+        dirController.saveSnapshot({
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          mode: s3.mode,
+          leftPath: s3.files.left.path,
+          rightPath: s3.files.right.path,
+          basePath: s3.files.base?.path,
+          outputPath: s3.outputPath,
+          readOnly: s3.files.right.readOnly,
+          prompt: s3.aiContext?.prompt,
+          agent: s3.aiContext?.agent,
+          model: s3.aiContext?.model,
+          hunkStatuses
+        });
+      } else if (dirModel.dirSession) {
+        const ds = dirModel.dirSession;
+        dirController.saveSnapshot({
+          timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+          mode: "directory",
+          leftPath: ds.baseDir,
+          rightPath: ds.targetDir,
+          readOnly: ds.readOnly,
+          prompt: ds.aiContext?.prompt,
+          agent: ds.aiContext?.agent,
+          model: ds.aiContext?.model
+        });
+      }
       const restoreOnStartup = dirModel.workspaceState?.restoreOnStartup ?? true;
       const state = tabController.snapshotWorkspace(restoreOnStartup);
       dirController.saveWorkspaceState(state);
@@ -39867,7 +40014,13 @@ function App({
     return () => {
       globalThis.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [dirController, tabController, dirModel.workspaceState?.restoreOnStartup]);
+  }, [
+    dirController,
+    tabController,
+    diffModel.session,
+    dirModel.dirSession,
+    dirModel.workspaceState?.restoreOnStartup
+  ]);
   h2(() => {
     const handleDragOver = (e3) => {
       e3.preventDefault();

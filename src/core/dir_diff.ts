@@ -74,6 +74,11 @@ export async function computeFileHash(filePath: string): Promise<string> {
   return hashArr.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+export interface CompareFileOptions {
+  /** mtime と size が一致している場合にハッシュ計算をスキップするか (デフォルト: false) */
+  quickCompare?: boolean;
+}
+
 /**
  * 2つのファイルがバイナリか、および差分があるかを段階的に判定する。
  */
@@ -82,6 +87,7 @@ export async function compareFilePair(
   targetFullPath: string | null,
   baseEntry?: FileEntryInfo,
   targetEntry?: FileEntryInfo,
+  options?: CompareFileOptions,
 ): Promise<{ status: FileDiffStatus; isBinary: boolean }> {
   if (!baseFullPath || !baseEntry) {
     // Target のみ
@@ -110,6 +116,17 @@ export async function compareFilePair(
   // 1. サイズ判定（サイズが異なれば確実に変更あり）
   if (baseEntry.size !== targetEntry.size) {
     return { status: "modified", isBinary: false };
+  }
+
+  // クイック比較 (FIX-09): mtime と size が完全に一致していれば SHA-256 ハッシュをスキップ
+  if (
+    options?.quickCompare &&
+    baseEntry.mtime !== 0 &&
+    targetEntry.mtime !== 0 &&
+    baseEntry.mtime === targetEntry.mtime &&
+    baseEntry.size === targetEntry.size
+  ) {
+    return { status: "identical", isBinary: false };
   }
 
   // 2. ハッシュ判定（サイズ同一時は内容の SHA-256 ハッシュを比較）
@@ -262,6 +279,7 @@ export async function compareDirectories(
     prompt?: string;
     agent?: string;
     model?: string;
+    quickCompare?: boolean;
   } = {},
 ): Promise<DirectoryDiffSessionData> {
   const [baseRules, targetRules] = await Promise.all([
@@ -299,39 +317,54 @@ export async function compareDirectories(
     sizeRight?: number;
   }>();
 
-  for (const relPath of allRelPaths) {
-    const baseEntry = baseMap.get(relPath);
-    const targetEntry = targetMap.get(relPath);
-    const isDir = (baseEntry?.isDir ?? false) || (targetEntry?.isDir ?? false);
+  // ファイルペア比較ループのチャンク並列化 (FIX-09)
+  const CHUNK_SIZE = 32;
+  const relPathsArray = Array.from(allRelPaths);
 
-    if (isDir) {
-      resultMap.set(relPath, {
-        isDir: true,
-        status: "identical",
-      });
-      continue;
-    }
+  for (let i = 0; i < relPathsArray.length; i += CHUNK_SIZE) {
+    const chunk = relPathsArray.slice(i, i + CHUNK_SIZE);
+    await Promise.all(
+      chunk.map(async (relPath) => {
+        const baseEntry = baseMap.get(relPath);
+        const targetEntry = targetMap.get(relPath);
+        const isDir = (baseEntry?.isDir ?? false) ||
+          (targetEntry?.isDir ?? false);
 
-    summary.total++;
+        if (isDir) {
+          resultMap.set(relPath, {
+            isDir: true,
+            status: "identical",
+          });
+          return;
+        }
 
-    const baseFullPath = baseEntry ? join(baseDir, relPath) : null;
-    const targetFullPath = targetEntry ? join(targetDir, relPath) : null;
+        const baseFullPath = baseEntry ? join(baseDir, relPath) : null;
+        const targetFullPath = targetEntry ? join(targetDir, relPath) : null;
 
-    const { status } = await compareFilePair(
-      baseFullPath,
-      targetFullPath,
-      baseEntry,
-      targetEntry,
+        const { status } = await compareFilePair(
+          baseFullPath,
+          targetFullPath,
+          baseEntry,
+          targetEntry,
+          { quickCompare: options.quickCompare ?? true },
+        );
+
+        resultMap.set(relPath, {
+          isDir: false,
+          status,
+          sizeLeft: baseEntry?.size,
+          sizeRight: targetEntry?.size,
+        });
+      }),
     );
+  }
 
-    resultMap.set(relPath, {
-      isDir: false,
-      status,
-      sizeLeft: baseEntry?.size,
-      sizeRight: targetEntry?.size,
-    });
-
-    summary[status]++;
+  // サマリー集計
+  for (const info of resultMap.values()) {
+    if (!info.isDir) {
+      summary.total++;
+      summary[info.status]++;
+    }
   }
 
   const tree = buildDirectoryTree(resultMap);

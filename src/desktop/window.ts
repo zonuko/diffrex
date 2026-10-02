@@ -7,6 +7,7 @@ import { basename, join } from "@std/path";
 import { compareDirectories } from "../core/dir_diff.ts";
 import {
   type FileMetadata,
+  NormalizedMetadataMap,
   readFileTarget,
   resolveSavePath,
   writeFileTarget,
@@ -146,7 +147,7 @@ export function formatWindowTitle(
 export interface DesktopServerOptions {
   port?: number;
   hostname?: string;
-  metadataMap?: Map<string, FileMetadata>;
+  metadataMap?: Map<string, FileMetadata> | NormalizedMetadataMap;
   handlers?: IpcHandlers;
 }
 
@@ -167,7 +168,7 @@ export function startDesktopServer(
   options?: DesktopServerOptions,
 ): DesktopServerInstance {
   let currentSession: AnySessionData = initialSession;
-  const metadataMap = options?.metadataMap ?? new Map<string, FileMetadata>();
+  const metadataMap = new NormalizedMetadataMap(options?.metadataMap);
   const activeSockets = new Set<WebSocket>();
   let hasResolvedExit = false;
   let exitCode = 0;
@@ -1741,7 +1742,15 @@ export function startDesktopServer(
           }
         });
 
-        win.addEventListener("close", () => {
+        win.addEventListener("close", async () => {
+          try {
+            const { cleanupAllTempWorktrees } = await import(
+              "../core/git/temp_worktree.ts"
+            );
+            await cleanupAllTempWorktrees();
+          } catch {
+            // ignore
+          }
           resolveExit?.(0);
         });
       } catch (err) {

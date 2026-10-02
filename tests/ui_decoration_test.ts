@@ -91,12 +91,30 @@ Deno.test("DiffSessionModel: 個別 Hunk 折りたたみ・展開管理", () => 
   model.toggleHunkFold("hunk-1");
   assertEquals(model.isHunkFolded("hunk-1", true), false);
 
-  // 個別折りたたみ
+  // 個別折りたたみ（エディタからの再折りたたみ）
   model.toggleHunkFold("hunk-1");
   assertEquals(model.isHunkFolded("hunk-1", true), true);
 
-  // 一括展開時は個別が fold でも展開扱い
+  // 個別展開後、一括折りたたみ呼び出しで確実にリセットされて折りたたまれること
+  model.toggleHunkFold("hunk-1");
+  assertEquals(model.isHunkFolded("hunk-1", true), false);
+  model.setNoiseFolded(true); // メニューやヘッダーからの折りたたみ
+  assertEquals(model.isHunkFolded("hunk-1", true), true);
+
+  // 個別展開後、toggleNoiseFolded() で全体反転＆リセットされること
+  model.toggleHunkFold("hunk-1");
+  assertEquals(model.isHunkFolded("hunk-1", true), false);
+  model.toggleNoiseFolded(); // 全体展開へトグル
+  assertEquals(model.isHunkFolded("hunk-1", true), false);
+  model.toggleNoiseFolded(); // 再度全体折りたたみへトグル
+  assertEquals(model.isHunkFolded("hunk-1", true), true);
+
+  // 一括展開時でも個別に折りたたみ可能であること
   model.setNoiseFolded(false);
+  assertEquals(model.isHunkFolded("hunk-1", true), false);
+  model.toggleHunkFold("hunk-1"); // 個別折りたたみ
+  assertEquals(model.isHunkFolded("hunk-1", true), true);
+  model.toggleHunkFold("hunk-1"); // 再展開
   assertEquals(model.isHunkFolded("hunk-1", true), false);
 });
 

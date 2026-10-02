@@ -515,6 +515,70 @@ header.app-header {
   color: var(--accent-primary);
 }
 
+/* Noise Expanded Widget (P4-08 extension) */
+.cm-noise-expanded-widget {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-left: 3px solid #64748b;
+  border-radius: 4px;
+  padding: 3px 10px;
+  margin: 3px 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.cm-noise-expanded-widget:hover {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--accent-primary);
+  border-left-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.cm-noise-expanded-widget .fold-icon {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  transition: transform 0.15s ease;
+}
+
+.cm-noise-expanded-widget:hover .fold-icon {
+  color: var(--accent-primary);
+}
+
+.cm-noise-expanded-widget .fold-label {
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.cm-noise-expanded-widget:hover .fold-label {
+  color: var(--accent-primary);
+}
+
+.cm-noise-expanded-widget .fold-tag {
+  background: rgba(148, 163, 184, 0.15);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.65rem;
+  color: #cbd5e1;
+}
+
+.cm-noise-expanded-widget .fold-action-hint {
+  font-size: 0.7rem;
+  color: #64748b;
+  margin-left: auto;
+  font-style: italic;
+}
+
+.cm-noise-expanded-widget:hover .fold-action-hint {
+  color: var(--accent-primary);
+}
+
 /* Risk Banner Widget (P4-10) */
 .cm-risk-banner-widget {
   padding: 3px 8px;

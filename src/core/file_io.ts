@@ -3,6 +3,7 @@
  */
 
 import { dirname } from "@std/path";
+import { normalizeWatcherPath } from "./watcher.ts";
 import type { DiffSessionData, FileTarget } from "./types.ts";
 
 export type LineEnding = "lf" | "crlf";
@@ -11,6 +12,77 @@ export interface FileMetadata {
   lineEnding: LineEnding;
   hasTrailingNewline: boolean;
   hasBom: boolean;
+}
+
+/**
+ * メタデータ検索用キーの正規化（Windows パス区切り・大文字小文字統一）
+ */
+export function normalizeMetaKey(key: string): string {
+  if (key === "<stdin>" || !key) return key;
+  return normalizeWatcherPath(key);
+}
+
+/**
+ * Windows のパス区切りや大文字小文字の違いを吸収し、確実に FileMetadata を保持・検索できる Map (FIX-10)
+ */
+export class NormalizedMetadataMap {
+  private inner = new Map<string, FileMetadata>();
+
+  constructor(
+    initial?:
+      | Map<string, FileMetadata>
+      | NormalizedMetadataMap
+      | Iterable<[string, FileMetadata]>,
+  ) {
+    if (initial) {
+      for (const [k, v] of (initial as Iterable<[string, FileMetadata]>)) {
+        this.set(k, v);
+      }
+    }
+  }
+
+  get(key?: string): FileMetadata | undefined {
+    if (!key) return undefined;
+    return this.inner.get(normalizeMetaKey(key));
+  }
+
+  set(key: string, value: FileMetadata): this {
+    this.inner.set(normalizeMetaKey(key), value);
+    return this;
+  }
+
+  has(key?: string): boolean {
+    if (!key) return false;
+    return this.inner.has(normalizeMetaKey(key));
+  }
+
+  delete(key: string): boolean {
+    return this.inner.delete(normalizeMetaKey(key));
+  }
+
+  clear(): void {
+    this.inner.clear();
+  }
+
+  entries(): IterableIterator<[string, FileMetadata]> {
+    return this.inner.entries();
+  }
+
+  keys(): IterableIterator<string> {
+    return this.inner.keys();
+  }
+
+  values(): IterableIterator<FileMetadata> {
+    return this.inner.values();
+  }
+
+  get size(): number {
+    return this.inner.size;
+  }
+
+  [Symbol.iterator](): IterableIterator<[string, FileMetadata]> {
+    return this.inner.entries();
+  }
 }
 
 /**
