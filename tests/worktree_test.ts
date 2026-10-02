@@ -1,6 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { join, normalize } from "@std/path";
-import { createTempWorktree } from "../src/core/git/temp_worktree.ts";
+import {
+  cleanupTempWorktreeByPath,
+  createTempWorktree,
+  getOrCreateTempWorktree,
+} from "../src/core/git/temp_worktree.ts";
 import {
   getCurrentBranch,
   isGitRepository,
@@ -153,6 +157,114 @@ Deno.test("createTempWorktree & cleanup: 一時 Worktree を作成し安全に�
       exists = false;
     }
     assertEquals(exists, false);
+  } finally {
+    try {
+      await Deno.remove(tempRepo, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+});
+
+Deno.test("getOrCreateTempWorktree: 同一ブランチ・同一 HEAD では既存 Worktree を再利用し多重生成を防ぐ (FIX-02)", async () => {
+  const tempRepo = await Deno.makeTempDir({ prefix: "diffrex-wt-reuse-" });
+
+  try {
+    // git init & commit
+    await new Deno.Command("git", { args: ["init"], cwd: tempRepo }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.name", "Diffrex Tester"],
+      cwd: tempRepo,
+    }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.email", "test@diffrex.dev"],
+      cwd: tempRepo,
+    }).output();
+    await Deno.writeTextFile(join(tempRepo, "file.txt"), "v1\n");
+    await new Deno.Command("git", { args: ["add", "file.txt"], cwd: tempRepo })
+      .output();
+    await new Deno.Command("git", {
+      args: ["commit", "-m", "first commit"],
+      cwd: tempRepo,
+    }).output();
+
+    // 1回目の取得
+    const wt1 = await getOrCreateTempWorktree(tempRepo, "HEAD");
+    const path1 = wt1.path;
+
+    // 2回目の取得（同一ブランチ・同一HEAD、既存パス指定あり）
+    const wt2 = await getOrCreateTempWorktree(tempRepo, "HEAD", path1);
+    assertEquals(wt2.path, path1);
+
+    // 3回目の取得（同一ブランチ・同一HEAD、既存パス指定なしでも再利用）
+    const wt3 = await getOrCreateTempWorktree(tempRepo, "HEAD");
+    assertEquals(wt3.path, path1);
+
+    // ディレクトリが正常に存在すること
+    const stat = await Deno.stat(path1);
+    assertEquals(stat.isDirectory, true);
+
+    // クリーンアップ
+    await cleanupTempWorktreeByPath(path1);
+
+    let exists = true;
+    try {
+      await Deno.stat(path1);
+    } catch {
+      exists = false;
+    }
+    assertEquals(exists, false);
+  } finally {
+    try {
+      await Deno.remove(tempRepo, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+});
+
+Deno.test("buildGitDirectoryDiffSession: existingTempWorktreePath を渡したリロード時に Worktree が増殖しないこと (FIX-02)", async () => {
+  const tempRepo = await Deno.makeTempDir({ prefix: "diffrex-status-reuse-" });
+
+  try {
+    await new Deno.Command("git", { args: ["init"], cwd: tempRepo }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.name", "Diffrex Tester"],
+      cwd: tempRepo,
+    }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.email", "test@diffrex.dev"],
+      cwd: tempRepo,
+    }).output();
+    await Deno.writeTextFile(join(tempRepo, "a.txt"), "hello\n");
+    await new Deno.Command("git", { args: ["add", "a.txt"], cwd: tempRepo })
+      .output();
+    await new Deno.Command("git", {
+      args: ["commit", "-m", "init"],
+      cwd: tempRepo,
+    }).output();
+
+    const { buildGitDirectoryDiffSession } = await import(
+      "../src/core/git/status.ts"
+    );
+
+    // 初回セッション生成
+    const session1 = await buildGitDirectoryDiffSession(tempRepo);
+    const wtPath1 = session1.git?.tempWorktreePath;
+    assertEquals(typeof wtPath1, "string");
+
+    // リロード実行（existingTempWorktreePath を渡す）
+    const session2 = await buildGitDirectoryDiffSession(tempRepo, {
+      existingTempWorktreePath: wtPath1,
+    });
+    const wtPath2 = session2.git?.tempWorktreePath;
+
+    // 同一の一時 Worktree パスが維持・再利用されていること
+    assertEquals(wtPath2, wtPath1);
+
+    if (wtPath1) {
+      await cleanupTempWorktreeByPath(wtPath1);
+    }
   } finally {
     try {
       await Deno.remove(tempRepo, { recursive: true });

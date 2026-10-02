@@ -4,7 +4,11 @@
 
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { join } from "@std/path";
-import { FileWatcher, normalizeWatcherPath } from "../src/core/watcher.ts";
+import {
+  FileWatcher,
+  isIgnoredWatcherFile,
+  normalizeWatcherPath,
+} from "../src/core/watcher.ts";
 import { TabContainerModel } from "../src/ui/model/tab_model.ts";
 import { TabController } from "../src/ui/controller/tab_controller.ts";
 import type {
@@ -37,6 +41,70 @@ function createDummyDiffSession(
     },
   };
 }
+
+Deno.test("isIgnoredWatcherFile: .git, node_modules, .deno, dist および一時ファイルの除外判定 (FIX-01)", () => {
+  // .git 配下のファイル（POSIX / Windows / 大文字小文字）
+  assertEquals(isIgnoredWatcherFile("repo/.git/index"), true);
+  assertEquals(isIgnoredWatcherFile("C:\\repo\\.git\\HEAD"), true);
+  assertEquals(
+    isIgnoredWatcherFile("C:\\repo\\.git\\worktrees\\wt-1\\index"),
+    true,
+  );
+  assertEquals(isIgnoredWatcherFile("C:\\Repo\\.GIT\\config"), true);
+
+  // node_modules
+  assertEquals(
+    isIgnoredWatcherFile("repo/node_modules/package/index.js"),
+    true,
+  );
+  assertEquals(isIgnoredWatcherFile("C:\\proj\\node_modules\\.bin\\tsc"), true);
+
+  // .deno, dist
+  assertEquals(isIgnoredWatcherFile("repo/.deno/deps/http/foo.ts"), true);
+  assertEquals(isIgnoredWatcherFile("dist/bundle.js"), true);
+  assertEquals(isIgnoredWatcherFile("C:\\proj\\dist\\styles.css"), true);
+
+  // 一時ファイル
+  assertEquals(isIgnoredWatcherFile("file.txt.diffrex_tmp_123"), true);
+  assertEquals(isIgnoredWatcherFile("C:\\path\\.Diffrex_tmp_456"), true);
+  assertEquals(isIgnoredWatcherFile("index.lock"), true);
+  assertEquals(isIgnoredWatcherFile(".main.ts.swp"), true);
+  assertEquals(isIgnoredWatcherFile("temp.tmp"), true);
+  assertEquals(isIgnoredWatcherFile("backup~"), true);
+
+  // 通常ファイル（除外されないこと）
+  assertEquals(isIgnoredWatcherFile("src/main.ts"), false);
+  assertEquals(isIgnoredWatcherFile("C:\\repo\\src\\core\\watcher.ts"), false);
+  assertEquals(isIgnoredWatcherFile("README.md"), false);
+});
+
+Deno.test("FileWatcher: .git 配下のファイル作成・変更イベントが無視されること (FIX-01)", async () => {
+  const tempDir = await Deno.makeTempDir({ prefix: "diffrex_watcher_git_" });
+  const gitDir = join(tempDir, ".git");
+  await Deno.mkdir(gitDir);
+  const gitFile = join(gitDir, "index");
+
+  const watcher = new FileWatcher({ debounceMs: 50, selfSaveWindowMs: 1000 });
+  const events: string[] = [];
+
+  watcher.onChange((e) => {
+    events.push(e.path);
+  });
+
+  watcher.registerPath(tempDir, { isDirectory: true });
+  await new Promise((r) => setTimeout(r, 100));
+
+  // .git 内のファイルを変更
+  await Deno.writeTextFile(gitFile, "git state data");
+
+  // デバウンス待機
+  await new Promise((r) => setTimeout(r, 200));
+
+  assertEquals(events.length, 0);
+
+  watcher.close();
+  await Deno.remove(tempDir, { recursive: true });
+});
 
 Deno.test("FileWatcher: ファイル外部変更イベントの検知とデバウンス処理 (B16-01)", async () => {
   const tempDir = await Deno.makeTempDir({ prefix: "diffrex_watcher_test_" });

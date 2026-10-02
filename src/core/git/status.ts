@@ -13,7 +13,7 @@ import type {
   GitSubRepoSummary,
 } from "../types.ts";
 import { getCurrentBranch, listGitWorktrees } from "./worktree.ts";
-import { createTempWorktree } from "./temp_worktree.ts";
+import { getOrCreateTempWorktree } from "./temp_worktree.ts";
 import { runGitCommand } from "./exec.ts";
 import type { SubGitRepoInfo } from "./sub_repos.ts";
 
@@ -163,17 +163,22 @@ export async function buildGitDirectoryDiffSession(
     prompt?: string;
     agent?: string;
     model?: string;
+    existingTempWorktreePath?: string;
   } = {},
 ): Promise<DirectoryDiffSessionData> {
   const normRepo = normalize(repoPath);
   const targetRef = options.branch ?? "HEAD";
 
-  // 一時 Worktree を作成して HEAD (または指定ブランチ) の実体ファイルツリーを展開する。
+  // 一時 Worktree を作成または再利用して HEAD (または指定ブランチ) の実体ファイルツリーを展開する。
   // これによりファイル閲覧時の git.exe 起動（コンソール点滅）をゼロにし、超高速なローカルファイル読込を実現。
   let baseDir = normRepo;
   let tempWorktreePath: string | undefined;
   try {
-    const tempWt = await createTempWorktree(normRepo, targetRef);
+    const tempWt = await getOrCreateTempWorktree(
+      normRepo,
+      targetRef,
+      options.existingTempWorktreePath,
+    );
     baseDir = tempWt.path;
     tempWorktreePath = tempWt.path;
   } catch {

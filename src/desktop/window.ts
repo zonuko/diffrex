@@ -271,6 +271,26 @@ export function startDesktopServer(
   };
 
   const setCurrentSession = (session: AnySessionData) => {
+    if (
+      currentSession &&
+      currentSession.mode === "directory" &&
+      session !== currentSession
+    ) {
+      const prevDir = currentSession as DirectoryDiffSessionData;
+      const nextDir = session.mode === "directory"
+        ? (session as DirectoryDiffSessionData)
+        : null;
+      if (
+        prevDir.git?.tempWorktreePath &&
+        prevDir.git.tempWorktreePath !== nextDir?.git?.tempWorktreePath
+      ) {
+        import("../core/git/temp_worktree.ts").then(
+          ({ cleanupTempWorktreeByPath }) => {
+            cleanupTempWorktreeByPath(prevDir.git!.tempWorktreePath!);
+          },
+        ).catch(() => {});
+      }
+    }
     currentSession = session;
     syncFileWatcher(session);
   };
@@ -294,6 +314,7 @@ export function startDesktopServer(
               prompt: dirSession.aiContext?.prompt,
               agent: dirSession.aiContext?.agent,
               model: dirSession.aiContext?.model,
+              existingTempWorktreePath: dirSession.git?.tempWorktreePath,
             },
           );
         } else {
@@ -459,6 +480,8 @@ export function startDesktopServer(
                       prompt: dirSession.aiContext?.prompt,
                       agent: dirSession.aiContext?.agent,
                       model: dirSession.aiContext?.model,
+                      existingTempWorktreePath: dirSession.git
+                        ?.tempWorktreePath,
                     },
                   );
                 } else {
@@ -1696,6 +1719,14 @@ export function startDesktopServer(
     activeSockets.clear();
     fileWatcher.close();
     await cleanupCurrentGitTempWorktree();
+    try {
+      const { cleanupAllTempWorktrees } = await import(
+        "../core/git/temp_worktree.ts"
+      );
+      await cleanupAllTempWorktrees();
+    } catch {
+      // ignore
+    }
     await server.shutdown();
     if (!hasResolvedExit) {
       resolveExit?.(exitCode);

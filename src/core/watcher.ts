@@ -27,11 +27,24 @@ export function normalizeWatcherPath(p: string): string {
 
 /** 一時ファイルやロックファイル等の無視判定 */
 export function isIgnoredWatcherFile(path: string): boolean {
-  const norm = path.replace(/\\/g, "/");
-  const fileName = norm.split("/").pop() || "";
+  const norm = path.replace(/\\/g, "/").toLowerCase();
+  const segments = norm.split("/");
+  const fileName = segments[segments.length - 1] || "";
+
+  // メタディレクトリ・内部ディレクトリの除外（.git, node_modules, .deno, dist など）
+  for (const seg of segments) {
+    if (
+      seg === ".git" ||
+      seg === "node_modules" ||
+      seg === ".deno" ||
+      seg === "dist"
+    ) {
+      return true;
+    }
+  }
 
   // Diffrex 自身の一時保存ファイル
-  if (fileName.includes(".Diffrex_tmp_")) return true;
+  if (fileName.includes(".diffrex_tmp_")) return true;
   // Git ロックファイル
   if (fileName.endsWith(".lock")) return true;
   // 一時スワップファイル
@@ -148,14 +161,13 @@ export class FileWatcher {
     if (this._isClosed) return;
 
     if (session.mode === "directory") {
-      if (session.baseDir) {
+      const isGitTemp = session.git?.tempWorktreePath &&
+        session.baseDir === session.git.tempWorktreePath;
+      if (session.baseDir && !isGitTemp) {
         this.registerPath(session.baseDir, { isDirectory: true });
       }
       if (session.targetDir) {
         this.registerPath(session.targetDir, { isDirectory: true });
-      }
-      if (session.git?.tempWorktreePath) {
-        this.registerPath(session.git.tempWorktreePath, { isDirectory: true });
       }
       return;
     }
