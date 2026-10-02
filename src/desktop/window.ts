@@ -302,7 +302,21 @@ export function startDesktopServer(
       const dirSession = currentSession as DirectoryDiffSessionData;
       try {
         let refreshedSession: DirectoryDiffSessionData;
-        if (dirSession.isGitRepo) {
+        if (dirSession.git?.isWorktreeComparison) {
+          const { buildGitWorktreeDiffSession } = await import(
+            "../core/git/status.ts"
+          );
+          refreshedSession = await buildGitWorktreeDiffSession(
+            dirSession.targetDir,
+            dirSession.baseDir,
+            {
+              readOnly: dirSession.readOnly,
+              prompt: dirSession.aiContext?.prompt,
+              agent: dirSession.aiContext?.agent,
+              model: dirSession.aiContext?.model,
+            },
+          );
+        } else if (dirSession.isGitRepo) {
           const { buildGitDirectoryDiffSession } = await import(
             "../core/git/status.ts"
           );
@@ -468,7 +482,21 @@ export function startDesktopServer(
               const dirSession = currentSession as DirectoryDiffSessionData;
               try {
                 let refreshedSession: DirectoryDiffSessionData;
-                if (dirSession.isGitRepo) {
+                if (dirSession.git?.isWorktreeComparison) {
+                  const { buildGitWorktreeDiffSession } = await import(
+                    "../core/git/status.ts"
+                  );
+                  refreshedSession = await buildGitWorktreeDiffSession(
+                    dirSession.targetDir,
+                    dirSession.baseDir,
+                    {
+                      readOnly: dirSession.readOnly,
+                      prompt: dirSession.aiContext?.prompt,
+                      agent: dirSession.aiContext?.agent,
+                      model: dirSession.aiContext?.model,
+                    },
+                  );
+                } else if (dirSession.isGitRepo) {
                   const { buildGitDirectoryDiffSession } = await import(
                     "../core/git/status.ts"
                   );
@@ -700,7 +728,14 @@ export function startDesktopServer(
                 let leftTarget: FileTarget;
                 let rightTarget: FileTarget;
 
-                if (dirSession.isGitRepo && !dirSession.git?.tempWorktreePath) {
+                const isWorktree = Boolean(
+                  dirSession.git?.isWorktreeComparison,
+                );
+                if (
+                  dirSession.isGitRepo &&
+                  !dirSession.git?.tempWorktreePath &&
+                  !isWorktree
+                ) {
                   // 一時 Worktree が存在しない場合（マルチリポジトリ時含む）: git show を使用
                   const { getGitBaseContent, findSubRepoForPath } =
                     await import(
@@ -735,24 +770,24 @@ export function startDesktopServer(
                     readOnly: true,
                   };
                 } else {
-                  // 通常時（一時 Worktree 方式または通常ディレクトリ比較）:
+                  // 通常時（一時 Worktree 方式、Worktree 比較、または通常ディレクトリ比較）:
                   // ローカルファイルを直接高速読込（git.exe 起動・コンソール点滅ゼロ）
+                  const displayPath = dirSession.isGitRepo && !isWorktree
+                    ? `HEAD:${parsed.relativePath}`
+                    : leftFullPath;
+
                   try {
                     const res = await readFileTarget(leftFullPath, {
                       readOnly: true,
                     });
                     leftTarget = {
                       ...res.target,
-                      path: dirSession.isGitRepo
-                        ? `HEAD:${parsed.relativePath}`
-                        : res.target.path,
+                      path: displayPath,
                     };
                     metadataMap.set(leftFullPath, res.meta);
                   } catch {
                     leftTarget = {
-                      path: dirSession.isGitRepo
-                        ? `HEAD:${parsed.relativePath}`
-                        : leftFullPath,
+                      path: displayPath,
                       content: "",
                       readOnly: true,
                     };
@@ -916,15 +951,22 @@ export function startDesktopServer(
               );
 
               if (parsed.worktreePath) {
-                const session = await compareDirectories(
-                  parsed.worktreePath,
-                  parsed.repoPath,
-                  { readOnly: parsed.readOnly },
+                const { buildGitWorktreeDiffSession } = await import(
+                  "../core/git/status.ts"
                 );
-                session.isGitRepo = true;
-                session.git = {
-                  isGitRepo: true,
-                };
+                const aiContext = "aiContext" in currentSession
+                  ? currentSession.aiContext
+                  : undefined;
+                const session = await buildGitWorktreeDiffSession(
+                  parsed.repoPath,
+                  parsed.worktreePath,
+                  {
+                    readOnly: parsed.readOnly,
+                    prompt: aiContext?.prompt,
+                    agent: aiContext?.agent,
+                    model: aiContext?.model,
+                  },
+                );
                 setCurrentSession(session);
                 updateWindowTitle(false);
                 broadcast({

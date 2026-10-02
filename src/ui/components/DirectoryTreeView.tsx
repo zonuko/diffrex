@@ -39,7 +39,11 @@ export function DirectoryTreeView({
             >
               🌿 {session.git?.branch ?? "HEAD"}
             </span>
-            <span class="git-mode-label">HEAD vs Working Tree</span>
+            <span class="git-mode-label">
+              {session.git?.isWorktreeComparison
+                ? "Worktree Diff"
+                : "HEAD vs Working Tree"}
+            </span>
           </div>
 
           {model.hasSubRepos && (
@@ -74,9 +78,12 @@ export function DirectoryTreeView({
             <select
               class="worktree-selector"
               title={i18n.t("directoryTree.worktreeDiff")}
+              value={session.git?.isWorktreeComparison ? session.baseDir : ""}
               onChange={(e) => {
                 const targetWt = (e.target as HTMLSelectElement).value;
-                if (targetWt && targetWt !== session.targetDir) {
+                if (!targetWt) {
+                  controller.startGitSession(session.targetDir);
+                } else if (targetWt !== session.targetDir) {
                   controller.startGitSession(session.targetDir, {
                     worktreePath: targetWt,
                   });

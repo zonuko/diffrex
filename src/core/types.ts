@@ -128,6 +128,8 @@ export interface GitRepoInfo {
   headCommit?: string;
   worktrees?: GitWorktreeInfo[];
   tempWorktreePath?: string;
+  /** 別の Worktree との比較モードであるか（FIX-06） */
+  isWorktreeComparison?: boolean;
   /** サブディレクトリ内 Git リポジトリ群（B-13） */
   subRepos?: GitSubRepoSummary[];
   /** 現在選択されているサブリポジトリの relativePath（"all" または undefined なら全リポジトリ） */

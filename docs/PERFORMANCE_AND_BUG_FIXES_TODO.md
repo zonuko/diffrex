@@ -83,7 +83,7 @@
 
 ### Phase 3: Git Worktree 比較の超高速化 & 正常化
 
-- [ ] **FIX-06: Git Worktree 比較専用の高速差分セッション生成**
+- [x] **FIX-06: Git Worktree 比較専用の高速差分セッション生成**
   - **対象**: `src/core/git/status.ts`, `src/desktop/window.ts`
   - **内容**:
     - `parsed.worktreePath` が指定された場合、全ファイル走査（`compareDirectories`）を行わず、Git コマンド（`git diff --name-status` 等）を利用して変更されたファイルのみを特定する高速ビルダー（`buildGitWorktreeDiffSession`）を導入。
@@ -91,7 +91,7 @@
   - **受入条件 (AC)**:
     - 数万ファイル規模のリポジトリでも、Worktree 比較が 0.5 秒以内に開き、UI 上の Worktree セレクターが消失しない。
 
-- [ ] **FIX-07: Worktree 比較時のファイル内容読み込み修正**
+- [x] **FIX-07: Worktree 比較時のファイル内容読み込み修正**
   - **対象**: `src/desktop/window.ts` (`file:diff_request`)
   - **内容**:
     - Worktree 比較時、左ペインは Worktree パス（`parsed.worktreePath`）の実体ローカルファイルを直接読み込むよう修正（不要な `git show HEAD:...` を防止）。

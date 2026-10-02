@@ -273,3 +273,145 @@ Deno.test("buildGitDirectoryDiffSession: existingTempWorktreePath を渡した�
     }
   }
 });
+
+Deno.test("parseGitDiffNoIndexOutput: 出力から相対パスとステータスを正しくパースし .git を除外する (FIX-06)", async () => {
+  const { parseGitDiffNoIndexOutput } = await import(
+    "../src/core/git/status.ts"
+  );
+  const baseDir = "C:/test/repo-wt";
+  const targetDir = "C:/test/repo-main";
+  const sampleOutput = [
+    "M\tC:/test/repo-wt/src/app.ts",
+    "A\tC:/test/repo-main/src/new.ts",
+    "D\tC:/test/repo-wt/old.ts",
+    "R100\tC:/test/repo-wt/renamed_old.ts\tC:/test/repo-main/renamed_new.ts",
+    "M\tC:/test/repo-wt/.git/config",
+    "warning: CRLF will be replaced by LF",
+  ].join("\n");
+
+  const entries = parseGitDiffNoIndexOutput(sampleOutput, baseDir, targetDir);
+  assertEquals(entries.length, 4);
+
+  assertEquals(entries[0], {
+    relativePath: "src/app.ts",
+    status: "modified",
+    gitStatus: "M",
+  });
+  assertEquals(entries[1], {
+    relativePath: "src/new.ts",
+    status: "added",
+    gitStatus: "A",
+  });
+  assertEquals(entries[2], {
+    relativePath: "old.ts",
+    status: "deleted",
+    gitStatus: "D",
+  });
+  assertEquals(entries[3], {
+    relativePath: "renamed_new.ts",
+    origPath: "renamed_old.ts",
+    status: "modified",
+    gitStatus: "R",
+  });
+});
+
+Deno.test("buildGitWorktreeDiffSession: 実体 Worktree 比較で変更ファイルのみ特定し worktrees 一覧とブランチ名を保持する (FIX-06, FIX-07)", async () => {
+  const tempRepo = await Deno.makeTempDir({ prefix: "diffrex-wt-diff-main-" });
+  const tempWt = await Deno.makeTempDir({ prefix: "diffrex-wt-diff-wt-" });
+
+  try {
+    await new Deno.Command("git", { args: ["init"], cwd: tempRepo }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.name", "Diffrex Tester"],
+      cwd: tempRepo,
+    }).output();
+    await new Deno.Command("git", {
+      args: ["config", "user.email", "test@diffrex.dev"],
+      cwd: tempRepo,
+    }).output();
+
+    await Deno.writeTextFile(join(tempRepo, "unchanged.txt"), "same\n");
+    await Deno.writeTextFile(join(tempRepo, "modified.txt"), "left content\n");
+    await Deno.writeTextFile(
+      join(tempRepo, "deleted_in_right.txt"),
+      "deleted later\n",
+    );
+
+    await new Deno.Command("git", { args: ["add", "."], cwd: tempRepo })
+      .output();
+    await new Deno.Command("git", {
+      args: ["commit", "-m", "init"],
+      cwd: tempRepo,
+    }).output();
+
+    // worktree を追加
+    await new Deno.Command("git", {
+      args: ["worktree", "add", "-b", "feature-wt", tempWt],
+      cwd: tempRepo,
+    }).output();
+
+    // メイン側（Target）でファイルを変更・追加・削除
+    await Deno.writeTextFile(
+      join(tempRepo, "modified.txt"),
+      "right modified content\n",
+    );
+    await Deno.writeTextFile(
+      join(tempRepo, "added_in_right.txt"),
+      "new file\n",
+    );
+    await Deno.remove(join(tempRepo, "deleted_in_right.txt"));
+
+    const { buildGitWorktreeDiffSession } = await import(
+      "../src/core/git/status.ts"
+    );
+
+    const session = await buildGitWorktreeDiffSession(tempRepo, tempWt);
+
+    assertEquals(session.isGitRepo, true);
+    assertEquals(session.git?.isGitRepo, true);
+    assertEquals(session.git?.isWorktreeComparison, true);
+    assertEquals(session.git?.branch, "feature-wt");
+    assertEquals(
+      session.git?.worktrees && session.git.worktrees.length >= 2,
+      true,
+    );
+
+    // unchanged.txt は含まれず、変更された3ファイルのみ検出されること
+    assertEquals(session.summary.total, 3);
+    assertEquals(session.summary.modified, 1);
+    assertEquals(session.summary.added, 1);
+    assertEquals(session.summary.deleted, 1);
+
+    // Base ディレクトリが tempWt であり、実体ファイルが正しく存在すること（FIX-07）
+    assertEquals(session.baseDir, normalize(tempWt));
+    assertEquals(session.targetDir, normalize(tempRepo));
+
+    const leftContent = await Deno.readTextFile(
+      join(session.baseDir, "modified.txt"),
+    );
+    const rightContent = await Deno.readTextFile(
+      join(session.targetDir, "modified.txt"),
+    );
+    assertEquals(leftContent.trim(), "left content");
+    assertEquals(rightContent.trim(), "right modified content");
+  } finally {
+    try {
+      await new Deno.Command("git", {
+        args: ["worktree", "remove", "--force", tempWt],
+        cwd: tempRepo,
+      }).output();
+    } catch {
+      // ignore
+    }
+    try {
+      await Deno.remove(tempWt, { recursive: true });
+    } catch {
+      // ignore
+    }
+    try {
+      await Deno.remove(tempRepo, { recursive: true });
+    } catch {
+      // ignore
+    }
+  }
+});

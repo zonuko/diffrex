@@ -36017,7 +36017,7 @@ function DirectoryTreeView({
             ]
           }
         ),
-        /* @__PURE__ */ u3("span", { class: "git-mode-label", children: "HEAD vs Working Tree" })
+        /* @__PURE__ */ u3("span", { class: "git-mode-label", children: session.git?.isWorktreeComparison ? "Worktree Diff" : "HEAD vs Working Tree" })
       ] }),
       model.hasSubRepos && /* @__PURE__ */ u3("div", { class: "git-subrepo-selector-row", children: /* @__PURE__ */ u3(
         "select",
@@ -36047,9 +36047,12 @@ function DirectoryTreeView({
         {
           class: "worktree-selector",
           title: i18n.t("directoryTree.worktreeDiff"),
+          value: session.git?.isWorktreeComparison ? session.baseDir : "",
           onChange: (e3) => {
             const targetWt = e3.target.value;
-            if (targetWt && targetWt !== session.targetDir) {
+            if (!targetWt) {
+              controller.startGitSession(session.targetDir);
+            } else if (targetWt !== session.targetDir) {
               controller.startGitSession(session.targetDir, {
                 worktreePath: targetWt
               });

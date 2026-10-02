@@ -5,6 +5,7 @@
 import { join, normalize } from "@std/path";
 import { isBinary } from "../file_io.ts";
 import { buildDirectoryTree } from "../dir_diff.ts";
+import { isIgnoredWatcherFile } from "../watcher.ts";
 import type {
   DirectoryDiffSessionData,
   DirectoryDiffSummary,
@@ -482,6 +483,279 @@ export async function buildMultiGitDirectoryDiffSession(
       isGitRepo: true,
       branch: defaultBranch,
       subRepos: subRepoSummaries,
+    },
+    aiContext: (options.prompt || options.agent || options.model)
+      ? {
+        prompt: options.prompt,
+        agent: options.agent,
+        model: options.model,
+      }
+      : undefined,
+  };
+}
+
+export interface GitDiffNoIndexEntry {
+  relativePath: string;
+  status: FileDiffStatus;
+  gitStatus: GitFileStatus;
+  origPath?: string;
+}
+
+/**
+ * `git diff --no-index --name-status <baseDir> <targetDir>` の出力をパースする。
+ */
+export function parseGitDiffNoIndexOutput(
+  output: string,
+  baseDir: string,
+  targetDir: string,
+): GitDiffNoIndexEntry[] {
+  const lines = output.split(/\r?\n/);
+  const entries: GitDiffNoIndexEntry[] = [];
+
+  const normBase = normalize(baseDir).replace(/\\/g, "/").replace(/\/+$/, "") +
+    "/";
+  const normTarget =
+    normalize(targetDir).replace(/\\/g, "/").replace(/\/+$/, "") + "/";
+  const lowerBase = normBase.toLowerCase();
+  const lowerTarget = normTarget.toLowerCase();
+
+  const stripPrefix = (rawPath: string): string => {
+    let p = unquoteGitPath(rawPath).replace(/\\/g, "/");
+    const lowerP = p.toLowerCase();
+    if (lowerP.startsWith(lowerBase)) {
+      p = p.slice(normBase.length);
+    } else if (lowerP.startsWith(lowerTarget)) {
+      p = p.slice(normTarget.length);
+    }
+    return p.replace(/^[/\\]+/, "");
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    // warning: ... など Git の警告・エラー行をスキップ
+    if (trimmed.startsWith("warning:") || trimmed.startsWith("error:")) {
+      continue;
+    }
+
+    const parts = trimmed.split("\t");
+    if (parts.length < 2) continue;
+
+    const statusCode = parts[0].trim();
+    const statusChar = statusCode[0];
+
+    if (statusChar === "R" || statusChar === "C") {
+      if (parts.length >= 3) {
+        const origPath = stripPrefix(parts[1]);
+        const newPath = stripPrefix(parts[2]);
+        if (
+          isIgnoredWatcherFile(newPath) ||
+          newPath === ".git" ||
+          newPath.startsWith(".git/")
+        ) {
+          continue;
+        }
+        entries.push({
+          relativePath: newPath,
+          origPath,
+          status: "modified",
+          gitStatus: "R",
+        });
+      }
+      continue;
+    }
+
+    const relPath = stripPrefix(parts[1]);
+    if (
+      isIgnoredWatcherFile(relPath) ||
+      relPath === ".git" ||
+      relPath.startsWith(".git/")
+    ) {
+      continue;
+    }
+
+    if (statusChar === "A") {
+      entries.push({
+        relativePath: relPath,
+        status: "added",
+        gitStatus: "A",
+      });
+    } else if (statusChar === "D") {
+      entries.push({
+        relativePath: relPath,
+        status: "deleted",
+        gitStatus: "D",
+      });
+    } else {
+      // "M", "T" 等
+      entries.push({
+        relativePath: relPath,
+        status: "modified",
+        gitStatus: "M",
+      });
+    }
+  }
+
+  return entries;
+}
+
+/**
+ * 2つの Git Worktree 間の差分を `git diff --no-index --name-status` により高速検出し、
+ * DirectoryDiffSessionData を構築する（FIX-06）。
+ */
+export async function buildGitWorktreeDiffSession(
+  repoPath: string,
+  worktreePath: string,
+  options: {
+    readOnly?: boolean;
+    prompt?: string;
+    agent?: string;
+    model?: string;
+  } = {},
+): Promise<DirectoryDiffSessionData> {
+  const normRepo = normalize(repoPath);
+  const normWorktree = normalize(worktreePath);
+
+  // Worktree 一覧とブランチ情報を取得
+  const [worktrees, currentBranch] = await Promise.all([
+    listGitWorktrees(normRepo),
+    getCurrentBranch(normRepo),
+  ]);
+
+  const normBaseTarget = normalize(normWorktree).replace(/\\/g, "/")
+    .toLowerCase();
+  const matchedWt = worktrees.find((wt) =>
+    normalize(wt.path).replace(/\\/g, "/").toLowerCase() === normBaseTarget
+  );
+  const wtBranch = matchedWt?.branch;
+
+  // git diff --no-index --name-status で変更ファイル一覧を高速取得
+  let changedEntries: GitDiffNoIndexEntry[] = [];
+  try {
+    const res = await runGitCommand(
+      [
+        "-c",
+        "core.quotepath=false",
+        "diff",
+        "--no-index",
+        "--name-status",
+        normWorktree,
+        normRepo,
+      ],
+      normRepo,
+    );
+    // git diff は差分ありで code 1, 差分なしで code 0 を返す
+    if (res.code === 0 || res.code === 1) {
+      changedEntries = parseGitDiffNoIndexOutput(
+        res.stdout,
+        normWorktree,
+        normRepo,
+      );
+    }
+  } catch (err) {
+    console.warn("Failed to run git diff --no-index for worktree:", err);
+  }
+
+  const summary: DirectoryDiffSummary = {
+    total: 0,
+    modified: 0,
+    added: 0,
+    deleted: 0,
+    identical: 0,
+    binary: 0,
+    image: 0,
+  };
+
+  const resultMap = new Map<string, {
+    isDir: boolean;
+    status: FileDiffStatus;
+    gitStatus?: GitFileStatus;
+    sizeLeft?: number;
+    sizeRight?: number;
+  }>();
+
+  for (const entry of changedEntries) {
+    summary.total++;
+
+    let isBin = false;
+    let sizeLeft: number | undefined;
+    let sizeRight: number | undefined;
+
+    const fullTargetPath = join(normRepo, entry.relativePath);
+    const fullBasePath = join(normWorktree, entry.relativePath);
+
+    // Base 側のサイズ取得
+    if (entry.status !== "added") {
+      try {
+        const statBase = await Deno.stat(fullBasePath);
+        sizeLeft = statBase.size;
+      } catch {
+        // base stat error
+      }
+    }
+
+    if (entry.status !== "deleted") {
+      try {
+        const stat = await Deno.stat(fullTargetPath);
+        sizeRight = stat.size;
+        const buf = new Uint8Array(Math.min(8000, stat.size));
+        const file = await Deno.open(fullTargetPath, { read: true });
+        try {
+          const n = await file.read(buf);
+          if (n && isBinary(buf.subarray(0, n))) {
+            isBin = true;
+          }
+        } finally {
+          file.close();
+        }
+      } catch {
+        // stat/read error
+      }
+    }
+
+    const finalStatus: FileDiffStatus = isBin ? "binary" : entry.status;
+    summary[finalStatus]++;
+
+    resultMap.set(entry.relativePath, {
+      isDir: false,
+      status: finalStatus,
+      gitStatus: entry.gitStatus,
+      sizeLeft,
+      sizeRight,
+    });
+  }
+
+  const tree = buildDirectoryTree(resultMap);
+
+  const applyGitStatus = (node: import("../types.ts").DirectoryTreeNode) => {
+    if (!node.isDir) {
+      const entry = resultMap.get(node.relativePath);
+      if (entry?.gitStatus) {
+        node.gitStatus = entry.gitStatus;
+      }
+    } else if (node.children) {
+      for (const child of node.children) {
+        applyGitStatus(child);
+      }
+    }
+  };
+  applyGitStatus(tree);
+
+  return {
+    sessionId: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    mode: "directory",
+    baseDir: normWorktree,
+    targetDir: normRepo,
+    readOnly: options.readOnly ?? false,
+    tree,
+    summary,
+    isGitRepo: true,
+    git: {
+      isGitRepo: true,
+      branch: wtBranch ?? currentBranch ?? undefined,
+      worktrees,
+      isWorktreeComparison: true,
     },
     aiContext: (options.prompt || options.agent || options.model)
       ? {
